@@ -144,19 +144,22 @@ def _apply_budget_filter(
         debug["kept"] = len(candidates)
         return candidates, debug
 
-    ranges = [(0.7, 1.2), (0.5, 1.5)]
+    ranges = [1.2, 1.5]
     filtered_candidates: list[GiftCandidate] = []
     applied_range: tuple[float, float] | None = None
 
-    for min_mult, max_mult in ranges:
+    for max_mult in ranges:
         filtered_candidates = [
             c
             for c in candidates
-            if c.price is not None and budget * min_mult <= c.price <= budget * max_mult
+            if c.price is not None and c.price <= budget * max_mult
         ]
-        applied_range = (min_mult, max_mult)
+        applied_range = (0.0, max_mult)
         if len(filtered_candidates) >= 30:
             break
+
+    if not filtered_candidates:
+        filtered_candidates = candidates
 
     debug["applied_range"] = applied_range
     debug["kept"] = len(filtered_candidates)
