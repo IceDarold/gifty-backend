@@ -3,6 +3,8 @@ from __future__ import annotations
 import uuid
 from typing import Any, Optional
 
+import logging
+
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from redis.asyncio import Redis
@@ -28,6 +30,7 @@ from repositories.recommendations import (
 )
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 _RULESET_PATH = "config/gift_query_rules.v1.yaml"
@@ -162,6 +165,11 @@ async def generate_recommendations(
             "candidate_collector": collector_debug,
             "ranker": ranking_result.debug,
         }
+    logger.info(
+        "debug_requested=%s debug_returned=%s",
+        payload.debug,
+        debug_payload is not None,
+    )
 
     return RecommendationResponse(
         quiz_run_id=str(quiz_run.id),

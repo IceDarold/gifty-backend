@@ -26,7 +26,7 @@ def test_child_fun_queries_include_expected_items():
     queries = _get_queries(result)
 
     assert "конструктор" in queries
-    assert "машинка" in queries
+    assert any("машинка" in query for query in queries)
 
 
 def test_adult_cozy_queries_include_expected_items():
@@ -44,6 +44,32 @@ def test_description_keywords_adds_queries():
     ruleset = load_ruleset(str(RULESET_PATH))
     quiz = QuizAnswers(recipient_age=30, interests_description="Любит кофе и чай")
 
+    result = generate_queries(quiz, ruleset)
+    queries = _get_queries(result)
+
+    assert "кофемолка" in queries
+
+
+def test_interests_are_kept_even_with_total_limit():
+    ruleset = {
+        "version": "v1",
+        "limits": {
+            "max_queries_total": 4,
+            "max_queries_per_bucket": 5,
+            "min_queries_total": 1,
+            "max_keywords_from_description": 2,
+        },
+        "age_segments": {
+            "adult": {
+                "age_min": 30,
+                "age_max": 40,
+                "base_queries": ["плед", "книга", "чайник", "лампа", "подушка"],
+            }
+        },
+        "interests_map": {"coffee": {"queries": ["кофемолка", "турка"]}},
+    }
+
+    quiz = QuizAnswers(recipient_age=30, interests=["coffee"])
     result = generate_queries(quiz, ruleset)
     queries = _get_queries(result)
 

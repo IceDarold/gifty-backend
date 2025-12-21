@@ -98,3 +98,25 @@ def test_empty_query_is_tracked(monkeypatch):
 
     assert result == []
     assert debug["empty_queries"] == ["плед"]
+
+
+def test_cache_key_varies_by_query(monkeypatch):
+    calls: list[str] = []
+
+    def _search(query, limit=50, source_id=None):
+        calls.append(query)
+        return [_make_candidate(f"takprodam:{query}", title=f"Item {query}")]
+
+    monkeypatch.setattr(candidate_collector, "search_gift_candidates", _search)
+    candidate_collector._CACHE = TTLCache(ttl_seconds=3600, max_items=10)
+
+    queries = [
+        {"query": "Плед", "bucket": "vibe", "reason": "adult.cozy"},
+        {"query": "Свеча", "bucket": "vibe", "reason": "adult.cozy"},
+    ]
+
+    result, debug = candidate_collector.collect_candidates(queries, use_cache=True)
+
+    assert len(calls) == 2
+    assert sorted([c.title for c in result]) == ["Item плед", "Item свеча"]
+    assert [entry["cache"] for entry in debug["per_query"]] == [False, False]

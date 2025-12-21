@@ -42,38 +42,20 @@ def generate_queries(quiz: QuizAnswers, ruleset: dict[str, Any]) -> list[dict[st
     age_segment = get_age_segment(quiz.recipient_age, ruleset)
     segment_cfg = ruleset.get("age_segments", {}).get(age_segment, {})
 
-    buckets: list[list[BucketItem]] = []
+    buckets: list[tuple[str, list[BucketItem]]] = []
 
     base_queries = segment_cfg.get("base_queries", []) if isinstance(segment_cfg, dict) else []
-    buckets.append(_collect_bucket(base_queries, "age_base", age_segment))
+    buckets.append(("age_base", _collect_bucket(base_queries, "age_base", age_segment)))
 
     if quiz.vibe and isinstance(segment_cfg, dict):
         vibes = segment_cfg.get("vibes", {})
         if isinstance(vibes, dict) and quiz.vibe in vibes:
             vibe_queries = vibes.get(quiz.vibe, {}).get("queries", [])
-            buckets.append(_collect_bucket(vibe_queries, "vibe", f"{age_segment}.{quiz.vibe}"))
+            buckets.append(("vibe", _collect_bucket(vibe_queries, "vibe", f"{age_segment}.{quiz.vibe}")))
         else:
-            buckets.append([])
+            buckets.append(("vibe", []))
     else:
-        buckets.append([])
-
-    if quiz.relationship:
-        relationship_map = ruleset.get("relationship_map", {})
-        relationship_queries = []
-        if isinstance(relationship_map, dict):
-            relationship_queries = relationship_map.get(quiz.relationship, {}).get("queries", [])
-        buckets.append(_collect_bucket(relationship_queries, "relationship", f"relationship:{quiz.relationship}"))
-    else:
-        buckets.append([])
-
-    if quiz.occasion:
-        occasion_map = ruleset.get("occasion_map", {})
-        occasion_queries = []
-        if isinstance(occasion_map, dict):
-            occasion_queries = occasion_map.get(quiz.occasion, {}).get("queries", [])
-        buckets.append(_collect_bucket(occasion_queries, "occasion", f"occasion:{quiz.occasion}"))
-    else:
-        buckets.append([])
+        buckets.append(("vibe", []))
 
     interest_items: list[BucketItem] = []
     interests_map = ruleset.get("interests_map", {})
@@ -82,7 +64,7 @@ def generate_queries(quiz: QuizAnswers, ruleset: dict[str, Any]) -> list[dict[st
             if interest in interests_map:
                 queries = interests_map.get(interest, {}).get("queries", [])
                 interest_items.extend(_collect_bucket(queries, "interests", f"interest:{interest}"))
-    buckets.append(interest_items)
+    buckets.append(("interests", interest_items))
 
     keyword_items: list[BucketItem] = []
     description_map = ruleset.get("description_keywords_map", {})
@@ -98,29 +80,80 @@ def generate_queries(quiz: QuizAnswers, ruleset: dict[str, Any]) -> list[dict[st
                 matched += 1
                 if max_kw_from_desc and matched >= max_kw_from_desc:
                     break
-    buckets.append(keyword_items)
+    buckets.append(("description_keywords", keyword_items))
+
+    if quiz.relationship:
+        relationship_map = ruleset.get("relationship_map", {})
+        relationship_queries = []
+        if isinstance(relationship_map, dict):
+            relationship_queries = relationship_map.get(quiz.relationship, {}).get("queries", [])
+        buckets.append(
+            ("relationship", _collect_bucket(relationship_queries, "relationship", f"relationship:{quiz.relationship}"))
+        )
+    else:
+        buckets.append(("relationship", []))
+
+    if quiz.occasion:
+        occasion_map = ruleset.get("occasion_map", {})
+        occasion_queries = []
+        if isinstance(occasion_map, dict):
+            occasion_queries = occasion_map.get(quiz.occasion, {}).get("queries", [])
+        buckets.append(("occasion", _collect_bucket(occasion_queries, "occasion", f"occasion:{quiz.occasion}")))
+    else:
+        buckets.append(("occasion", []))
 
     filtered: list[BucketItem] = []
-    for bucket_items in buckets:
-        if max_per_bucket:
-            bucket_items = bucket_items[:max_per_bucket]
-        filtered.append(bucket_items)
+    for bucket_name, bucket_items in buckets:
+        cap = max_per_bucket if max_per_bucket else None
+        if bucket_name == "age_base":
+            cap = 4 if cap is None else min(cap, 4)
+        elif bucket_name == "relationship":
+            cap = 2 if cap is None else min(cap, 2)
+        elif bucket_name == "occasion":
+            cap = 2 if cap is None else min(cap, 2)
+        if cap is not None:
+            bucket_items = bucket_items[:cap]
+        filtered.extend(bucket_items)
 
     seen: set[str] = set()
-    results: list[BucketItem] = []
-    for bucket_items in filtered:
-        for item in bucket_items:
-            query = item["query"]
-            if query in banned_queries:
+    ordered_unique: list[BucketItem] = []
+    for item in filtered:
+        query = item["query"]
+        if query in banned_queries or query in seen:
+            continue
+        ordered_unique.append(item)
+        seen.add(query)
+
+    interest_required = 0
+    if quiz.interests:
+        interest_total = sum(1 for item in ordered_unique if item["bucket"] == "interests")
+        interest_required = min(2, interest_total)
+
+    if max_total and len(ordered_unique) > max_total:
+        results: list[BucketItem] = []
+        interests_selected = 0
+        remaining_interest = [
+            sum(1 for item in ordered_unique[i:] if item["bucket"] == "interests")
+            for i in range(len(ordered_unique))
+        ]
+        for idx, item in enumerate(ordered_unique):
+            if len(results) >= max_total:
+                break
+            if item["bucket"] == "interests":
+                results.append(item)
+                interests_selected += 1
                 continue
-            if query in seen:
-                continue
+
+            if interest_required > interests_selected:
+                remaining = max_total - len(results)
+                needed = interest_required - interests_selected
+                if remaining <= needed and remaining_interest[idx]:
+                    continue
+
             results.append(item)
-            seen.add(query)
-            if max_total and len(results) >= max_total:
-                return results
+        ordered_unique = results
 
-    if min_total and len(results) < min_total:
-        return results
+    if min_total and len(ordered_unique) < min_total:
+        return ordered_unique
 
-    return results
+    return ordered_unique

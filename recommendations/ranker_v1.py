@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 from collections import defaultdict
@@ -18,36 +18,27 @@ class RankingResult(BaseModel):
     debug: Optional[dict] = None
 
 
-_NEGATIVE_KEYWORDS = [
-    "поддел",
-    "реплик",
-    "брак",
-    "дефект",
-    "ошибк",
-]
+_NEGATIVE_KEYWORDS = ["18+", "эрот", "казино", "табак", "вейп"]
 
 _VIBE_KEYWORDS = {
-    "cozy": ["плед", "свеч", "ночник", "диффузор", "подушк", "халат"],
-    "tech": ["наушн", "заряд", "умн", "power", "гаджет", "колонк"],
-    "creative": ["набор", "рисован", "лепк", "скетч", "марк"],
-    "fun": ["настольн", "игр", "антистресс", "прикол", "юмор"],
-    "practical": ["органайзер", "термокруж", "ланчбокс", "бутылк"],
-    "wow": ["проектор", "ламп", "набор", "премиум", "дизайнер"],
+    "cozy": ["плед", "свеч", "ночник", "подушка", "диффузор", "уют"],
+    "tech": ["наушник", "заряд", "гаджет", "колонк", "смарт", "powerbank"],
+    "creative": ["рисован", "набор", "скетч", "хобби", "творч"],
+    "fun": ["игра", "пазл", "юмор", "фан", "прикол"],
+    "practical": ["органайзер", "термокружка", "бутылка", "полезн", "практич"],
+    "wow": ["проектор", "умн", "вау", "квадрокоптер", "гироскутер"],
 }
 
 _GROUP_KEYWORDS = {
     "плед": "blanket",
     "свеч": "candle",
-    "носк": "socks",
-    "круж": "mug",
-    "термокруж": "mug",
-    "подароч": "giftbox",
+    "кружк": "mug",
     "набор": "kit",
-    "игр": "game",
-    "головолом": "puzzle",
+    "игра": "game",
+    "пазл": "puzzle",
     "диффузор": "diffuser",
     "ночник": "lamp",
-    "подушк": "pillow",
+    "подушка": "pillow",
 }
 
 
@@ -59,7 +50,7 @@ class _ScoredCandidate:
 
 
 def _tokenize(value: str) -> list[str]:
-    tokens = re.findall(r"[\wа-яА-ЯёЁ]+", value.lower())
+    tokens = re.findall(r"[a-z0-9а-яё]+", value.lower())
     return [token for token in tokens if len(token) > 2]
 
 
@@ -93,9 +84,9 @@ def score_candidate(quiz: QuizAnswers, c: GiftCandidate) -> Tuple[float, dict]:
     keyword_score = 0.0
     for kw in keywords:
         if kw in title:
-            keyword_score += 3.0
+            keyword_score += 2.0
             title_matches.add(kw)
-        elif kw in description:
+        if kw in description:
             keyword_score += 1.0
             desc_matches.add(kw)
     if keyword_score:
@@ -105,6 +96,9 @@ def score_candidate(quiz: QuizAnswers, c: GiftCandidate) -> Tuple[float, dict]:
             "score": keyword_score,
         }
     total_score += keyword_score
+    if keywords and not keyword_score:
+        total_score -= 1.0
+        reasons["keyword_penalty"] = {"score": -1.0}
 
     budget_score = 0.0
     if quiz.budget and quiz.budget > 0:
@@ -126,7 +120,7 @@ def score_candidate(quiz: QuizAnswers, c: GiftCandidate) -> Tuple[float, dict]:
         vibe_words = _VIBE_KEYWORDS.get(quiz.vibe.lower()) or []
         matched_vibe = [kw for kw in vibe_words if kw in title or kw in description]
         if matched_vibe:
-            vibe_score = 2.5
+            vibe_score = 3.0
             reasons["vibe"] = {"matched": matched_vibe, "score": vibe_score}
         total_score += vibe_score
 
@@ -151,24 +145,18 @@ def _apply_budget_filter(
         return candidates, debug
 
     ranges = [(0.7, 1.2), (0.5, 1.5)]
-    filtered_candidates = candidates
+    filtered_candidates: list[GiftCandidate] = []
     applied_range: tuple[float, float] | None = None
 
     for min_mult, max_mult in ranges:
-        filtered = [
+        filtered_candidates = [
             c
             for c in candidates
             if c.price is not None and budget * min_mult <= c.price <= budget * max_mult
         ]
         applied_range = (min_mult, max_mult)
-        if len(filtered) >= 30:
-            filtered_candidates = filtered
+        if len(filtered_candidates) >= 30:
             break
-        filtered_candidates = filtered
-
-    if len(filtered_candidates) < 30:
-        filtered_candidates = candidates
-        applied_range = None
 
     debug["applied_range"] = applied_range
     debug["kept"] = len(filtered_candidates)
@@ -183,7 +171,7 @@ def _get_group_key(c: GiftCandidate) -> str:
     if c.category:
         return c.category.lower()
     tokens = _tokenize(title)
-    generic = {"подарок", "подарка", "подарочный", "доступный", "лучший"}
+    generic = {"товар", "подарок", "набор", "комплект", "аксессуар"}
     for token in tokens:
         if token not in generic:
             return token
@@ -193,34 +181,63 @@ def _get_group_key(c: GiftCandidate) -> str:
 def _select_diverse_candidates(
     scored: list[_ScoredCandidate], top_n: int
 ) -> tuple[list[_ScoredCandidate], dict[str, Any]]:
+    def _pass_select(
+        items: list[_ScoredCandidate],
+        group_limit: int,
+        category_limit: int,
+        selected: list[_ScoredCandidate],
+        group_counts: dict[str, int],
+        category_counts: dict[str, int],
+        skipped: list[dict[str, Any]],
+    ) -> None:
+        for item in items:
+            if item in selected:
+                continue
+            group = _get_group_key(item.candidate)
+            category = (item.candidate.category or "other").lower()
+
+            if group != "other" and group_counts[group] >= group_limit:
+                skipped.append({"gift_id": item.candidate.gift_id, "reason": "group_limit", "group": group})
+                continue
+            if category != "other" and category_counts[category] >= category_limit:
+                skipped.append(
+                    {"gift_id": item.candidate.gift_id, "reason": "category_limit", "category": category}
+                )
+                continue
+
+            selected.append(item)
+            group_counts[group] += 1
+            category_counts[category] += 1
+            if len(selected) >= top_n:
+                break
+
     group_counts: dict[str, int] = defaultdict(int)
     category_counts: dict[str, int] = defaultdict(int)
     selected: list[_ScoredCandidate] = []
     skipped: list[dict[str, Any]] = []
 
-    for item in scored:
-        group = _get_group_key(item.candidate)
-        category = (item.candidate.category or "other").lower()
+    _pass_select(scored, 2, 3, selected, group_counts, category_counts, skipped)
 
-        if group != "other" and group_counts[group] >= 2:
-            skipped.append({"gift_id": item.candidate.gift_id, "reason": "group_limit", "group": group})
-            continue
-        if category != "other" and category_counts[category] >= 3:
-            skipped.append(
-                {"gift_id": item.candidate.gift_id, "reason": "category_limit", "category": category}
-            )
-            continue
+    added_fallback = 0
+    if len(selected) < top_n:
+        before = len(selected)
+        _pass_select(scored, 4, 5, selected, group_counts, category_counts, skipped)
+        added_fallback = len(selected) - before
 
-        selected.append(item)
-        group_counts[group] += 1
-        category_counts[category] += 1
-        if len(selected) >= top_n:
-            break
+    if len(selected) < top_n:
+        for item in scored:
+            if item in selected:
+                continue
+            selected.append(item)
+            if len(selected) >= top_n:
+                break
 
     debug = {
         "group_counts": dict(group_counts),
         "category_counts": dict(category_counts),
         "skipped": skipped,
+        "removed_by_diversity": len(skipped),
+        "added_by_fallback": added_fallback,
     }
     return selected, debug
 
