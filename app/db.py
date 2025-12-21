@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from sqlalchemy import MetaData
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -26,11 +25,7 @@ engine = create_async_engine(settings.database_url, echo=False, pool_pre_ping=Tr
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
-@asynccontextmanager
 async def get_db() -> AsyncSession:
-    session: AsyncSession = SessionLocal()
-    try:
+    async with SessionLocal() as session:
         yield session
-    finally:
-        await session.close()
 
