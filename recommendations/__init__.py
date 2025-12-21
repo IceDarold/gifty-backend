@@ -1,0 +1,1 @@
+﻿"""Recommendation query generation package."""
