@@ -68,7 +68,11 @@ def collect_candidates(
     max_queries: int = 10,
     source_id: int | None = None,
     use_cache: bool = True,
+    disable_cache: bool = False,
 ) -> tuple[list[GiftCandidate], dict]:
+    if disable_cache:
+        use_cache = False
+
     selected = queries[:max_queries]
 
     per_query_stats: list[dict[str, Any]] = []
@@ -83,7 +87,7 @@ def collect_candidates(
         if not normalized_query:
             continue
 
-        key = f"tp:{source_id}:{normalized_query}:{per_query_limit}"
+        key = f"takprodam:{source_id}:{normalized_query}:{per_query_limit}"
         candidates: list[GiftCandidate] = []
         cache_hit = False
 

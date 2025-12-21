@@ -77,17 +77,30 @@ class TakprodamClient:
             "offset": offset,
             "source_id": source_id or self.source_id,
         }
+        logger.debug("Takprodam search query=%s params=%s", query, params)
 
         data = self._request("product/", params=params)
         if data is None:
             return []
 
         if isinstance(data, list):
-            return [item for item in data if isinstance(item, dict)]
+            items = [item for item in data if isinstance(item, dict)]
+            logger.debug(
+                "Takprodam search results query=%s titles=%s",
+                query,
+                [item.get("title") for item in items[:3]],
+            )
+            return items
 
         if isinstance(data, dict):
             items = data.get("items") or data.get("results") or []
-            return [item for item in items if isinstance(item, dict)]
+            normalized = [item for item in items if isinstance(item, dict)]
+            logger.debug(
+                "Takprodam search results query=%s titles=%s",
+                query,
+                [item.get("title") for item in normalized[:3]],
+            )
+            return normalized
 
         logger.warning("Takprodam response has unexpected format")
         return []
