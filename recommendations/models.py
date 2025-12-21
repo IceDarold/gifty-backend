@@ -12,3 +12,4 @@ class QuizAnswers(BaseModel):
     vibe: Optional[str] = None
     interests: list[str] = []
     interests_description: Optional[str] = None
+    budget: Optional[int] = None
