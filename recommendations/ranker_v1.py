@@ -13,8 +13,8 @@ from .models import QuizAnswers
 
 class RankingResult(BaseModel):
     engine_version: str = "ranker_v1"
-    featured_gift_id: str
-    gift_ids: list[str]
+    featured_gift: GiftCandidate
+    gifts: list[GiftCandidate]
     debug: Optional[dict] = None
 
 
@@ -272,8 +272,8 @@ def rank_candidates(
         if first.candidate.price is None and second.candidate.price is not None:
             selected_candidates = [second, first] + selected_candidates[2:]
 
-    gift_ids = [item.candidate.gift_id for item in selected_candidates]
-    featured = gift_ids[0]
+    gifts = [item.candidate for item in selected_candidates]
+    featured = gifts[0]
 
     debug_info = None
     if debug:
@@ -281,6 +281,8 @@ def rank_candidates(
             "applied_budget_range": budget_debug.get("applied_range"),
             "candidates_in": len(candidates),
             "candidates_after_filter": len(budget_filtered),
+            "requested_top_n": top_n,
+            "returned_count": len(gifts),
             "scored_top20": [
                 {
                     "gift_id": item.candidate.gift_id,
@@ -294,4 +296,4 @@ def rank_candidates(
             "diversity": diversity_debug,
         }
 
-    return RankingResult(featured_gift_id=featured, gift_ids=gift_ids, debug=debug_info)
+    return RankingResult(featured_gift=featured, gifts=gifts, debug=debug_info)

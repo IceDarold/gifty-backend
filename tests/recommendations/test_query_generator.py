@@ -50,6 +50,34 @@ def test_description_keywords_adds_queries():
     assert "кофемолка" in queries
 
 
+def test_gender_adds_queries():
+    ruleset = {
+        "version": "v1",
+        "limits": {
+            "max_queries_total": 10,
+            "max_queries_per_bucket": 5,
+            "min_queries_total": 1,
+            "max_keywords_from_description": 2,
+        },
+        "age_segments": {
+            "adult": {"age_min": 30, "age_max": 40, "base_queries": ["плед", "книга"]}
+        },
+        "gender_map": {
+            "male": {"queries": ["ремень", "кошелек мужской"]},
+            "female": {"queries": ["косметичка", "аромасвеча"]},
+        },
+    }
+
+    quiz_male = QuizAnswers(recipient_age=30, recipient_gender="male")
+    quiz_female = QuizAnswers(recipient_age=30, recipient_gender="female")
+
+    male_queries = _get_queries(generate_queries(quiz_male, ruleset))
+    female_queries = _get_queries(generate_queries(quiz_female, ruleset))
+
+    assert any(item == "ремень" for item in male_queries)
+    assert any(item == "косметичка" for item in female_queries)
+
+
 def test_interests_are_kept_even_with_total_limit():
     ruleset = {
         "version": "v1",

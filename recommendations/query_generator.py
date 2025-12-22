@@ -66,6 +66,14 @@ def generate_queries(quiz: QuizAnswers, ruleset: dict[str, Any]) -> list[dict[st
                 interest_items.extend(_collect_bucket(queries, "interests", f"interest:{interest}"))
     buckets.append(("interests", interest_items))
 
+    gender_items: list[BucketItem] = []
+    if quiz.recipient_gender:
+        gender_map = ruleset.get("gender_map", {})
+        if isinstance(gender_map, dict) and quiz.recipient_gender in gender_map:
+            queries = gender_map.get(quiz.recipient_gender, {}).get("queries", [])
+            gender_items = _collect_bucket(queries, "gender", f"gender:{quiz.recipient_gender}")
+    buckets.append(("gender", gender_items))
+
     keyword_items: list[BucketItem] = []
     description_map = ruleset.get("description_keywords_map", {})
     if quiz.interests_description and isinstance(description_map, dict):
@@ -107,6 +115,8 @@ def generate_queries(quiz: QuizAnswers, ruleset: dict[str, Any]) -> list[dict[st
         cap = max_per_bucket if max_per_bucket else None
         if bucket_name == "age_base":
             cap = 4 if cap is None else min(cap, 4)
+        elif bucket_name == "gender":
+            cap = 2 if cap is None else min(cap, 2)
         elif bucket_name == "relationship":
             cap = 2 if cap is None else min(cap, 2)
         elif bucket_name == "occasion":

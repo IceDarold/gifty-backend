@@ -90,6 +90,7 @@ def pipeline_mocks(monkeypatch):
             description="Nice gift",
             product_url=f"https://example.com/{i}",
             price=10 + i,
+            currency="RUB",
             raw={},
         )
         for i in range(12)
@@ -106,10 +107,11 @@ def pipeline_mocks(monkeypatch):
     def fake_collect_candidates(*_, **__):
         return sample_candidates, {"collector": True}
 
-    def fake_rank_candidates(quiz, candidates, debug=False):
+    def fake_rank_candidates(quiz, candidates, debug=False, top_n=10):
+        picks = candidates[:top_n]
         return RankingResult(
-            featured_gift_id=candidates[0].gift_id,
-            gift_ids=[c.gift_id for c in candidates[:10]],
+            featured_gift=picks[0],
+            gifts=picks,
             debug={"ranker": debug},
         )
 
@@ -146,6 +148,7 @@ def pipeline_mocks(monkeypatch):
 def _payload(debug: bool = False) -> dict[str, Any]:
     return {
         "recipient_age": 25,
+        "recipient_gender": "female",
         "relationship": "friend",
         "occasion": "birthday",
         "vibe": "cozy",
@@ -153,6 +156,7 @@ def _payload(debug: bool = False) -> dict[str, Any]:
         "interests_description": "loves soft things",
         "budget": 100,
         "city": "Moscow",
+        "top_n": 10,
         "debug": debug,
     }
 
@@ -161,8 +165,9 @@ def test_generate_happy_path(client, pipeline_mocks):
     response = client.post("/api/v1/recommendations/generate", json=_payload())
     assert response.status_code == 200
     body = response.json()
-    assert body["featured_gift_id"] == "gift-0"
-    assert len(body["gift_ids"]) == 10
+    assert body["featured_gift"]["id"] == "gift-0"
+    assert len(body["gifts"]) == 10
+    assert body["gifts"][0]["id"] == "gift-0"
     assert body["gift_ids"][0] == "gift-0"
     assert body["debug"] is None
     assert len(pipeline_mocks["events"]) == 2
@@ -176,6 +181,8 @@ def test_generate_debug_mode(client, pipeline_mocks):
     assert body["debug"]["queries"] == pipeline_mocks["queries"]
     assert body["debug"]["candidate_collector"] == {"collector": True}
     assert body["debug"]["ranker"] == {"ranker": True}
+    assert body["debug"]["requested_top_n"] == 10
+    assert body["debug"]["returned_gifts_count"] == 10
 
 
 def test_generate_no_candidates(client, monkeypatch, pipeline_mocks):
@@ -211,3 +218,13 @@ def test_generate_with_logged_in_user(client, pipeline_mocks, monkeypatch):
     response = client.post("/api/v1/recommendations/generate", json=_payload())
     assert response.status_code == 200
     assert pipeline_mocks["created"]["quiz_run"].user_id is not None
+
+
+def test_generate_returns_full_gifts_and_respects_top_n(client, pipeline_mocks):
+    payload = _payload()
+    payload["top_n"] = 12
+    response = client.post("/api/v1/recommendations/generate", json=payload)
+    assert response.status_code == 200
+    body = response.json()
+    assert len(body["gifts"]) == 12
+    assert body["featured_gift"]["id"] == body["gifts"][0]["id"]

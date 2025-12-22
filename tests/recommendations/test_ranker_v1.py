@@ -36,7 +36,7 @@ def test_relevance_prefers_cozy_and_coffee():
 
     result = rank_candidates(quiz, candidates, debug=True)
 
-    assert result.gift_ids[0] in {"takprodam:1", "takprodam:2"}
+    assert result.gifts[0].gift_id in {"takprodam:1", "takprodam:2"}
     assert result.debug is not None
     assert result.debug.get("applied_budget_range") is not None
 
@@ -51,7 +51,20 @@ def test_diversity_fallback_fills_top_n():
 
     result = rank_candidates(quiz, candidates, top_n=10, debug=True)
 
-    assert len(result.gift_ids) == 10
+    assert len(result.gifts) == 10
     assert result.debug is not None
     diversity = result.debug.get("diversity", {})
     assert diversity.get("added_by_fallback", 0) >= 0
+
+
+def test_ranker_returns_objects_variant_a():
+    quiz = QuizAnswers(recipient_age=30, vibe="cozy")
+    candidates = [
+        _make_candidate("takprodam:1", "Плед уютный", 1000),
+        _make_candidate("takprodam:2", "Свеча ароматическая", 1200),
+    ]
+
+    result = rank_candidates(quiz, candidates, top_n=2, debug=True)
+
+    assert result.featured_gift.gift_id == result.gifts[0].gift_id
+    assert len(result.gifts) == 2

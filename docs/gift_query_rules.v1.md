@@ -15,6 +15,7 @@
 - `relationship_map`: маппинг отношений.
 - `occasion_map`: маппинг поводов.
 - `interests_map`: маппинг интересов.
+- `gender_map`: маппинг пола получателя (male/female/unisex).
 - `description_keywords_map`: словарь подстрок/стемов из свободного описания -> queries.
 - `banned`: запреты и негативные ключевые слова.
 
@@ -28,10 +29,11 @@
 
 1. `age_segments.<segment>.base_queries`
 2. `age_segments.<segment>.vibes.<vibe>.queries` (если vibe указан)
-3. `relationship_map.<relationship>.queries`
-4. `occasion_map.<occasion>.queries`
-5. `interests_map.<interest>.queries` для каждого interest
-6. `description_keywords_map` по подстрокам из `interests_description`
+3. `interests_map.<interest>.queries` для каждого interest
+4. `gender_map.<gender>.queries` (если gender указан)
+5. `description_keywords_map` по подстрокам из `interests_description`
+6. `relationship_map.<relationship>.queries`
+7. `occasion_map.<occasion>.queries`
 
 Далее объединяйте, убирайте дубли, фильтруйте banned, затем применяйте лимиты.
 

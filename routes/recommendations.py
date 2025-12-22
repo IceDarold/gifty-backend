@@ -19,7 +19,8 @@ from app.models import User
 from app.redis_client import get_redis
 from app.utils.errors import AppError
 from recommendations.candidate_collector import collect_candidates
-from recommendations.models import QuizAnswers
+from recommendations.mappers import candidate_to_dto
+from recommendations.models import GiftDTO, QuizAnswers
 from recommendations.query_rules_loader import load_ruleset
 from recommendations.query_generator import generate_queries
 from recommendations.ranker_v1 import RankingResult, rank_candidates
@@ -38,6 +39,7 @@ _RULESET_PATH = "config/gift_query_rules.v1.yaml"
 
 class RecommendationRequest(BaseModel):
     recipient_age: int
+    recipient_gender: Optional[str] = None
     relationship: Optional[str] = None
     occasion: Optional[str] = None
     vibe: Optional[str] = None
@@ -45,14 +47,17 @@ class RecommendationRequest(BaseModel):
     interests_description: Optional[str] = None
     budget: Optional[int] = None
     city: Optional[str] = None
+    top_n: int = Field(10, ge=1, le=30)
     debug: bool = False
 
 
 class RecommendationResponse(BaseModel):
     quiz_run_id: str
     engine_version: str
-    featured_gift_id: str
-    gift_ids: list[str]
+    featured_gift: GiftDTO
+    gifts: list[GiftDTO]
+    featured_gift_id: Optional[str] = None
+    gift_ids: Optional[list[str]] = None
     debug: Optional[dict[str, Any]] = None
 
 
@@ -110,7 +115,7 @@ async def generate_recommendations(
     user: Optional[User] = Depends(get_optional_user),
     anon_id: Optional[str] = Depends(get_anon_id),
 ) -> RecommendationResponse:
-    quiz = QuizAnswers(**payload.model_dump(exclude={"city", "debug"}))
+    quiz = QuizAnswers(**payload.model_dump(exclude={"city", "debug", "top_n"}))
 
     quiz_run = await create_quiz_run(
         db,
@@ -124,11 +129,22 @@ async def generate_recommendations(
     if not queries:
         raise AppError("no_candidates_found", "No candidates found", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    candidates, collector_debug = collect_candidates(queries)
+    per_query_limit = max(40, payload.top_n * 8)
+    max_queries = 14 if payload.top_n > 10 else 10
+    candidates, collector_debug = collect_candidates(
+        queries,
+        per_query_limit=per_query_limit,
+        max_queries=max_queries,
+    )
     if not candidates:
         raise AppError("no_candidates_found", "No candidates found", status.HTTP_422_UNPROCESSABLE_ENTITY)
 
-    ranking_result: RankingResult = rank_candidates(quiz, candidates, debug=payload.debug)
+    ranking_result: RankingResult = rank_candidates(
+        quiz,
+        candidates,
+        top_n=payload.top_n,
+        debug=payload.debug,
+    )
 
     await log_event(
         db,
@@ -143,8 +159,8 @@ async def generate_recommendations(
         db,
         quiz_run_id=quiz_run.id,
         engine_version=ranking_result.engine_version,
-        featured_gift_id=ranking_result.featured_gift_id,
-        gift_ids=ranking_result.gift_ids,
+        featured_gift_id=ranking_result.featured_gift.gift_id,
+        gift_ids=[gift.gift_id for gift in ranking_result.gifts],
         debug_json=ranking_result.debug,
     )
 
@@ -164,6 +180,8 @@ async def generate_recommendations(
             "queries": queries,
             "candidate_collector": collector_debug,
             "ranker": ranking_result.debug,
+            "requested_top_n": payload.top_n,
+            "returned_gifts_count": len(ranking_result.gifts),
         }
     logger.info(
         "debug_requested=%s debug_returned=%s",
@@ -174,7 +192,9 @@ async def generate_recommendations(
     return RecommendationResponse(
         quiz_run_id=str(quiz_run.id),
         engine_version=ranking_result.engine_version,
-        featured_gift_id=ranking_result.featured_gift_id,
-        gift_ids=ranking_result.gift_ids,
+        featured_gift=candidate_to_dto(ranking_result.featured_gift),
+        gifts=[candidate_to_dto(gift) for gift in ranking_result.gifts],
+        featured_gift_id=ranking_result.featured_gift.gift_id,
+        gift_ids=[gift.gift_id for gift in ranking_result.gifts],
         debug=debug_payload,
     )
