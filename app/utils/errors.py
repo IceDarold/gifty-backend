@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -7,6 +8,8 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette import status
+
+logger = logging.getLogger(__name__)
 
 
 class ErrorPayload(BaseModel):
@@ -36,19 +39,49 @@ def error_response(code: str, message: str, http_status: int, fields: Optional[d
 
 
 def install_exception_handlers(app: FastAPI) -> None:
+    async def _log_bad_request(request: Request, error_payload: dict[str, Any]) -> None:
+        if request.url.path != "/api/v1/recommendations/generate":
+            return
+        body: str | dict[str, Any] | None = None
+        try:
+            raw = await request.body()
+            if raw:
+                try:
+                    body = await request.json()
+                except Exception:
+                    body = raw.decode("utf-8", errors="replace")
+        except Exception:
+            body = None
+        logger.warning(
+            "bad_request path=%s method=%s client=%s error=%s body=%s",
+            request.url.path,
+            request.method,
+            request.client.host if request.client else None,
+            error_payload,
+            body,
+        )
+
     @app.exception_handler(AppError)
-    async def app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
+        if exc.http_status in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY}:
+            await _log_bad_request(request, {"code": exc.code, "message": exc.message, "fields": exc.fields})
         return error_response(exc.code, exc.message, exc.http_status, exc.fields)
 
     @app.exception_handler(HTTPException)
-    async def http_exception_handler(_: Request, exc: HTTPException) -> JSONResponse:
+    async def http_exception_handler(request: Request, exc: HTTPException) -> JSONResponse:
         code = "http_error"
         message = exc.detail if isinstance(exc.detail, str) else "HTTP error"
         fields = exc.detail if isinstance(exc.detail, dict) else None
+        if exc.status_code in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY}:
+            await _log_bad_request(request, {"code": code, "message": message, "fields": fields})
         return error_response(code, message, exc.status_code, fields)
 
     @app.exception_handler(RequestValidationError)
-    async def validation_exception_handler(_: Request, exc: RequestValidationError) -> JSONResponse:
+    async def validation_exception_handler(request: Request, exc: RequestValidationError) -> JSONResponse:
+        await _log_bad_request(
+            request,
+            {"code": "validation_error", "message": "Invalid request", "details": exc.errors()},
+        )
         return error_response(
             "validation_error",
             "Invalid request",
