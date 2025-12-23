@@ -25,9 +25,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Gifty API", version="1.0.0", lifespan=lifespan)
 
+frontend_origin = str(settings.frontend_base).rstrip("/")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[str(settings.frontend_base)],
+    allow_origins=[frontend_origin],
     allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
