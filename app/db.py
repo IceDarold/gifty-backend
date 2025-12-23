@@ -1,9 +1,6 @@
 from __future__ import annotations
 
 from sqlalchemy import MetaData
-import logging
-import os
-
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -11,10 +8,6 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
 
 settings = get_settings()
-logger = logging.getLogger(__name__)
-
-for key, value in sorted(os.environ.items()):
-    logger.warning("env %s=%s", key, value)
 
 convention = {
     "ix": "ix_%(column_0_label)s",
@@ -32,7 +25,8 @@ class Base(DeclarativeBase):
 db_url = make_url(settings.database_url)
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
     db_url = db_url.set(drivername="postgresql+asyncpg")
-engine = create_async_engine(str(db_url), echo=False, pool_pre_ping=True)
+# Pass the URL object to avoid asyncpg DSN parsing issues with special chars in passwords.
+engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 
