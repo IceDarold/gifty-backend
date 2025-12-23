@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 from sqlalchemy import MetaData
+import logging
+import os
+
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
@@ -8,6 +11,10 @@ from sqlalchemy.orm import DeclarativeBase
 from app.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
+
+for key, value in sorted(os.environ.items()):
+    logger.warning("env %s=%s", key, value)
 
 convention = {
     "ix": "ix_%(column_0_label)s",
