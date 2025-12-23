@@ -8,6 +8,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     api_base: AnyHttpUrl = Field(..., alias="API_BASE")
     frontend_base: AnyHttpUrl = Field(..., alias="FRONTEND_BASE")
+    cors_origin_regex: Optional[str] = Field(None, alias="CORS_ORIGIN_REGEX")
     database_url: str = Field(..., alias="DATABASE_URL")
     redis_url: str = Field(..., alias="REDIS_URL")
 
