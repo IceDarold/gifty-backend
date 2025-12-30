@@ -4,9 +4,11 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
+import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text, UniqueConstraint, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from app.db import Base
 
@@ -51,3 +53,40 @@ class OAuthAccount(TimestampMixin, Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="oauth_accounts")
+
+
+class Product(TimestampMixin, Base):
+    __tablename__ = "products"
+
+    gift_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price: Mapped[Optional[float]] = mapped_column(sa.Numeric, nullable=True)
+    currency: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    product_url: Mapped[str] = mapped_column(Text, nullable=False)
+    merchant: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
+    category: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
+    raw: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # LLM Scoring
+    llm_gift_score: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True, index=True)
+    llm_gift_reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    llm_scoring_model: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    llm_scoring_version: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    llm_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ProductEmbedding(TimestampMixin, Base):
+    __tablename__ = "product_embeddings"
+
+    gift_id: Mapped[str] = mapped_column(Text, ForeignKey("products.gift_id", ondelete="CASCADE"), primary_key=True)
+    model_name: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
+    model_version: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
+    dim: Mapped[int] = mapped_column(sa.Integer, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(Vector(1024), nullable=False)
+    content_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
