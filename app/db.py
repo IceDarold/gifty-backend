@@ -29,13 +29,20 @@ connect_args = {}
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
     db_url = db_url.set(drivername="postgresql+asyncpg")
 
-# Supabase and Render require SSL. 
-# asyncpg uses 'ssl' parameter instead of 'sslmode'
-if "sslmode" in db_url.query:
-    ssl_mode = db_url.query.get("sslmode")
+# Supabase Pooler (and Render) specific configuration
+# asyncpg uses 'ssl' instead of 'sslmode'
+if "sslmode" in db_url.query or "supabase" in str(db_url.host):
+    ssl_mode = db_url.query.get("sslmode", "require")
     if ssl_mode == "require":
         connect_args["ssl"] = True
-    # We remove sslmode from query to avoid asyncpg confusing it with its own parameters
+    
+    # CRITICAL for Supabase Pooler (Transaction Mode / port 6543)
+    # and highly recommended for session mode stability on Render:
+    # Disable prepared statements as they are not supported by most poolers.
+    connect_args["statement_cache_size"] = 0
+    connect_args["prepared_statement_cache_size"] = 0
+    
+    # Clean up sslmode from URL to avoid asyncpg warnings
     query = dict(db_url.query)
     query.pop("sslmode", None)
     db_url = db_url.set(query=query)
@@ -44,6 +51,8 @@ engine = create_async_engine(
     db_url, 
     echo=False, 
     pool_pre_ping=True,
+    pool_size=10,
+    max_overflow=20,
     connect_args=connect_args
 )
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
