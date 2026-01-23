@@ -26,6 +26,10 @@ class Base(DeclarativeBase):
 import ssl
 
 db_url = make_url(settings.database_url)
+# Startup diagnostic print
+print(f"DEBUG_DB: Driver={db_url.drivername}, Host={db_url.host}, DB={db_url.database}")
+print(f"DEBUG_DB: User={db_url.username}, Params={db_url.query}")
+
 connect_args = {}
 
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
