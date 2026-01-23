@@ -46,6 +46,7 @@ class Settings(BaseSettings):
     takprodam_source_id: Optional[int] = Field(None, alias="TAKPRODAM_SOURCE_ID")
     embedding_model: str = Field("BAAI/bge-m3", alias="EMBEDDING_MODEL")
     internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
+    debug: bool = Field(False, alias="DEBUG")
 
     model_config = SettingsConfigDict(
         env_file=".env",
