@@ -1,9 +1,5 @@
-from __future__ import annotations
-
 import logging
 from typing import Optional
-
-from sentence_transformers import SentenceTransformer
 
 logger = logging.getLogger(__name__)
 
@@ -12,27 +8,22 @@ class EmbeddingService:
     def __init__(self, model_name: str = "BAAI/bge-m3", device: str = "cpu"):
         self.model_name = model_name
         self.device = device
-        self._model: Optional[SentenceTransformer] = None
+        self._model = None  # No local model
 
     def load_model(self) -> None:
-        if self._model is None:
-            logger.info(f"Loading embedding model {self.model_name} on {self.device}...")
-            self._model = SentenceTransformer(self.model_name, device=self.device)
-            logger.info("Model loaded.")
+        """Placeholder for model loading. We now use an external service."""
+        logger.info(f"EmbeddingService initialized in STUB mode for {self.model_name}")
 
     def embed_batch(self, texts: list[str]) -> list[list[float]]:
+        """
+        Placeholder for external embedding API.
+        Currently returns dummy vectors of dimension 1024.
+        """
         if not texts:
             return []
         
-        self.load_model()
-        # BAAI/bge-m3 usually outputs normalized embeddings by default, 
-        # but explicit normalize_embeddings=True ensures cosine similarity works correctly.
-        embeddings = self._model.encode(
-            texts, 
-            batch_size=len(texts), 
-            normalize_embeddings=True,
-            show_progress_bar=False
-        )
+        logger.warning("EmbeddingService: Returning DUMMY vectors. Implement external API call here.")
         
-        # Convert numpy array to list of lists
-        return embeddings.tolist()
+        # Return zeros as a temporary stub (dim 1024 to match our schema)
+        dummy_vector = [0.0] * 1024
+        return [dummy_vector for _ in texts]

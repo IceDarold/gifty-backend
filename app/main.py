@@ -21,10 +21,9 @@ async def lifespan(app: FastAPI):
     # Initialize services
     app.state.redis = await init_redis()
     
-    # Initialize Embedding Service (singleton-like for the app)
-    embedding_service = EmbeddingService(model_name=settings.embedding_model)
-    embedding_service.load_model()
-    app.state.embedding_service = embedding_service
+    # Initialize Embedding Service (stub)
+    app.state.embedding_service = EmbeddingService(model_name=settings.embedding_model)
+    # No heavy loading here
     
     try:
         yield
