@@ -55,7 +55,7 @@ if "sslmode" in db_url.query or "supabase" in str(db_url.host):
 
 engine = create_async_engine(
     db_url, 
-    echo=False, 
+    echo=settings.debug, 
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
