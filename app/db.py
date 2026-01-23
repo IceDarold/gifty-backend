@@ -23,6 +23,8 @@ class Base(DeclarativeBase):
     metadata = MetaData(naming_convention=convention)
 
 
+import ssl
+
 db_url = make_url(settings.database_url)
 connect_args = {}
 
@@ -32,9 +34,13 @@ if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
 # Supabase Pooler (and Render) specific configuration
 # asyncpg uses 'ssl' instead of 'sslmode'
 if "sslmode" in db_url.query or "supabase" in str(db_url.host):
-    ssl_mode = db_url.query.get("sslmode", "require")
-    if ssl_mode == "require":
-        connect_args["ssl"] = True
+    # Create a custom SSL context that accepts self-signed certs
+    # This is often needed for Supabase Pooler connections
+    ssl_context = ssl.create_default_context()
+    ssl_context.check_hostname = False
+    ssl_context.verify_mode = ssl.CERT_NONE
+    
+    connect_args["ssl"] = ssl_context
     
     # CRITICAL for Supabase Pooler (Transaction Mode / port 6543)
     # and highly recommended for session mode stability on Render:
