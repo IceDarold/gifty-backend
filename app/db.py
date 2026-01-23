@@ -24,10 +24,28 @@ class Base(DeclarativeBase):
 
 
 db_url = make_url(settings.database_url)
+connect_args = {}
+
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
     db_url = db_url.set(drivername="postgresql+asyncpg")
 
-engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
+# Supabase and Render require SSL. 
+# asyncpg uses 'ssl' parameter instead of 'sslmode'
+if "sslmode" in db_url.query:
+    ssl_mode = db_url.query.get("sslmode")
+    if ssl_mode == "require":
+        connect_args["ssl"] = True
+    # We remove sslmode from query to avoid asyncpg confusing it with its own parameters
+    query = dict(db_url.query)
+    query.pop("sslmode", None)
+    db_url = db_url.set(query=query)
+
+engine = create_async_engine(
+    db_url, 
+    echo=False, 
+    pool_pre_ping=True,
+    connect_args=connect_args
+)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 async def get_db() -> AsyncSession:
