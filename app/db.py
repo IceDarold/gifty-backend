@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from sqlalchemy import MetaData
 from sqlalchemy.engine import make_url
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
@@ -25,11 +26,23 @@ class Base(DeclarativeBase):
 db_url = make_url(settings.database_url)
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
     db_url = db_url.set(drivername="postgresql+asyncpg")
-engine = create_async_engine(str(db_url), echo=False, pool_pre_ping=True)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
+engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 async def get_db() -> AsyncSession:
     async with SessionLocal() as session:
         yield session
+
+
+@asynccontextmanager
+async def get_session_context() -> AsyncSession:
+    async with SessionLocal() as session:
+        try:
+            yield session
+        except Exception:
+            await session.rollback()
+            raise
+        finally:
+            await session.close()
 
