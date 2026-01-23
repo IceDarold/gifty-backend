@@ -67,6 +67,7 @@ class ScoringResult(BaseModel):
     gift_id: str
     llm_gift_score: float
     llm_gift_reasoning: str
+    llm_gift_vector: Optional[dict[str, Any]] = None
     llm_scoring_model: str
     llm_scoring_version: str
 
