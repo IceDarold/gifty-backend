@@ -75,6 +75,7 @@ class Product(TimestampMixin, Base):
     # LLM Scoring
     llm_gift_score: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True, index=True)
     llm_gift_reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    llm_gift_vector: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
     llm_scoring_model: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     llm_scoring_version: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     llm_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
