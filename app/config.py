@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     vk_userinfo_url: str = Field("https://api.vk.com/method/users.get", alias="VK_USERINFO_URL")
     vk_api_version: str = Field("5.199", alias="VK_API_VERSION")
 
+    takprodam_api_base: Optional[str] = Field(None, alias="TAKPRODAM_API_BASE")
+    takprodam_api_token: Optional[str] = Field(None, alias="TAKPRODAM_API_TOKEN")
+    takprodam_source_id: Optional[int] = Field(None, alias="TAKPRODAM_SOURCE_ID")
+    embedding_model: str = Field("BAAI/bge-m3", alias="EMBEDDING_MODEL")
+    internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
+
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
