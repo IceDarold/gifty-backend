@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     embedding_model: str = Field("BAAI/bge-m3", alias="EMBEDDING_MODEL")
     internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
     debug: bool = Field(False, alias="DEBUG")
+    env: str = Field("prod", alias="ENV")
+    cors_origins: str = Field("*", alias="CORS_ORIGINS")
+    secret_key: str = Field("change-me-in-production", alias="SECRET_KEY")
 
     model_config = SettingsConfigDict(
         env_file=".env",
