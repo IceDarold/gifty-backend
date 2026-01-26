@@ -34,6 +34,9 @@ connect_args = {}
 
 if db_url.drivername in {"postgresql", "postgresql+psycopg2"}:
     db_url = db_url.set(drivername="postgresql+asyncpg")
+# Pass the URL object to avoid asyncpg DSN parsing issues with special chars in passwords.
+engine = create_async_engine(db_url, echo=False, pool_pre_ping=True)
+SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 # Supabase Pooler (and Render) specific configuration
 # asyncpg uses 'ssl' instead of 'sslmode'
