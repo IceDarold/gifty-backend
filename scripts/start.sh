@@ -10,5 +10,5 @@ exec gunicorn app.main:app \
   --worker-class uvicorn.workers.UvicornWorker \
   --bind 0.0.0.0:8000 \
   --timeout "${GUNICORN_TIMEOUT:-60}" \
-  --access-log-file - \
-  --error-log-file -
+  --access-logfile - \
+  --error-logfile -
