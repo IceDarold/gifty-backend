@@ -1,8 +1,26 @@
 version: "3.9"
 
 services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://gifty:gifty@postgres:5432/gifty
+      - REDIS_URL=redis://redis:6379/0
+      - ENV=dev
+      - DEBUG=true
+      - API_BASE=http://localhost:8000
+      - FRONTEND_BASE=http://localhost:5173
+      - INTERNAL_API_TOKEN=dev_token
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
   postgres:
-    image: postgres:15-alpine
+    image: ankane/pgvector:v0.5.1-pg17
     environment:
       POSTGRES_USER: gifty
       POSTGRES_PASSWORD: gifty
@@ -11,10 +29,15 @@ services:
       - "5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U gifty" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   redis:
     image: redis:7-alpine
-    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
     ports:
       - "6379:6379"
     volumes:
@@ -23,4 +46,3 @@ services:
 volumes:
   pgdata:
   redisdata:
-
