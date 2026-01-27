@@ -23,12 +23,13 @@ target_metadata = Base.metadata
 settings = get_settings()
 
 
-def _get_sync_url() -> str:
-    url = settings.database_url
-    # Alembic prefers a sync driver; strip asyncpg if present.
-    if url.startswith("postgresql+asyncpg"):
-        url = url.replace("+asyncpg", "")
-    return url
+from sqlalchemy.engine import make_url
+
+def _get_sync_url():
+    url_obj = make_url(settings.database_url)
+    if url_obj.drivername == "postgresql+asyncpg":
+        url_obj = url_obj.set(drivername="postgresql")
+    return url_obj
 
 
 def run_migrations_offline() -> None:
