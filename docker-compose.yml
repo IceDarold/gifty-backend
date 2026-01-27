@@ -3,16 +3,9 @@ version: "3.9"
 services:
   api:
     build: .
+    env_file: .env
     ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=postgresql+asyncpg://gifty:gifty@postgres:5432/gifty
-      - REDIS_URL=redis://redis:6379/0
-      - ENV=dev
-      - DEBUG=true
-      - API_BASE=http://localhost:8000
-      - FRONTEND_BASE=http://localhost:5173
-      - INTERNAL_API_TOKEN=dev_token
+      - "127.0.0.1:8000:8000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -21,16 +14,11 @@ services:
 
   postgres:
     image: ankane/pgvector:v0.5.1-pg17
-    environment:
-      POSTGRES_USER: gifty
-      POSTGRES_PASSWORD: gifty
-      POSTGRES_DB: gifty
-    ports:
-      - "5432:5432"
+    env_file: .env
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: [ "CMD-SHELL", "pg_isready -U gifty" ]
+      test: [ "CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-gifty}" ]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -38,8 +26,6 @@ services:
   redis:
     image: redis:7-alpine
     command: [ "redis-server", "--save", "", "--appendonly", "no" ]
-    ports:
-      - "6379:6379"
     volumes:
       - redisdata:/data
 
