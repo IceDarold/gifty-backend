@@ -61,6 +61,8 @@ class ScoringTask(BaseModel):
     category: Optional[str] = None
     merchant: Optional[str] = None
     price: Optional[float] = None
+    image_url: Optional[str] = None
+    content_text: Optional[str] = None
 
 
 class ScoringResult(BaseModel):
