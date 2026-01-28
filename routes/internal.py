@@ -32,7 +32,9 @@ async def get_scoring_tasks(
             title=p.title,
             category=p.category,
             merchant=p.merchant,
-            price=float(p.price) if p.price is not None else None
+            price=float(p.price) if p.price is not None else None,
+            image_url=p.image_url,
+            content_text=p.content_text
         )
         for p in products
     ]
