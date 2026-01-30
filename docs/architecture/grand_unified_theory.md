@@ -2,88 +2,185 @@
 
 > **"A gift is 50% item, 50% framing."**
 
-В основе Gifty лежит не просто алгоритм коллаборативной фильтрации, а глубокая психологическая модель. Хороший подарок — это объект или опыт, который закрывает один из пяти психологических **Разрывов (Gaps)** между текущей реальностью получателя и его желаемой реальностью.
-
-Наша задача как AI — **определить Разрыв** и найти **Архетип**, который его закроет.
+В основе Gifty лежит глубокая психологическая модель. Хороший подарок — это объект или опыт, который закрывает один из пяти психологических **Разрывов (Gaps)** между текущей реальностью получателя и его желаемой реальностью.
 
 ---
 
-## The Unifying Principle: "The Gap Theory"
+## 5 Dimensions of Gifting
 
-Каждый человек испытывает напряжение (Gap) в определенных сферах жизни. Идеальный подарок — это мост через этот разрыв.
-
-## The 5 Dimensions of Gifting
+Наша задача — классифицировать потребность пользователя в одну из 5 категорий и выбрать соответствующую субкатегорию (подтип).
 
 ### 1. The Mirror (The Recognition Gap)
-*   **Разрыв**: *"Видит ли кто-то, кто я есть на самом деле?"*
-*   **Задача подарка**: Валидация и Идентичность.
-*   **Логика**: Люди строят идентичность вокруг фандомов, эстетики и убеждений. Подарок доказывает, что вы внимательны к деталям их персоны.
-*   **Для кого**: Друзья, Подростки, Коллекционеры.
-*   **Подтипы**:
-    *   *The Fanatic*: Мерч, редкие коллекционные вещи.
-    *   *The Aesthetic*: Декор, идеально подходящий под их вайб.
+
+**Gap:** *"Видит ли кто-то, кто я есть на самом деле?"*
+**Slogan:** *"I see who you are."*
+
+Подарок работает, когда он совпадает со стабильным сигналом идентичности и кажется преднамеренным.
+
+#### Subtypes:
+1.  **The Fanatic (Obsession Fuel)**
+    *   *Target*: Текущая одержимость / глубокая ниша.
+    *   *Examples*: Редкий винил, арт любимого аниме, специфичный сорт кофе.
+    *   *AI Cue*: "loves", "obsessed", "collects", "can talk for hours".
+2.  **The Aesthetic (Style Language Match)**
+    *   *Target*: Визуальная грамматика (минимализм, киберпанк, уют).
+    *   *Examples*: Керамика в тон интерьера, аксессуары в их палитре.
+    *   *AI Cue*: "clean setup", "vintage vibe", "dark aesthetic".
+3.  **The Taste Token (Micro-Preference Hit)**
+    *   *Target*: Маленькие, точные предпочтения. Снайперский выстрел.
+    *   *Examples*: *Та самая* ручка (0.38mm), смесь специй для их фирменного блюда.
+    *   *AI Cue*: "only drinks", "hates when", "specific brand".
+4.  **The Values Signal (Beliefs & Principles)**
+    *   *Target*: Идентичность как ценности (этика, экология, крафт).
+    *   *Examples*: Донат от их имени, zero-waste версия привычной вещи.
+    *   *AI Cue*: "cares about", "volunteers", "eco-friendly".
+5.  **The Tribe Badge (Belonging)**
+    *   *Target*: "Я часть этой культуры" (геймеры, бегуны, стартаперы).
+    *   *Examples*: Набор для восстановления после марафона, кейкапы для механики.
+    *   *AI Cue*: "community", "meetups", "discord", "reddit".
+6.  **The Personal Myth (Symbols & Narratives)**
+    *   *Target*: История, которую они рассказывают о себе (Путешественник, Творец).
+    *   *Examples*: Полевой дневник для "исследователя", премиум инструмент для "мейкера".
+    *   *AI Cue*: "I'm the kind of person who...", "always building".
+
+---
 
 ### 2. The Optimizer (The Friction Gap)
-*   **Разрыв**: *"Почему повседневная жизнь такая раздражающая/сложная?"*
-*   **Задача подарка**: Легкость и Эффективность.
-*   **Логика**: Люди терпят мелкие неудобства (тупые ножи, холодный кофе), потому что тратят деньги на другое. Этот подарок решает проблему, до которой у них не доходят руки.
-*   **Для кого**: Родители, Занятые профессионалы, Прагматики.
-*   **Подтипы**:
-    *   *The Fixer*: Устраняет негатив (Шумоподавляющие наушники).
-    *   *The Upgrade*: Улучшает нейтральную привычку (Умная кружка, шелковая наволочка).
+
+**Gap:** *"Почему жизнь такая сложная?"*
+**Slogan:** *"I make your life smoother."*
+
+Подарок работает, когда он устраняет повторяющееся трение (routine friction) и снижает когнитивную нагрузку.
+
+#### Subtypes:
+1.  **The Upgrade (Quality Lift)**
+    *   *Target*: Ежедневный инструмент → лучшая версия.
+    *   *Examples*: Хороший фен, эргономичная мышь, шелковая наволочка.
+    *   *AI Cue*: "uses every day", "basic version".
+2.  **The Fix (Remove Bottleneck)**
+    *   *Target*: Конкретная раздражающая проблема.
+    *   *Examples*: Длинный кабель зарядки, органайзер для ключей.
+    *   *AI Cue*: "hates when", "always forgets", "annoying".
+3.  **The System (Organization)**
+    *   *Target*: Хаос и энтропия (вещи, время, файлы).
+    *   *Examples*: Док-станция, планировщик, коробки для хранения.
+    *   *AI Cue*: "messy", "can't find", "clutter".
+4.  **The Automation (Autopilot)**
+    *   *Target*: Рутинные задачи, которые должны делаться сами.
+    *   *Examples*: Робот-пылесос, автопоилка для кота.
+    *   *AI Cue*: "chore", "no time", "wish it just worked".
+5.  **The Buffer (Preparedness)**
+    *   *Target*: Стресс от неопределенности и "а что если".
+    *   *Examples*: Пауэрбанк, дорожная аптечка, мультитул.
+    *   *AI Cue*: "unprepared", "disaster", "worries about".
+6.  **The Comfort Regulator (Load Reduction)**
+    *   *Target*: Усталость, сенсорная перегрузка.
+    *   *Examples*: Утяжеленное одеяло, массажер шеи, blackout-шторы.
+    *   *AI Cue*: "tired", "stressed", "can't sleep".
+
+**Framing Lines:** *"I noticed this keeps stealing your time—wanted to make it easier."*
+
+---
 
 ### 3. The Catalyst (The Potential Gap)
-*   **Разрыв**: *"Кем бы я мог стать, если бы у меня были инструменты?"*
-*   **Задача подарка**: Рост и Надежда.
-*   **Логика**: У каждого есть "Идеальное Я" (художник, спортсмен, шеф-повар). Они боятся начать. Подарок убирает "барьер входа".
-*   **Для кого**: Молодые взрослые, люди в "застое", творческие личности.
-*   **Подтипы**:
-    *   *The Starter*: Первый набор инструментов (Йога-мат, набор для вышивки).
-    *   *The Inspiration*: Опыт, расширяющий горизонты (Билеты, книги, курсы).
+
+**Gap:** *"Кем бы я мог стать?"*
+**Slogan:** *"I support who you’re becoming."*
+
+Подарок снижает "энергию активации" для движения к желаемой идентичности.
+
+#### Subtypes:
+1.  **The Starter (Low Barrier)**
+    *   *Target*: Первый шаг, который откладывают.
+    *   *Examples*: Набор для выращивания грибов, укулеле.
+    *   *AI Cue*: "want to try", "curious about".
+2.  **The Commitment (Consistency)**
+    *   *Target*: Борьба за регулярность.
+    *   *Examples*: Красивый коврик для йоги, подписка на приложение.
+    *   *AI Cue*: "started but stopped", "hard to stick to".
+3.  **The Accelerator (Level Up)**
+    *   *Target*: Уже в процессе, нужен рычаг для роста.
+    *   *Examples*: Профессиональный нож для повара, объектив для фотографа.
+    *   *AI Cue*: "doing it for years", "serious about".
+4.  **The Horizon Expander (Exposure)**
+    *   *Target*: Расширение картины мира, новые вкусы.
+    *   *Examples*: Билет на выставку, книга по новой теме, дегустационный сет.
+    *   *AI Cue*: "bored", "stuck", "needs inspiration".
+5.  **The Confidence Builder (Safe Failure)**
+    *   *Target*: Страх ошибки или осуждения.
+    *   *Examples*: Курс "рисование для тех, кто не умеет", приватный урок.
+    *   *AI Cue*: "scared to", "bad at", "shy".
+6.  **The Identity Claim (Symbolic)**
+    *   *Target*: Превращение желания в статус "Я есть".
+    *   *Examples*: Фартук с именем, визитки, профессиональный мерч.
+    *   *AI Cue*: "trying to become", "new role".
+
+**Framing Lines:** *"You mentioned you’ve been wanting to try this—this is a gentle first step."*
+
+---
 
 ### 4. The Anchor (The Distance Gap)
-*   **Разрыв**: *"Важен ли я для тебя? Важно ли наше прошлое?"*
-*   **Задача подарка**: Близость и Связь.
-*   **Логика**: Время стирает воспоминания. Физические объекты останавливают время. Ценность исключительно эмоциональная, не функциональная.
-*   **Для кого**: Партнеры, Лучшие друзья, Родители (от взрослых детей).
-*   **Подтипы**:
-    *   *The Time Machine*: Физическое воплощение памяти (Постер "наша песня").
-    *   *The Talisman*: Объект, символизирующий связь (Парные украшения).
 
-### 5. The Indulgence (The Permission Gap)
-*   **Разрыв**: *"Я хочу это, но не могу оправдать трату."*
-*   **Задача подарка**: Удовольствие и Снятие вины.
-*   **Логика**: У всех есть "Фильтр Ответственности", блокирующий легкомысленные покупки. Даритель обходит этот фильтр. Вы даете вещь и алиби ("Это подарок, я обязан этим пользоваться!").
-*   **Для кого**: "Человек, у которого всё есть", Трудоголики, Мамы.
-*   **Подтипы**:
-    *   *The Consumable Luxury*: Дорогие свечи, трюфельное масло.
-    *   *The Novelty*: Веселые, но "бесполезные" вещи (Lego для взрослых).
+**Gap:** *"Важен ли я? Важно ли наше прошлое?"*
+**Slogan:** *"Our bond is real, specific, and safe."*
 
----
+Подарок кодирует отношения: общую историю, язык или будущее.
 
-## Implementation: The "Gifty AI" Logic Map
+#### Subtypes:
+1.  **The Time Capsule (Shared History)**
+    *   *Examples*: Фотокнига, постер с датой знакомства.
+    *   *AI Cue*: "remember when", "anniversary".
+2.  **The Inside Language (Private Code)**
+    *   *Examples*: Мем на кружке, отсылка к локальной шутке.
+    *   *AI Cue*: "our joke", "we always say".
+3.  **The Gratitude Mirror (Validation)**
+    *   *Examples*: Письмо "спасибо", награда "лучший наставник".
+    *   *AI Cue*: "helped me", "grateful".
+4.  **The Ritual Builder (Future Loop)**
+    *   *Examples*: Набор для еженедельных ужинов, игра для двоих.
+    *   *AI Cue*: "miss you", "need more time together".
+5.  **The Presence Token (Bridge)**
+    *   *Examples*: Лампа дружбы, худи с запахом, брелок.
+    *   *AI Cue*: "long distance", "moving away".
+6.  **The Protection Signal (Care)**
+    *   *Examples*: Перцовый баллончик (с любовью), теплый шарф.
+    *   *AI Cue*: "worry about", "keep safe".
 
-Чтобы создавать уникальные рекомендации, AI должен категоризировать ввод пользователя и товары в одну из этих 5 интенций.
-
-| User Input Signals (The Complaint) | The Gap | Recommended Dimension | Examples |
-| :--- | :--- | :--- | :--- |
-| "Они странные/гики", "Помешан на..." | Recognition | **The Mirror** | Кастомный арт, редкий винил |
-| "Она в стрессе", "Вечно работает", "Ненавидит быт" | Friction | **The Optimizer** | Робот-пылесос, Массажер |
-| "Хочет начать...", "Скучает", "Нужны перемены" | Potential | **The Catalyst** | Курс Masterclass, Гитара |
-| "Мы живем далеко", "Годовщина", "Сентиментален" | Distance | **The Anchor** | Карта звездного неба, Фотокнига |
-| "Экономит на себе", "Выгорел", "Устал" | Permission | **The Indulgence** | Шелковая пижама, Дорогой шоколад |
+**Framing Lines:** *"This just reminded me of us."*
 
 ---
 
-## The Failure Model (Why Gifts Miss)
+### 5. The Permission (The Guilt Gap)
 
-Обобщенная теория должна объяснять и плохие подарки. Пять режимов отказа:
+**Gap:** *"Я хочу это, но не могу оправдать."*
+**Slogan:** *"You’re allowed to enjoy."*
 
-1.  **Wrong Self**: Подарок идеализированному "Я" вместо реального (Mismatch в Catalyst).
-2.  **Wrong Timing**: Правильный подарок не вовремя (Optimizer, когда человек эмоционально разбит).
-3.  **Wrong Signal Strength**: Слишком дженерик ("Я пытался") или слишком специфично ("Я сталкерил").
-4.  **Wrong Constraint**: Размер, вкус, аллергия, место в доме.
-5.  **Wrong Story**: Даже хороший объект провалится, если фрейминг неверен.
-    *   *Framing converts*: “wasteful” → “permission,” “creepy” → “thoughtful,” “homework” → “support.”
+Подарок обходит внутренний фильтр "это непрактично / дорого / стыдно".
 
-**Rule: AI must explicitly generate the "Framing" (Why this gift?) for every recommendation.**
+#### Subtypes:
+1.  **The Quiet Premium (Quality Upgrade)**
+    *   *Target*: "Good enough" вещи, которые могли бы быть лучше.
+    *   *Examples*: Дорогие носки, крафтовый шоколад, премиум подписка.
+    *   *AI Cue*: "too expensive", "don't need it".
+2.  **The Sensory Treat (Pure Pleasure)**
+    *   *Target*: Вкус, запах, тактильность.
+    *   *Examples*: Свечи, соль для ванн, деликатесы.
+    *   *AI Cue*: "loves cozy", "foodie".
+3.  **The Rest License (Pause Button)**
+    *   *Target*: Вина за отдых.
+    *   *Examples*: Сертификат в СПА, день без детей, маска для сна.
+    *   *AI Cue*: "burned out", "always working".
+4.  **The Play Pass (Inner Child)**
+    *   *Target*: Взрослая серьезность.
+    *   *Examples*: Lego, раскраска, настолка, квадрокоптер.
+    *   *AI Cue*: "too serious", "misses fun".
+5.  **The Beauty Token (Aesthetic)**
+    *   *Target*: Тяга к красоте, которая кажется "бесполезной".
+    *   *Examples*: Ваза, арт-альбом, цветы без повода.
+    *   *AI Cue*: "loves design", "admire".
+6.  **The Status-Quiet Reward (Pride)**
+    *   *Target*: Желание признания без хвастовства.
+    *   *Examples*: Брендовая ручка, качественный кошелек.
+    *   *AI Cue*: "worked hard", "deserves it".
+
+**Framing Lines:** *"This is a ‘you deserve it’ gift—no rationalizing allowed."*
