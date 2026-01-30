@@ -77,22 +77,21 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Architecture:
-      - Overview: architecture/overview.md
-      - Parsing:
-          - Architecture: architecture/parsing.md
-          - System: architecture/parsing_system.md
-          - Plan: architecture/parsing_plan.md
-      - Recommendation:
-          - General: architecture/recommendations.md
-          - Gift Query Rules: architecture/gift_query_rules.md
-          - Intelligence API: architecture/intelligence.md
+  - Overview: architecture/overview.md
+  - Parsing System:
+      - Architecture: architecture/parsing.md
+      - Technical Details: architecture/parsing_system.md
+      - Guide: How to add parser: guides/parsing.md
+      - Roadmap: architecture/parsing_plan.md
+  - Recommendation Engine:
+      - Architecture: architecture/recommendations.md
+      - Gift Query Rules: architecture/gift_query_rules.md
+      - Intelligence API: architecture/intelligence.md
+  - Engineering & DevOps:
+      - Development Workflow: guides/development.md
+      - Deployment & CI/CD: guides/deployment.md
   - API Reference:
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
       - Integrations (Weeek): weeek_api_reference.md
-  - Guides:
-      - Development: guides/development.md
-      - Deployment: guides/deployment.md
-      - Parsing: guides/parsing.md
