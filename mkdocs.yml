@@ -81,6 +81,7 @@ nav:
       - Architecture: architecture/parsing.md
       - Guide (How to add parser): guides/parsing.md
   - Recommendation Engine:
+      - The Philosophy (GUTG): architecture/grand_unified_theory.md
       - Architecture: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
