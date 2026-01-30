@@ -44,7 +44,7 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs-material mkdocs-i18n mkdocstrings[python] mkdocs-mermaid2-plugin
+          pip install mkdocs-material mkdocs-static-i18n mkdocstrings[python] mkdocs-mermaid2-plugin
 
       - name: Build documentation
         run: mkdocs build --strict
