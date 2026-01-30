@@ -1,57 +1,59 @@
-# Git Flow & Deployment Rules
+# Git Flow и правила деплоя
 
-This document outlines the branching strategy and deployment workflow for the Gifty Backend.
+Этот документ описывает стратегию ветвления и процесс деплоя для бэкенда Gifty.
 
-## 1. Branch Structure
+## 1. Структура веток
 
-| Branch | Purpose | Environment | Stability |
+| Ветка | Цель | Окружение | Стабильность |
 | :--- | :--- | :--- | :--- |
-| `main` | Production code. Only contains released versions. | Production | **Highest (Locked)** |
-| `develop` | Integration branch for features. | Staging / Test | Stable |
-| `feature/*` | New features or tasks (e.g., `feature/auth-yandex`). | Local / Dev | Experimental |
-| `research/*` | ML experiments and data research (e.g., `research/scoring-v2`). | Kaggle / Local | Experimental |
-| `hotfix/*` | Critical bug fixes for production. | Production | Stable |
+| `main` | Production код. Содержит только выпущенные версии. | Production | **Наивысшая (Locked)** |
+| `develop` | Ветка интеграции фич. | Staging / Test | Стабильная |
+| `feature/*` | Новые фичи или задачи (например, `feature/auth-yandex`). | Local / Dev | Экспериментальная |
+| `research/*` | ML эксперименты и исследования данных (например, `research/scoring-v2`). | Kaggle / Local | Экспериментальная |
+| `hotfix/*` | Критические исправления для production. | Production | Стабильная |
 
 ---
 
-## 2. Workflow Rules
+## 2. Правила рабочего процесса (Workflow)
 
-### Feature Development
-1. Create a branch from `develop`: `git checkout -b feature/my-feature`
-2. Work and commit locally.
-3. Open a Pull Request (PR) to `develop`.
-4. After review and CI success, merge into `develop`.
+### Разработка фич
+1. Создайте ветку от `develop`: `git checkout -b feature/my-feature`
+2. Работайте и коммитьте локально.
+3. Откройте Pull Request (PR) в `develop`.
+4. После код-ревью и успешного прохождения CI, влейте (merge) в `develop`.
 
-### Research / ML Work
-1. Create a branch from `develop` or `main`: `git checkout -b research/cool-new-vlm`
-2. Use this branch for Jupyter notebooks and experimental logic.
-3. When research is finalized, port the results to a `feature/` branch or merge via PR if the code is production-ready.
+### Исследовательская / ML работа
+1. Создайте ветку от `develop` или `main`: `git checkout -b research/cool-new-vlm`
+2. Используйте эту ветку для Jupyter ноутбуков и экспериментальной логики.
+3. Когда исследование завершено, перенесите результаты в ветку `feature/` или влейте через PR, если код готов к продакшену.
 
-### Release to Production
-1. When `develop` is ready for release, create a PR from `develop` to `main`.
-2. **Tag the release**: `git tag -a v1.x.x -m "Release description"`
-3. Push tags: `git push origin --tags`
-
----
-
-## 3. Database Migrations (Alembic)
-
-- **NEVER** edit existing migration files in `alembic/versions`.
-- Always generate new migrations: `alembic revision --autogenerate -m "description"`
-- Migrations are automatically applied in production during the Docker startup via `scripts/start.sh`.
-- Test migrations on your local DB before merging into `develop`.
+### Релиз в Production
+1. Когда `develop` готов к релизу, создайте PR из `develop` в `main`.
+2. **Создайте тег релиза**: `git tag -a v1.x.x -m "Описание релиза"`
+3. Пушните теги: `git push origin --tags`
 
 ---
 
-## 4. Environment Variables
+## 3. Миграции базы данных (Alembic)
 
-Sensitive data must **NEVER** be committed to the repository. Use environment variables on the server:
-- `DATABASE_URL`: Production DB connection string.
-- `REDIS_URL`: Production Redis URL.
-- `INTERNAL_API_TOKEN`: Token for inter-service communication.
-- `SECRET_KEY`: Long random string for JWT/Security.
-- `ENV`: Set to `prod` for production servers.
-- `DEBUG`: Set to `false` in production.
+- **НИКОГДА** не редактируйте существующие файлы миграций в `alembic/versions`.
+- Всегда генерируйте новые миграции: `alembic revision --autogenerate -m "описание"`
+- Миграции автоматически применяются в production во время запуска Docker через `scripts/start.sh`.
+- Тестируйте миграции на локальной БД перед слиянием в `develop`.
+
+---
+
+## 4. Переменные окружения
+
+Секретные данные **НИКОГДА** не должны попадать в репозиторий. Используйте переменные окружения на сервере:
+- `DATABASE_URL`: Строка подключения к базе данных Production.
+- `REDIS_URL`: URL Redis для Production.
+- `INTERNAL_API_TOKEN`: Токен для межсервисного взаимодействия.
+- `SECRET_KEY`: Длинная случайная строка для JWT/безопасности.
+- `ENV`: Установите в `prod` для серверов production.
+- `DEBUG`: Установите в `false` в production.
+- `CORS_ORIGINS`: Список разрешенных источников для фронтенда (через запятую).
+
 ---
 
 ## 5. Тестирование
@@ -78,9 +80,9 @@ test_groups:
 ```
 
 **Зачем это нужно:**
+
 1.  **Скорость**: В CI/CD на `develop` можно отключать тяжелые/медленные тесты.
 2.  **Экономия**: Тесты, требующие платных API (например, OpenAI/Amnesia), можно включать только вручную перед релизом.
 
 ### Динамический пропуск (Skipping)
 Если группа тестов отключена в конфиге, `pytest` пометит их как `SKIPPED`. Это нормально и не ломает пайплайн.
-

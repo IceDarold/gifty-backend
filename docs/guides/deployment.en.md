@@ -20,6 +20,7 @@ The deployment process is described in the `.github/workflows/deploy-prod.yml` f
 
 ### 1. Testing Stage (`test`)
 Runs on every push to `main`. 
+
 - Sets up the environment (Python 3.11).
 - Installs dependencies.
 - Runs `pytest` according to settings in `tests_config.yaml`.
@@ -27,6 +28,7 @@ Runs on every push to `main`.
 
 ### 2. Deployment Stage (`deploy`)
 Runs via SSH on the target server:
+
 - **SCP**: Copies the latest code to the `/app/gifty-backend` folder.
 - **Build**: Builds a new Docker image.
 - **Switch**: Executes the `scripts/deploy.sh` script to switch ports and update the Nginx config.
@@ -53,6 +55,7 @@ server {
 
 ### 2. Permissions
 The user GitHub connects with via SSH must have permissions to:
+
 - Execute `docker-compose`.
 - Overwrite files in `/etc/nginx/conf.d/`.
 - Execute `sudo nginx -s reload` without a password (or via appropriate sudoers).
