@@ -95,3 +95,4 @@ nav:
   - Guides:
       - Development: guides/development.md
       - Deployment: guides/deployment.md
+      - Parsing: guides/parsing.md
