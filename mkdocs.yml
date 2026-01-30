@@ -81,7 +81,7 @@ nav:
   - Parsing System:
       - Architecture: architecture/parsing.md
       - Technical Details: architecture/parsing_system.md
-      - Guide: How to add parser: guides/parsing.md
+      - Guide (How to add parser): guides/parsing.md
       - Roadmap: architecture/parsing_plan.md
   - Recommendation Engine:
       - Architecture: architecture/recommendations.md
