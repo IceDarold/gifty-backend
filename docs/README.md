@@ -25,7 +25,7 @@
 ### После настройки
 
 Документация будет доступна по адресу:
-**https://icedarold.github.io/gifty-backend/**
+**https://dev.giftyai.ru/**
 
 ## Локальная разработка
 
