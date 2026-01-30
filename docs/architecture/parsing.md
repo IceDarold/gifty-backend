@@ -177,5 +177,39 @@ Scraper Service — это Stateless контейнер.
 1.  При обновлении кода собирается новый Docker image.
 2.  Воркеры перезапускаются поэтапно (Rolling Update).
 3.  Задачи в RabbitMQ не теряются: если воркер умер во время обработки, задача просто возвращается в очередь для другого воркера.
-### Статус реализации
-<div class="weeek-tracker" data-tag-names="Infrastructure" data-project-id="2"></div>
+---
+
+## 7. Быстрый старт для разработчика парсеров
+
+### 7.1 Создание нового паука
+1. Создайте файл `services/gifty_scraper/spiders/mysite.py`.
+2. Наследуйтесь от `GiftyBaseSpider`.
+3. Реализуйте метод `parse_catalog`.
+
+```python
+from gifty_scraper.base_spider import GiftyBaseSpider
+
+class MySiteSpider(GiftyBaseSpider):
+    name = "mysite"
+    site_key = "mysite"
+    
+    def parse_catalog(self, response):
+        for item in response.css('.product'):
+            yield self.create_product(
+                title=item.css('h1::text').get(),
+                price=item.css('.price::text').get(),
+                product_url=response.urljoin(item.css('a::attr(href)').get())
+            )
+```
+
+### 7.2 Локальное тестирование
+Вы можете запустить паука без поднятия Docker и RabbitMQ:
+```bash
+python scripts/test_spider.py mysite "https://mysite.com/catalog" --limit 5
+```
+Результаты будут сохранены в `test_results.json`.
+
+### 7.3 Добавление в систему
+1. Зарегистрируйте паука в `services/run_worker.py` в словаре `SPIDERS`.
+2. Добавьте запись в таблицу `parsing_sources` (через админку или SQL).
+3. Планировщик сам подхватит новый источник и отправит задачу воркеру.

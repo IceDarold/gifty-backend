@@ -69,3 +69,34 @@ class ParsingRepository:
             return list(result.scalars().all())
             
         return list(existing.values())
+
+    async def get_unmapped_categories(self, limit: int = 100) -> Sequence[CategoryMap]:
+        """Возвращает категории, у которых еще нет привязки к внутренней категории Gifty."""
+        stmt = (
+            select(CategoryMap)
+            .where(CategoryMap.internal_category_id.is_(None))
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def update_category_mappings(self, mappings: List[dict]) -> int:
+        """
+        Массово обновляет привязки внешних категорий к внутренним.
+        mappings: [{"external_name": "...", "internal_category_id": 123}, ...]
+        """
+        if not mappings:
+            return 0
+        
+        count = 0
+        for m in mappings:
+            stmt = (
+                update(CategoryMap)
+                .where(CategoryMap.external_name == m["external_name"])
+                .values(internal_category_id=m["internal_category_id"])
+            )
+            await self.session.execute(stmt)
+            count += 1
+        
+        await self.session.commit()
+        return count
