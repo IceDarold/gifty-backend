@@ -42,11 +42,11 @@ plugins:
   - i18n:
       docs_structure: suffix
       languages:
-        ru:
+        - locale: ru
           name: Русский
           default: true
           build: true
-        en:
+        - locale: en
           name: English
           build: true
   - mkdocstrings:
