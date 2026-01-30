@@ -52,4 +52,35 @@ Sensitive data must **NEVER** be committed to the repository. Use environment va
 - `SECRET_KEY`: Long random string for JWT/Security.
 - `ENV`: Set to `prod` for production servers.
 - `DEBUG`: Set to `false` in production.
-- `CORS_ORIGINS`: Comma-separated list of allowed frontend origins.
+---
+
+## 5. Тестирование
+
+Качество кода в Gifty обеспечивается через `pytest`. Тесты запускаются автоматически перед каждым деплоем.
+
+### Запуск тестов локально
+```bash
+# Установка зависимостей для тестов
+pip install pytest pytest-asyncio pytest-mock pyyaml
+
+# Запуск всех доступных тестов
+pytest
+```
+
+### Управление составом тестов (`tests_config.yaml`)
+В корне проекта находится файл `tests_config.yaml`, который позволяет гибко включать и отключать группы тестов без изменения кода:
+
+```yaml
+test_groups:
+  recommendations: true  # Тесты алгоритмов подбора
+  routes: true           # Тесты API эндпоинтов
+  ai_intelligence: false # Тяжелые тесты AI (по умолчанию выключены)
+```
+
+**Зачем это нужно:**
+1.  **Скорость**: В CI/CD на `develop` можно отключать тяжелые/медленные тесты.
+2.  **Экономия**: Тесты, требующие платных API (например, OpenAI/Amnesia), можно включать только вручную перед релизом.
+
+### Динамический пропуск (Skipping)
+Если группа тестов отключена в конфиге, `pytest` пометит их как `SKIPPED`. Это нормально и не ломает пайплайн.
+
