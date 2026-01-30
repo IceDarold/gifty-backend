@@ -52,6 +52,8 @@ Sensitive data must **NEVER** be committed to the repository. Use environment va
 - `SECRET_KEY`: Long random string for JWT/Security.
 - `ENV`: Set to `prod` for production servers.
 - `DEBUG`: Set to `false` in production.
+- `CORS_ORIGINS`: Comma-separated list of allowed frontend origins.
+
 ---
 
 ## 5. Testing
@@ -78,9 +80,9 @@ test_groups:
 ```
 
 **Why this is useful:**
+
 1.  **Speed**: Heavily or slow tests can be disabled in CI/CD on the `develop` branch.
 2.  **Cost**: Tests requiring paid APIs (e.g., OpenAI/Amnesia) can be enabled only manually before a release.
 
 ### Dynamic Skipping
 If a test group is disabled in the config, `pytest` will mark them as `SKIPPED`. This is normal and does not break the pipeline.
-
