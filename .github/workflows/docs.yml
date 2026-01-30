@@ -3,7 +3,7 @@ name: Deploy Documentation
 on:
   push:
     branches:
-      - documentation
+      - documentation-main
       - documentation/*
     paths:
       - 'docs/**'
@@ -11,7 +11,7 @@ on:
       - '.github/workflows/docs.yml'
   pull_request:
     branches:
-      - documentation
+      - documentation-main
     paths:
       - 'docs/**'
       - 'mkdocs.yml'
@@ -51,7 +51,7 @@ jobs:
         run: mkdocs build --strict
 
       - name: Deploy to GitHub Pages
-        if: github.event_name == 'push' && github.ref == 'refs/heads/documentation'
+        if: github.event_name == 'push' && github.ref == 'refs/heads/documentation-main'
         uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
