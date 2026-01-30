@@ -4,6 +4,10 @@
 # Set PYTHONPATH to the current directory to allow mkdocstrings to find the 'app' module
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
+# Ensure dependencies are installed
+echo "Checking/Installing documentation dependencies..."
+pip install -r requirements-docs.txt
+
 COMMAND=$1
 if [ -z "$COMMAND" ]; then
     COMMAND="serve"
