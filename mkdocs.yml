@@ -3,7 +3,7 @@ site_description: Central knowledge base for Gifty project
 site_url: https://dev.giftyai.ru/
 repo_name: Gifty
 repo_url: https://github.com/IceDarold/gifty-backend
-edit_uri: edit/docs/docs/
+edit_uri: edit/documentation/docs/
 
 theme:
   name: material

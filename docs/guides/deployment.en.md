@@ -79,4 +79,12 @@ The following secrets must be set in the repository settings (Settings -> Secret
 ## Deployment Monitoring
 
 The status of the current deployment can be tracked in the **Actions** tab on GitHub. 
-If the deployment hangs at the "Waiting for health check" stage, it means the new application started but failed to successfully respond to the `/health` request within 60 seconds.
+## Documentation Deployment
+
+The documentation deployment process is defined in `.github/workflows/docs.yml` and is tied to the `documentation` branch.
+
+### Workflow Rules:
+1.  **Primary Branch**: `documentation`. Only pushes to this branch trigger a site update at `dev.giftyai.ru`.
+2.  **Work Branches**: `documentation/*`. Pushes to these branches trigger only a build check (`mkdocs build`) to ensure no errors exist.
+3.  **Pull Request**: Creating a PR into the `documentation` branch also triggers a build check. Deployment happens only after the PR is merged.
+
