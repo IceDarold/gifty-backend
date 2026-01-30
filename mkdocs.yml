@@ -1,0 +1,93 @@
+site_name: Gifty Engineering Docs
+site_description: Central knowledge base for Gifty project
+repo_name: Gifty
+repo_url: https://github.com/IceDarold/gifty-backend
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+
+extra_javascript:
+  - javascripts/weeek.js
+
+extra_css:
+  - stylesheets/weeek.css
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: ru
+          name: Русский
+          default: true
+        - locale: en
+          name: English
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - Home: index.md
+  - Architecture:
+      - Overview: architecture/overview.md
+      - Parsing:
+          - Architecture: architecture/parsing.md
+          - System: architecture/parsing_system.md
+          - Plan: architecture/parsing_plan.md
+      - Recommendation:
+          - General: architecture/recommendations.md
+          - Gift Query Rules: architecture/gift_query_rules.md
+          - Intelligence API: architecture/intelligence.md
+  - API Reference:
+      - Models: api/models.md
+      - Services: api/services.md
+      - Repositories: api/repositories.md
+  - Guides:
+      - Development: guides/development.md
+      - Deployment: guides/deployment.md
