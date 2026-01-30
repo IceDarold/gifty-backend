@@ -6,7 +6,7 @@ export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 
 # Ensure dependencies are installed
 echo "Checking/Installing documentation dependencies..."
-pip install -r requirements-docs.txt
+python3 -m pip install -r requirements-docs.txt
 
 COMMAND=$1
 if [ -z "$COMMAND" ]; then
