@@ -1,5 +1,6 @@
 site_name: Gifty Engineering Docs
 site_description: Central knowledge base for Gifty project
+site_url: https://icedarold.github.io/gifty-backend/
 repo_name: Gifty
 repo_url: https://github.com/IceDarold/gifty-backend
 edit_uri: edit/main/docs/
