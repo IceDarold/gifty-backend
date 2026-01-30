@@ -80,7 +80,6 @@ nav:
   - Parsing System:
       - Architecture: architecture/parsing.md
       - Guide (How to add parser): guides/parsing.md
-      - Roadmap: architecture/parsing_plan.md
   - Recommendation Engine:
       - Architecture: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
