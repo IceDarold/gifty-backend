@@ -91,6 +91,7 @@ nav:
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
+      - Integrations (Weeek): weeek_api_reference.md
   - Guides:
       - Development: guides/development.md
       - Deployment: guides/deployment.md
