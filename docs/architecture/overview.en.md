@@ -21,3 +21,11 @@ graph TD
 3.  **Vectorization**: Transforming product descriptions into vectors for semantic search.
 4.  **Recommendation Engine**: Finding the most suitable vectors based on the user's questionnaire.
 5.  **Interface**: Web application for user interaction.
+
+### Infrastructure & CI/CD
+
+The project is deployed using Docker Compose and follows modern automation practices:
+
+*   **GitHub Actions**: Full CI (Continuous Integration) cycle on every push. Tests run first, followed by deployment.
+*   **Blue-Green Deployment**: A deployment strategy without service interruption. The system switches between two containers on different ports only after a successful Health Check.
+*   **Nginx Proxy**: An external proxy on the host that provides SSL and seamless version switching via upstream port updates.
