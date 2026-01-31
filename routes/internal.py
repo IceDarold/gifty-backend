@@ -80,3 +80,33 @@ async def ingest_batch(
     service = IngestionService(db)
     count = await service.ingest_products(request.items, request.source_id)
     return {"status": "ok", "items_ingested": count}
+
+from app.schemas_v2 import CategoryMappingTask, CategoryBatchSubmit
+from app.repositories.parsing import ParsingRepository
+
+@router.get("/categories/tasks", response_model=List[CategoryMappingTask], summary="Получить категории для маппинга")
+async def get_category_tasks(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Возвращает внешние категории, которые еще не привязаны к внутренней структуре Gifty.
+    Используется AI воркером для классификации.
+    """
+    repo = ParsingRepository(db)
+    categories = await repo.get_unmapped_categories(limit=limit)
+    return [CategoryMappingTask(external_name=c.external_name) for c in categories]
+
+@router.post("/categories/submit", summary="Сохранить результаты маппинга категорий")
+async def submit_category_mappings(
+    batch: CategoryBatchSubmit,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Принимает от AI воркера привязки внешних категорий к внутренним.
+    """
+    repo = ParsingRepository(db)
+    count = await repo.update_category_mappings([r.model_dump() for r in batch.results])
+    return {"status": "ok", "updated": count}
