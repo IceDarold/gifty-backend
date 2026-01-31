@@ -11,6 +11,7 @@ def main():
     parser.add_argument("url", help="Start URL for the spider")
     parser.add_argument("--strategy", default="deep", choices=["deep", "discovery"], help="Crawl strategy")
     parser.add_argument("--limit", type=int, default=10, help="Limit number of items (approx)")
+    parser.add_argument("--max-products", type=int, default=0, help="Max products per page/hub")
     parser.add_argument("--output", default="test_results.json", help="Output JSON file")
     
     args = parser.parse_args()
@@ -34,6 +35,7 @@ def main():
             'store_empty': False,
             'fields': None,
             'indent': 4,
+            'overwrite': True,
             'item_export_kwargs': {
                 'export_empty_fields': True,
             },
@@ -44,7 +46,7 @@ def main():
     settings.set('CLOSESPIDER_ITEMCOUNT', args.limit)
 
     process = CrawlerProcess(settings)
-    process.crawl(args.spider, url=args.url, strategy=args.strategy)
+    process.crawl(args.spider, url=args.url, strategy=args.strategy, max_products=args.max_products)
     process.start()
     
     print(f"\n--- Done! results saved to {args.output} ---")

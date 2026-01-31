@@ -34,6 +34,9 @@ class GiftyBaseSpider(scrapy.Spider):
         for key, value in kwargs.items():
             product[key] = value
         
+        if 'title' in kwargs and 'name' not in kwargs:
+            product['name'] = kwargs['title']
+        
         product['site_key'] = self.site_key
         product['source_id'] = self.source_id
         return product
