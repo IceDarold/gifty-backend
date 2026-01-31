@@ -76,3 +76,16 @@ class ScoringResult(BaseModel):
 
 class ScoringBatchSubmit(BaseModel):
     results: list[ScoringResult] = Field(..., description="Список результатов скоринга для сохранения")
+
+
+class CategoryMappingTask(BaseModel):
+    external_name: str = Field(..., description="Название внешней категории для сопоставления")
+
+
+class CategoryMappingResult(BaseModel):
+    external_name: str = Field(..., description="Название внешней категории")
+    internal_category_id: int = Field(..., description="ID внутренней категории Gifty")
+
+
+class CategoryBatchSubmit(BaseModel):
+    results: list[CategoryMappingResult] = Field(..., description="Список сопоставлений категорий")
