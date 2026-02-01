@@ -4,6 +4,10 @@ from gifty_scraper.base_spider import GiftyBaseSpider
 
 
 class DetmirSpider(GiftyBaseSpider):
+    """
+    Spider for parsing product information from Detmir (detmir.ru).
+    Focuses on the gifts catalog and product categories.
+    """
     name = "detmir"
     allowed_domains = ["detmir.ru"]
     site_key = "detmir"
