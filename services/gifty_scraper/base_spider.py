@@ -25,8 +25,22 @@ class GiftyBaseSpider(scrapy.Spider):
         raise NotImplementedError
 
     def parse_discovery(self, response):
-        """Парсинг структуры категорий (Hub)"""
-        raise NotImplementedError
+        """
+        Generic discovery strategy: find category links using a CSS selector.
+        Should be overridden or configured via category_selector attribute.
+        """
+        selector = getattr(self, 'category_selector', 'a[href*="/catalog/"]')
+        found_urls = set()
+        
+        # Default implementation for finding category links
+        links = response.css(selector)
+        for link in links:
+            url = response.urljoin(link.css('::attr(href)').get())
+            
+            # Simple heuristic to avoid redundant links
+            if url and url != response.url and url not in found_urls:
+                found_urls.add(url)
+                yield response.follow(url, self.parse_catalog)
 
     def create_product(self, **kwargs):
         """Helper для создания ProductItem с общими полями"""

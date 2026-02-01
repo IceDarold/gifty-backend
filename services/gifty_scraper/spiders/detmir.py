@@ -1,18 +1,17 @@
 import scrapy
 import re
+import json
 from gifty_scraper.base_spider import GiftyBaseSpider
 
 
 class DetmirSpider(GiftyBaseSpider):
-    """
-    Spider for parsing product information from Detmir (detmir.ru).
-    Focuses on the gifts catalog and product categories.
-    """
     name = "detmir"
     allowed_domains = ["detmir.ru"]
     site_key = "detmir"
+    category_selector = 'a[data-testid^="category-"], a[href*="/catalog/index/name/"]'
     
     custom_settings = {
+        'ROBOTSTXT_OBEY': False,
         'USER_AGENT': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
         'DEFAULT_REQUEST_HEADERS': {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
@@ -23,11 +22,39 @@ class DetmirSpider(GiftyBaseSpider):
         }
     }
 
-    def parse(self, response):
+    def parse_catalog(self, response):
         """
         Parses the catalog page.
         """
+        with open("scrapy_debug.html", "wb") as f:
+            f.write(response.body)
+            
         self.logger.info(f"Parsing catalog: {response.url}")
+
+        # Extract product data from JSON state (essential for lazy-loaded items after the first 4)
+        image_lookup = {}
+        try:
+            # Look for window.appData = JSON.parse("...") which contains the full product list for the page
+            match = re.search(r'window\.appData = JSON\.parse\("(.*?)"\)', response.text)
+            if match:
+                # The content is a JSON string escaped for JS (e.g. \" instead of ")
+                json_raw = match.group(1)
+                json_str = json_raw.encode('utf-8').decode('unicode_escape')
+                app_data = json.loads(json_str)
+                
+                # Path to products varies but catalog.data.items is common for listing pages
+                items = app_data.get('catalog', {}).get('data', {}).get('items', [])
+                for item in items:
+                    pid = str(item.get('id') or item.get('productId') or "")
+                    if pid:
+                        pics = item.get('pictures', [])
+                        if pics:
+                            # Try to find a good image URL in the JSON
+                            img_url = pics[0].get('web') or pics[0].get('original')
+                            if img_url:
+                                image_lookup[pid] = img_url
+        except Exception as e:
+            self.logger.debug(f"Failed to extract image_lookup from appData: {e}")
         
         # Detmir uses section tags for product cards
         cards = response.css('section[id^="product-"]')
@@ -43,20 +70,64 @@ class DetmirSpider(GiftyBaseSpider):
             url = title_link.css('::attr(href)').get()
             
             # Price
-            # Detmir often shows multiple prices (old, new). We want the current one.
-            # Usually the one with currency symbol '₽'
             price_nodes = card.css('[data-testid="productPrice"] *::text').getall()
             price_str = "".join(price_nodes) if price_nodes else ""
             
-            # Extract only digits from the price string (taking the first price found)
-            # Example: '1 999 ₽ 3 999 ₽' -> we want the first one
             current_price = None
             price_matches = re.findall(r'(\d[\d\s\u2009\xa0]*)₽', price_str)
             if price_matches:
                 current_price = price_matches[0].replace("\u2009", "").replace("\xa0", "").replace(" ", "")
             
-            # Image
-            image = card.css('img::attr(src)').get()
+            # Image extraction
+            image = None
+            product_id = card.attrib.get('data-product-id')
+
+            # 1. Try JSON lookup (most reliable for lazy-loaded items)
+            if product_id and product_id in image_lookup:
+                image = image_lookup[product_id]
+
+            # 2. Try various srcset combinations from img and source tags
+            if not image:
+                srcset_selectors = [
+                    'img::attr(srcset)', 
+                    'source::attr(srcset)',
+                    'img::attr(data-srcset)',
+                    'source::attr(data-srcset)'
+                ]
+                
+                for selector in srcset_selectors:
+                    srcset = card.css(selector).get()
+                    if srcset:
+                        # Parse first URL from srcset, handling any whitespace (removes 2x, 3x etc)
+                        parts = srcset.split(',')
+                        if parts:
+                            first_part = parts[0].strip()
+                            if first_part:
+                                cand_image = first_part.split()[0]
+                                if cand_image and 'data:image' not in cand_image:
+                                    image = cand_image
+                                    break
+            
+            # 3. Try common lazy-loading attributes
+            if not image or 'data:image' in image:
+                lazy_attrs = ['data-src', 'data-original', 'data-lazy-src', 'data-image', 'data-main-image']
+                for attr in lazy_attrs:
+                    cand_image = card.css(f'img::attr({attr})').get() or card.css(f'div::attr({attr})').get()
+                    if cand_image and 'data:image' not in cand_image:
+                        image = cand_image
+                        break
+            
+            # 4. Try meta tags inside the card
+            if not image or 'data:image' in image:
+                image = (card.css('meta[itemprop="image"]::attr(content)').get() or 
+                         card.css('[itemprop="image"]::attr(src)').get())
+
+            # 5. Fallback to standard src
+            if not image or 'data:image' in image or 'placeholder' in image:
+                image = card.css('img::attr(src)').get()
+            
+            if not image and title:
+                 self.logger.debug(f"Missing image for {title}. Card HTML snippet: {card.get()[:500]}")
             
             if not title or not url:
                 continue
@@ -69,7 +140,7 @@ class DetmirSpider(GiftyBaseSpider):
                 merchant="Detmir",
                 raw_data={
                     "source": "scrapy_v1",
-                    "product_id": card.attrib.get('data-product-id')
+                    "product_id": product_id
                 }
             )
 
@@ -101,4 +172,4 @@ class DetmirSpider(GiftyBaseSpider):
                 else:
                     next_url = f"{response.url}?page={next_page}"
                 
-                yield response.follow(next_url, self.parse)
+                yield response.follow(next_url, self.parse_catalog)
