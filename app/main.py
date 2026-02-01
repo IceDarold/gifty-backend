@@ -13,7 +13,6 @@ from app.config import get_settings
 from app.redis_client import init_redis
 from app.utils.errors import install_exception_handlers
 from app.services.embeddings import EmbeddingService
-from prometheus_fastapi_instrumentator import Instrumentator
 
 settings = get_settings()
 
@@ -93,7 +92,3 @@ app.include_router(integrations_router)
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
-
-
-Instrumentator().instrument(app).expose(app)
-
