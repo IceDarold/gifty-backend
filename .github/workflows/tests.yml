@@ -1,0 +1,36 @@
+name: Run Tests
+
+on:
+  push:
+    branches:
+      - develop
+  pull_request:
+    branches:
+      - main
+      - develop
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-mock pyyaml httpx
+
+      - name: Run Pytest
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "fakeredis://"
+        run: |
+          # Pytest will automatically respect tests_config.yaml in the root
+          pytest --verbose
