@@ -1,10 +1,55 @@
 from gifty_scraper.base_spider import GiftyBaseSpider
+from gifty_scraper.items import CategoryItem
 
 
 class GroupPriceSpider(GiftyBaseSpider):
     name = "groupprice"
     allowed_domains = ["groupprice.ru"]
     site_key = "groupprice"
+    
+    def parse_discovery(self, response):
+        """
+        Parses the gifts hub page to find all specific gift categories (hubs).
+        """
+        # 1. Try carousel (usually has good text names)
+        carousel_links = response.css("div.__carousel a._button")
+        # 2. Try grid (has nicer images, but often lacks text)
+        grid_links = response.css("div.gifts-grid a")
+        
+        found_hubs = {} # url -> name
+
+        def clean_name(n):
+            return n.strip() if n else None
+
+        # Process carousel first as it has better names
+        for hub in carousel_links:
+            url = response.urljoin(hub.css("::attr(href)").get())
+            name = clean_name(hub.xpath("string(.)").get())
+            if url:
+                found_hubs[url] = name
+
+        # Process grid to find any missing hubs
+        for hub in grid_links:
+            url = response.urljoin(hub.css("::attr(href)").get())
+            if url and (url not in found_hubs or not found_hubs[url]):
+                name = clean_name(hub.css("::attr(title)").get() or \
+                                 hub.css("img::attr(alt)").get() or \
+                                 hub.xpath("string(following-sibling::p)").get())
+                
+                if not name:
+                    # Fallback: pretty-print the URL slug
+                    slug = url.split("/")[-1]
+                    name = slug.replace("-", " ").replace("_", " ").title()
+                
+                found_hubs[url] = name
+
+        for url, name in found_hubs.items():
+            yield CategoryItem(
+                name=name,
+                url=url,
+                parent_url=response.url,
+                site_key=self.site_key
+            )
 
     def parse_catalog(self, response):
         # Each product card
@@ -16,14 +61,10 @@ class GroupPriceSpider(GiftyBaseSpider):
             price = card.attrib.get("data-product-price")
             url = card.css("a::attr(href)").get()
             
-            # Image: try to get the one with better quality if possible, 
-            # usually replacing 'thumb' with 'original' or just removing 'thumb' works on some CDNs
+            # Image: try to get the one with better quality if possible
             image = card.css("img._cover::attr(src)").get()
             if image and "thumb" in image:
-                # GroupPrice specific: they have 'thumb.webp', let's see if we can get a larger one
-                # Usually 'normal' or 'original' works, but let's keep thumb for safety if not sure,
-                # or try to guess. For now, let's just make sure it's absolute.
-                pass
+                image = image.replace("thumb", "")
 
             if not title or not url:
                 continue

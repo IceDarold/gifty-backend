@@ -6,6 +6,7 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from gifty_scraper.spiders.mrgeek import MrGeekSpider
 from gifty_scraper.spiders.group_price import GroupPriceSpider
+from gifty_scraper.spiders.nashi_podarki import NashiPodarkiSpider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,7 +15,8 @@ RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
 SPIDERS = {
     "mrgeek": MrGeekSpider,
-    "groupprice": GroupPriceSpider
+    "groupprice": GroupPriceSpider,
+    "nashipodarki": NashiPodarkiSpider
 }
 
 def callback(ch, method, properties, body):
