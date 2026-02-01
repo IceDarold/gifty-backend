@@ -8,6 +8,7 @@ from gifty_scraper.spiders.mrgeek import MrGeekSpider
 from gifty_scraper.spiders.group_price import GroupPriceSpider
 from gifty_scraper.spiders.nashi_podarki import NashiPodarkiSpider
 from gifty_scraper.spiders.detmir import DetmirSpider
+from gifty_scraper.spiders.inteltoys import IntelToysSpider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ SPIDERS = {
     "mrgeek": MrGeekSpider,
     "groupprice": GroupPriceSpider,
     "nashipodarki": NashiPodarkiSpider,
-    "detmir": DetmirSpider
+    "detmir": DetmirSpider,
+    "inteltoys": IntelToysSpider
 }
 
 def callback(ch, method, properties, body):
