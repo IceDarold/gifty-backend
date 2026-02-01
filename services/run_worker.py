@@ -60,6 +60,12 @@ def main():
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue='parsing_tasks', on_message_callback=callback)
 
+    # Start Prometheus metrics server
+    from prometheus_client import start_http_server
+    metrics_port = int(os.getenv("METRICS_PORT", "9410"))
+    start_http_server(metrics_port)
+    logger.info(f"Prometheus metrics server started on port {metrics_port}")
+
     logger.info("Worker waiting for tasks. To exit press CTRL+C")
     channel.start_consuming()
 
