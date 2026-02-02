@@ -58,12 +58,16 @@ def _frontend_redirect_path(return_to: str) -> str:
     return str(settings.frontend_base).rstrip("/") + cleaned
 
 
-@router.get("/{provider}/start")
+@router.get("/{provider}/start", summary="Запуск OAuth авторизации")
 async def oauth_start(
     provider: str,
     redis: Redis = Depends(get_redis),
     return_to: str = "/",
 ):
+    """
+    Инициирует процесс входа через стороннего провайдера (google, yandex, vk).
+    Генерирует `state` и `code_verifier` (PKCE) и перенаправляет на страницу авторизации провайдера.
+    """
     config = get_provider_config(provider, settings)
     state = generate_state()
     code_verifier = pkce.generate_code_verifier()
@@ -129,7 +133,7 @@ async def _upsert_user(
     return user
 
 
-@router.get("/{provider}/callback")
+@router.get("/{provider}/callback", summary="Обработка ответа от OAuth провайдера")
 async def oauth_callback(
     provider: str,
     code: Optional[str] = None,
@@ -137,6 +141,10 @@ async def oauth_callback(
     redis: Redis = Depends(get_redis),
     db: AsyncSession = Depends(get_db),
 ):
+    """
+    Эндпоинт, на который провайдер возвращает пользователя с временным кодом.
+    Обменивает код на токены, создает или обновляет профиль пользователя и устанавливает сессионную куку.
+    """
     if not code or not state:
         raise AppError("invalid_request", "code and state are required", status.HTTP_400_BAD_REQUEST)
 
@@ -172,16 +180,24 @@ async def oauth_callback(
     return response
 
 
-@router.get("/me", response_model=UserDTO)
+@router.get("/me", response_model=UserDTO, summary="Информация о текущем пользователе")
 async def current_user(user: User = Depends(get_current_user)) -> UserDTO:
+    """
+    Возвращает профиль текущего авторизованного пользователя на основе сессионной куки.
+    """
     return UserDTO.from_orm(user)
 
 
-@router.post("/logout")
+@router.post("/logout", summary="Выход из системы")
 async def logout(request: Request, redis: Redis = Depends(get_redis)) -> JSONResponse:
+    """
+    Удаляет сессию из Redis и очищает сессионную куку на клиенте.
+    """
     session_id = request.cookies.get(settings.session_cookie_name)
     if session_id:
         await session_store.delete_session(redis, session_id)
     response = JSONResponse({"ok": True})
     clear_session_cookie(response, settings)
     return response
+
+

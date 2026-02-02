@@ -18,12 +18,16 @@ def verify_internal_token(x_internal_token: str = Header(...)):
         raise HTTPException(status_code=403, detail="Invalid internal token")
     return x_internal_token
 
-@router.get("/scoring/tasks", response_model=List[ScoringTask])
+@router.get("/scoring/tasks", response_model=List[ScoringTask], summary="Получить товары для скоринга")
 async def get_scoring_tasks(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
+    """
+    Возвращает список товаров, которые еще не были оценены LLM моделями.
+    Используется внешним воркером для формирования очереди на анализ.
+    """
     repo = PostgresCatalogRepository(db)
     products = await repo.get_products_without_llm_score(limit=limit)
     return [
@@ -39,14 +43,70 @@ async def get_scoring_tasks(
         for p in products
     ]
 
-@router.post("/scoring/submit")
+@router.post("/scoring/submit", summary="Сохранить результаты скоринга")
 async def submit_scoring_results(
     batch: ScoringBatchSubmit,
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
+    """
+    Принимает результаты анализа от LLM воркера.
+    Обновляет оценки, обоснования и векторные представления товаров в БД.
+    """
     repo = PostgresCatalogRepository(db)
     scores = [res.model_dump() for res in batch.results]
     count = await repo.save_llm_scores(scores)
     await db.commit()
+    return {"status": "ok", "updated": count}
+
+from app.schemas.parsing import IngestBatchRequest
+from app.services.ingestion import IngestionService
+
+@router.post("/ingest-batch", summary="Прием партии товаров")
+async def ingest_batch(
+    request: IngestBatchRequest,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Основной эндпоинт для загрузки данных из парсеров.
+    
+    **Процесс:**
+    1. Принимает список товаров и метаданные источника.
+    2. Проверяет новые категории и создает записи в `category_maps`.
+    3. Выполняет `bulk upsert` товаров в базу данных.
+    4. Обновляет статистику источника.
+    """
+    service = IngestionService(db)
+    count = await service.ingest_products(request.items, request.source_id)
+    return {"status": "ok", "items_ingested": count}
+
+from app.schemas_v2 import CategoryMappingTask, CategoryBatchSubmit
+from app.repositories.parsing import ParsingRepository
+
+@router.get("/categories/tasks", response_model=List[CategoryMappingTask], summary="Получить категории для маппинга")
+async def get_category_tasks(
+    limit: int = 100,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Возвращает внешние категории, которые еще не привязаны к внутренней структуре Gifty.
+    Используется AI воркером для классификации.
+    """
+    repo = ParsingRepository(db)
+    categories = await repo.get_unmapped_categories(limit=limit)
+    return [CategoryMappingTask(external_name=c.external_name) for c in categories]
+
+@router.post("/categories/submit", summary="Сохранить результаты маппинга категорий")
+async def submit_category_mappings(
+    batch: CategoryBatchSubmit,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Принимает от AI воркера привязки внешних категорий к внутренним.
+    """
+    repo = ParsingRepository(db)
+    count = await repo.update_category_mappings([r.model_dump() for r in batch.results])
     return {"status": "ok", "updated": count}

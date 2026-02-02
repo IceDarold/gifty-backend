@@ -91,3 +91,28 @@ class ProductEmbedding(TimestampMixin, Base):
     embedding: Mapped[list[float]] = mapped_column(Vector(1024), nullable=False)
     content_hash: Mapped[str] = mapped_column(Text, nullable=False)
     embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ParsingSource(TimestampMixin, Base):
+    __tablename__ = "parsing_sources"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    type: Mapped[str] = mapped_column(String, nullable=False)  # hub, list, product, sitemap
+    site_key: Mapped[str] = mapped_column(String, nullable=False, index=True)  # mrgeek, ozon, etc.
+    strategy: Mapped[str] = mapped_column(String, server_default="deep")  # deep, discovery
+    priority: Mapped[int] = mapped_column(sa.Integer, server_default="50", index=True)
+    refresh_interval_hours: Mapped[int] = mapped_column(sa.Integer, server_default="24")
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    config: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+
+
+class CategoryMap(TimestampMixin, Base):
+    __tablename__ = "category_maps"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    external_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
+    internal_category_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    is_verified: Mapped[bool] = mapped_column(sa.Boolean, server_default="false")

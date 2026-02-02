@@ -44,3 +44,23 @@ pytest -q
 - Все секреты задаются через `.env`, в коде не хардкодятся.
 - Сессия хранится в Redis (`gifty_session` HttpOnly cookie). `STATE` для OAuth хранится в Redis 10 минут.
 - Ответы в snake_case, ошибки: `{ "error": { "code": "...", "message": "...", "fields": {...} } }`.
+
+## Data Processing & Recommendations
+
+### 1. Catalog Sync (Stage 1)
+Fetches products from TakProdam API and updates the local PostgreSQL database.
+**Run:**
+```bash
+# Make sure .venv is active
+python scripts/run_sync.py
+```
+
+### 2. Embeddings Generation (Stage 3)
+Generates vector embeddings for products using `BAAI/bge-m3` model (runs on CPU by default).
+**Run:**
+```bash
+# Make sure .venv is active
+python scripts/run_embeddings.py
+```
+**Note:** The first run will download the model (~1GB).
+
