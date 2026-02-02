@@ -48,7 +48,21 @@ class VseIgrushkiSpider(GiftyBaseSpider):
                 current_price = card.css('meta[itemprop="price"]::attr(content)').get()
             
             # Image
-            image = card.css('img.lazy-img::attr(data-src)').get()
+            image = None
+            srcset = card.css('img.lazy-img::attr(data-srcset)').get()
+            if srcset:
+                # Try to get the 2x version if it exists
+                parts = [p.strip() for p in srcset.split(',')]
+                for p in parts:
+                    if '2x' in p:
+                        image = p.split()[0]
+                        break
+                if not image:
+                    image = parts[0].split()[0]
+            
+            if not image:
+                image = card.css('img.lazy-img::attr(data-src)').get()
+            
             if not image:
                 image = card.css('meta[itemprop="image"]::attr(content)').get()
             
@@ -69,9 +83,12 @@ class VseIgrushkiSpider(GiftyBaseSpider):
 
         # Pagination
         if self.strategy in ["deep", "discovery"]:
-            next_page = response.css('div.pagination a.next::attr(href)').get() or \
-                        response.xpath('//a[contains(@class, "next")]/@href').get() or \
-                        response.css('div.pagination a:last-child[href*="page="]::attr(href)').get()
+            # Try multiple common pagination patterns for InSales platform
+            next_page = response.css('a.next::attr(href)').get() or \
+                        response.xpath('//a[contains(text(), "→")]/@href').get() or \
+                        response.css('a.inline-link[href*="page="]::attr(href)').get() or \
+                        response.xpath('//div[contains(@class, "paging")]//a[last()]/@href').get()
             
             if next_page:
+                self.logger.info(f"Following next page: {next_page}")
                 yield response.follow(next_page, self.parse_catalog)
