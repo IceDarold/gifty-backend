@@ -57,6 +57,10 @@ class Settings(BaseSettings):
     env: str = Field("prod", alias="ENV")
     cors_origins: str = Field("*", alias="CORS_ORIGINS")
     secret_key: str = Field("change-me-in-production", alias="SECRET_KEY")
+    
+    # PostHog Analytics
+    posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
+    posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
 
     model_config = SettingsConfigDict(
         env_file=".env",
