@@ -6,6 +6,7 @@ from scrapy.crawler import CrawlerProcess
 from scrapy.utils.project import get_project_settings
 from gifty_scraper.spiders.mrgeek import MrGeekSpider
 from gifty_scraper.spiders.group_price import GroupPriceSpider
+from gifty_scraper.spiders.nashi_podarki import NashiPodarkiSpider
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -14,7 +15,8 @@ RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 
 SPIDERS = {
     "mrgeek": MrGeekSpider,
-    "groupprice": GroupPriceSpider
+    "groupprice": GroupPriceSpider,
+    "nashipodarki": NashiPodarkiSpider
 }
 
 def callback(ch, method, properties, body):
@@ -57,6 +59,12 @@ def main():
     channel.queue_declare(queue='parsing_tasks', durable=True)
     channel.basic_qos(prefetch_count=1)
     channel.basic_consume(queue='parsing_tasks', on_message_callback=callback)
+
+    # Start Prometheus metrics server
+    from prometheus_client import start_http_server
+    metrics_port = int(os.getenv("METRICS_PORT", "9410"))
+    start_http_server(metrics_port)
+    logger.info(f"Prometheus metrics server started on port {metrics_port}")
 
     logger.info("Worker waiting for tasks. To exit press CTRL+C")
     channel.start_consuming()

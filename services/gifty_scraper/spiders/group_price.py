@@ -80,7 +80,6 @@ class GroupPriceSpider(GiftyBaseSpider):
                 # GroupPrice specific: they have 'thumb.webp', removing 'thumb' gives the original image.
                 image = image.replace("thumb", "")
 
-
             if not title or not url:
                 continue
 
