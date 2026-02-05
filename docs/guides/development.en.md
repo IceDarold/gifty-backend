@@ -53,3 +53,36 @@ Sensitive data must **NEVER** be committed to the repository. Use environment va
 - `ENV`: Set to `prod` for production servers.
 - `DEBUG`: Set to `false` in production.
 - `CORS_ORIGINS`: Comma-separated list of allowed frontend origins.
+
+---
+
+## 5. Testing
+
+Code quality in Gifty is ensured through `pytest`. Tests are automatically run before every deployment.
+
+### Running Tests Locally
+```bash
+# Install test dependencies
+pip install pytest pytest-asyncio pytest-mock pyyaml
+
+# Run all available tests
+pytest
+```
+
+### Managing Test Suites (`tests_config.yaml`)
+A `tests_config.yaml` file is located at the root of the project, allowing you to flexibly enable or disable test groups without changing the code:
+
+```yaml
+test_groups:
+  recommendations: true  # Recommendation algorithm tests
+  routes: true           # API endpoint tests
+  ai_intelligence: false # Heavy AI tests (disabled by default)
+```
+
+**Why this is useful:**
+
+1.  **Speed**: Heavily or slow tests can be disabled in CI/CD on the `develop` branch.
+2.  **Cost**: Tests requiring paid APIs (e.g., OpenAI/Amnesia) can be enabled only manually before a release.
+
+### Dynamic Skipping
+If a test group is disabled in the config, `pytest` will mark them as `SKIPPED`. This is normal and does not break the pipeline.

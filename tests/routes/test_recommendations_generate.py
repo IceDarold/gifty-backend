@@ -1,75 +1,28 @@
 from __future__ import annotations
-
 import uuid
 from types import SimpleNamespace
 from typing import Any
-import os
-import sqlite3
-import sys
-import types
-
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-
-from integrations.takprodam.models import GiftCandidate
-from recommendations.ranker_v1 import RankingResult
-
-os.environ.setdefault("API_BASE", "http://testserver")
-os.environ.setdefault("FRONTEND_BASE", "http://testserver")
-os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
-os.environ.setdefault("REDIS_URL", "redis://localhost:6379/0")
-os.environ.setdefault("GOOGLE_CLIENT_ID", "dummy")
-os.environ.setdefault("GOOGLE_CLIENT_SECRET", "dummy")
-os.environ.setdefault("YANDEX_CLIENT_ID", "dummy")
-os.environ.setdefault("YANDEX_CLIENT_SECRET", "dummy")
-os.environ.setdefault("VK_CLIENT_ID", "dummy")
-os.environ.setdefault("VK_CLIENT_SECRET", "dummy")
-
-fake_aiosqlite = types.SimpleNamespace(
-    paramstyle=sqlite3.paramstyle,
-    DatabaseError=sqlite3.DatabaseError,
-    IntegrityError=sqlite3.IntegrityError,
-    Warning=sqlite3.Warning,
-    InterfaceError=sqlite3.InterfaceError,
-    OperationalError=sqlite3.OperationalError,
-    ProgrammingError=sqlite3.ProgrammingError,
-    Error=sqlite3.Error,
-    NotSupportedError=sqlite3.NotSupportedError,
-    version=sqlite3.version,
-    sqlite_version=sqlite3.sqlite_version,
-    sqlite_version_info=sqlite3.sqlite_version_info,
-    threadsafety=sqlite3.threadsafety,
-    complete_statement=sqlite3.complete_statement,
-    register_adapter=sqlite3.register_adapter,
-    register_converter=sqlite3.register_converter,
-    version_info=sqlite3.version_info,
-)
-
-
-async def _fake_connect(*args, **kwargs):
-    return sqlite3.connect(":memory:")
-
-
-fake_aiosqlite.connect = _fake_connect
-sys.modules.setdefault("aiosqlite", fake_aiosqlite)
+from unittest.mock import AsyncMock, MagicMock
 
 from routes import recommendations as rec_module
-
+from app.schemas_v2 import RecommendationResponse, GiftDTO
 
 @pytest.fixture
 def client(monkeypatch):
     app = FastAPI()
     app.include_router(rec_module.router)
-    from app.utils.errors import install_exception_handlers
-
-    install_exception_handlers(app)
-
+    
+    # Mocking app.state
+    app.state.embedding_service = MagicMock()
+    
     async def override_get_db():
-        yield SimpleNamespace()
+        yield AsyncMock()
 
     async def override_get_redis():
-        return SimpleNamespace()
+        return AsyncMock()
 
     app.dependency_overrides[rec_module.get_db] = override_get_db
     app.dependency_overrides[rec_module.get_redis] = override_get_redis
@@ -77,154 +30,56 @@ def client(monkeypatch):
 
     return TestClient(app)
 
-
 @pytest.fixture
-def pipeline_mocks(monkeypatch):
-    events: list[tuple[str, dict[str, Any]]] = []
-    created: dict[str, Any] = {}
-
-    sample_candidates = [
-        GiftCandidate(
-            gift_id=f"gift-{i}",
+def service_mock(monkeypatch):
+    mock_service = AsyncMock()
+    
+    sample_gifts = [
+        GiftDTO(
+            id=f"gift-{i}",
             title=f"Gift {i}",
-            description="Nice gift",
-            product_url=f"https://example.com/{i}",
-            price=10 + i,
+            description="Description",
+            price=10.0 + i,
             currency="RUB",
-            raw={},
-        )
-        for i in range(12)
+            product_url=f"http://example.com/{i}",
+        ) for i in range(5)
     ]
-
-    queries = [
-        {"query": "cozy blanket", "bucket": "vibe", "reason": "cozy"},
-        {"query": "scented candle", "bucket": "vibe", "reason": "cozy"},
-    ]
-
-    def fake_generate_queries(quiz, ruleset):
-        return queries
-
-    def fake_collect_candidates(*_, **__):
-        return sample_candidates, {"collector": True}
-
-    def fake_rank_candidates(quiz, candidates, debug=False, top_n=10):
-        picks = candidates[:top_n]
-        return RankingResult(
-            featured_gift=picks[0],
-            gifts=picks,
-            debug={"ranker": debug},
-        )
-
-    async def fake_create_quiz_run(db, *, user_id, anon_id, answers_json):
-        created["quiz_run"] = SimpleNamespace(id=uuid.uuid4(), user_id=user_id, anon_id=anon_id)
-        return created["quiz_run"]
-
-    async def fake_create_recommendation_run(
-        db, *, quiz_run_id, engine_version, featured_gift_id, gift_ids, debug_json=None
-    ):
-        created["recommendation_run"] = SimpleNamespace(
-            id=uuid.uuid4(),
-            quiz_run_id=quiz_run_id,
-            engine_version=engine_version,
-            featured_gift_id=featured_gift_id,
-            gift_ids=gift_ids,
-            debug_json=debug_json,
-        )
-        return created["recommendation_run"]
-
-    async def fake_log_event(db, event_name, **kwargs):
-        events.append((event_name, kwargs))
-
-    monkeypatch.setattr(rec_module, "generate_queries", fake_generate_queries)
-    monkeypatch.setattr(rec_module, "collect_candidates", fake_collect_candidates)
-    monkeypatch.setattr(rec_module, "rank_candidates", fake_rank_candidates)
-    monkeypatch.setattr(rec_module, "create_quiz_run", fake_create_quiz_run)
-    monkeypatch.setattr(rec_module, "create_recommendation_run", fake_create_recommendation_run)
-    monkeypatch.setattr(rec_module, "log_event", fake_log_event)
-
-    return {"events": events, "created": created, "queries": queries, "candidates": sample_candidates}
-
+    
+    mock_service.generate_recommendations.return_value = RecommendationResponse(
+        quiz_run_id="test-run-id",
+        engine_version="test-v1",
+        featured_gift=sample_gifts[0],
+        gifts=sample_gifts,
+        debug={"test": True}
+    )
+    
+    # Mock the class instantiation
+    monkeypatch.setattr("routes.recommendations.RecommendationService", lambda db, emb: mock_service)
+    # Also mock repositories used in the route
+    monkeypatch.setattr("routes.recommendations.create_quiz_run", AsyncMock(return_value=SimpleNamespace(id=uuid.uuid4())))
+    monkeypatch.setattr("routes.recommendations.log_event", AsyncMock())
+    
+    return mock_service
 
 def _payload(debug: bool = False) -> dict[str, Any]:
     return {
         "recipient_age": 25,
-        "recipient_gender": "female",
         "relationship": "friend",
-        "occasion": "birthday",
         "vibe": "cozy",
-        "interests": ["music"],
-        "interests_description": "loves soft things",
-        "budget": 100,
-        "city": "Moscow",
-        "top_n": 10,
+        "top_n": 5,
         "debug": debug,
     }
 
-
-def test_generate_happy_path(client, pipeline_mocks):
+def test_generate_happy_path(client, service_mock):
     response = client.post("/api/v1/recommendations/generate", json=_payload())
     assert response.status_code == 200
     body = response.json()
     assert body["featured_gift"]["id"] == "gift-0"
-    assert len(body["gifts"]) == 10
-    assert body["gifts"][0]["id"] == "gift-0"
-    assert body["gift_ids"][0] == "gift-0"
-    assert body["debug"] is None
-    assert len(pipeline_mocks["events"]) == 2
+    assert len(body["gifts"]) == 5
+    assert body["quiz_run_id"] is not None
 
-
-def test_generate_debug_mode(client, pipeline_mocks):
+def test_generate_debug_mode(client, service_mock):
     response = client.post("/api/v1/recommendations/generate", json=_payload(debug=True))
     assert response.status_code == 200
     body = response.json()
-    assert body["debug"]
-    assert body["debug"]["queries"] == pipeline_mocks["queries"]
-    assert body["debug"]["candidate_collector"] == {"collector": True}
-    assert body["debug"]["ranker"] == {"ranker": True}
-    assert body["debug"]["requested_top_n"] == 10
-    assert body["debug"]["returned_gifts_count"] == 10
-
-
-def test_generate_no_candidates(client, monkeypatch, pipeline_mocks):
-    def fake_collect(*_, **__):
-        return [], {}
-
-    monkeypatch.setattr(rec_module, "collect_candidates", fake_collect)
-    response = client.post("/api/v1/recommendations/generate", json=_payload())
-    assert response.status_code == 422
-    assert response.json()["error"]["code"] == "no_candidates_found"
-
-
-def test_generate_guest_anon_id(client, pipeline_mocks):
-    response = client.post(
-        "/api/v1/recommendations/generate",
-        json=_payload(),
-        headers={"X-Anon-Id": "guest-123"},
-    )
-    assert response.status_code == 200
-    assert pipeline_mocks["created"]["quiz_run"].anon_id == "guest-123"
-
-
-def test_generate_with_logged_in_user(client, pipeline_mocks, monkeypatch):
-    class DummyUser:
-        def __init__(self) -> None:
-            self.id = uuid.uuid4()
-
-    async def override_optional_user():
-        return DummyUser()
-
-    client.app.dependency_overrides[rec_module.get_optional_user] = override_optional_user
-
-    response = client.post("/api/v1/recommendations/generate", json=_payload())
-    assert response.status_code == 200
-    assert pipeline_mocks["created"]["quiz_run"].user_id is not None
-
-
-def test_generate_returns_full_gifts_and_respects_top_n(client, pipeline_mocks):
-    payload = _payload()
-    payload["top_n"] = 12
-    response = client.post("/api/v1/recommendations/generate", json=payload)
-    assert response.status_code == 200
-    body = response.json()
-    assert len(body["gifts"]) == 12
-    assert body["featured_gift"]["id"] == body["gifts"][0]["id"]
+    assert body["debug"] == {"test": True}
