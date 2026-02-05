@@ -88,6 +88,9 @@ nav:
           - Product Analytics: architecture/product_analytics.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
+  - Analytics Dashboard:
+      - Quick Start: guides/analytics_api_quickstart.md
+      - Frontend Integration Guide: guides/analytics_frontend_integration.md
   - Engineering & DevOps:
       - Development Workflow: guides/development.md
       - Deployment & CI/CD: guides/deployment.md
