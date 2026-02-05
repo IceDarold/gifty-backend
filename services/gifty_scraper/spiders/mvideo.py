@@ -1,6 +1,7 @@
 import scrapy
 import json
 import re
+from urllib.parse import urlencode
 from gifty_scraper.base_spider import GiftyBaseSpider
 
 
@@ -39,81 +40,254 @@ class MVideoSpider(GiftyBaseSpider):
             url = "https://www.mvideo.ru/vse-kategorii"
         super(MVideoSpider, self).__init__(url=url, strategy=strategy, source_id=source_id, *args, **kwargs)
 
+    def start_requests(self):
+        url = getattr(self, 'url', "https://www.mvideo.ru/smartfony-i-svyaz-10/smartfony-205")
+        yield scrapy.Request(
+            url, 
+            callback=self.parse_catalog,
+            dont_filter=True,
+            headers={
+                'Referer': 'https://www.google.com/',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'cross-site',
+                'Upgrade-Insecure-Requests': '1'
+            }
+        )
+
     def parse_catalog(self, response):
         """
-        Parses the catalog page for M.Video.
-        Attempts to use both CSS selectors and __NEXT_DATA__ if available.
+        Parses the catalog page. Use __NEXT_DATA__ for initial products and POST API for pagination.
         """
-        self.logger.info(f"Parsing catalog: {response.url}")
-
-        # 1. Attempt to extract data from __NEXT_DATA__ (Next.js specific)
-        next_data_script = response.xpath('//script[@id="__NEXT_DATA__"]/text()').get()
-        if next_data_script:
-            try:
-                data = json.loads(next_data_script)
-                products_from_json = self._extract_from_next_data(data)
-                if products_from_json:
-                    self.logger.info(f"Extracted {len(products_from_json)} products from __NEXT_DATA__")
-                    for p in products_from_json:
-                        yield self.create_product(**p)
-                    
-                    # If we got products from JSON, we might still want to check for pagination
-                    # often JSON contains the next page info too.
-            except Exception as e:
-                self.logger.error(f"Error parsing __NEXT_DATA__: {e}")
-
-        # 2. Fallback to CSS Selectors
-        # MVideo uses custom elements or standard layout depending on the version/experiment
-        cards = response.css('mvid-product-card, .product-cards-layout__item, .product-card, .product-tile')
+        category_id = None
         
-        found_css_count = 0
-        for card in cards:
-            title = card.css('.product-title__text::text').get() or \
-                    card.css('a.mvid-product-card__title::text').get() or \
-                    card.css('.product-tile__title::text').get()
+        # DEBUG: Save full response to inspect
+        with open("last_response.html", "w", encoding="utf-8") as f:
+            f.write(response.text)
             
-            url = card.css('a.product-title__text::attr(href)').get() or \
-                  card.css('a.mvid-product-card__title::attr(href)').get() or \
-                  card.css('a.product-tile__title::attr(href)').get()
+        match = re.search(r'-(\d+)$', response.url.rstrip('/'))
+        if not match:
+             match = re.search(r'"categoryId":"(\d+)"', response.text)
+        
+        # Debug: Check what page we actually landed on
+        page_title = response.css('title::text').get()
+        self.logger.info(f"Page Title: {page_title}")
+        self.logger.info(f"Body snippet: {response.text[:500]}")
+        
+        if match:
+            category_id = match.group(1)
+            self.logger.info(f"Found category ID: {category_id}. Using BFF v2 API (GET)...")
             
-            price_text = card.css('.price__main-value::text').get() or \
-                         card.css('.product-tile__price::text').get()
+            # API v2 endpoint found in source: products/v2/search
+            # Analysis of 'd' function in JS suggests GET with query params
             
-            current_price = None
-            if price_text:
-                current_price = "".join(re.findall(r'\d+', price_text))
+        if match:
+             category_id = match.group(1)
+             self.logger.info(f"Found category ID: {category_id}. Using BFF v2 API (GET)...")
+             # ... (API logic remains the same)
+             # Verified working params: categoryIds (plural), GET method
+             params = {
+                 "categoryIds": category_id,
+                 "offset": "0",
+                 "limit": "24",
+                 "doTransliteration": "true"
+             }
+             query_string = urlencode(params)
+             api_url = f"https://www.mvideo.ru/bff/products/v2/search?{query_string}"
+             
+             yield scrapy.Request(
+                 api_url,
+                 method="GET",
+                 callback=self.parse_api_response,
+                 errback=self.parse_api_error,
+                 meta={'category_id': category_id, 'offset': 0},
+                 headers={
+                     'Accept': 'application/json',
+                     'X-Requested-With': 'XMLHttpRequest',
+                     'Referer': response.url
+                 }
+             )
+        else:
+            self.logger.warning("No category ID found. Trying discovery.")
+            yield from self.parse_discovery(response)
 
-            image = card.css('.product-card-image__img::attr(src)').get() or \
-                    card.css('img.mvid-product-card-image__img::attr(src)').get() or \
-                    card.css('.product-card-image__img::attr(data-src)').get() or \
-                    card.css('.product-tile__image::attr(src)').get()
+    def parse_discovery(self, response):
+        """
+        Custom discovery for M.Video category structure.
+        Looks for links in the 'vse-kategorii' page or similar hub pages.
+        """
+        self.logger.info("Starting discovery on: %s", response.url)
+        
+        links = response.css('a::attr(href)').getall()
+        unique_links = set()
+        
+        for link in links:
+            url = response.urljoin(link)
+            
+            # Filter for category-like URLs
+            # e.g., /smartfony-i-svyaz-10, /televizory-audio-video-hi-fi-1
+            # They usually end in digits and are not product details
+            if re.search(r'-[\d]+', url) and '/products/' not in url and 'vse-kategorii' not in url:
+                unique_links.add(url)
+                
+        self.logger.info(f"Found {len(unique_links)} potential category links.")
+        
+        for url in unique_links:
+            yield response.follow(url, self.parse_catalog)
 
-            if title and url:
-                found_css_count += 1
-                yield self.create_product(
-                    title=title.strip(),
-                    product_url=response.urljoin(url),
-                    price=current_price,
-                    image_url=response.urljoin(image) if image else None,
-                    merchant="М.Видео",
-                    raw_data={"source": "scrapy_v1_css"}
+    def parse_api_error(self, failure):
+        self.logger.error(f"API Request Failed: {failure.type} {failure.value}")
+        if failure.check(scrapy.spidermiddlewares.httperror.HttpError):
+            response = failure.value.response
+            self.logger.error(f"Response status: {response.status}")
+            self.logger.error(f"Response body: {response.text[:1000]}")
+
+    def parse_api_response(self, response):
+        """
+        Parses JSON from BFF API.
+        """
+        try:
+            # Handle potential 400/403/404
+            if response.status != 200:
+                 self.logger.warning(f"API Error {response.status}: {response.url}")
+                 return
+
+            data = json.loads(response.text)
+            body = data.get('body', {})
+            products_ids = body.get('products', [])
+            
+            if not products_ids:
+                 self.logger.info(f"No product IDs in response.")
+                 return
+
+            self.logger.info(f"Fetched {len(products_ids)} IDs from API. Fetching details...")
+
+            # 1. Fetch Details first
+            details_url = "https://www.mvideo.ru/bff/product-details/list"
+            yield scrapy.Request(
+                details_url,
+                method="POST",
+                body=json.dumps({
+                    "productIds": products_ids,
+                    "addBonusRubles": True,
+                    "isLightDetails": True
+                }),
+                callback=self.parse_details_then_prices,
+                headers={
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': response.url
+                },
+                meta={**response.meta, 'products_ids': products_ids}
+            )
+
+            # Pagination
+            total = body.get('total', 0)
+            offset = response.meta.get('offset', 0)
+            if offset + 24 < total:
+                next_offset = offset + 24
+                cat_id = response.meta.get('category_id')
+                
+                api_url = "https://www.mvideo.ru/bff/products/v2/search"
+                params = {
+                    "categoryIds": cat_id,
+                    "offset": str(next_offset),
+                    "limit": "24",
+                    "doTransliteration": "true"
+                }
+                query_string = urlencode(params)
+                next_url = f"{api_url}?{query_string}"
+                
+                yield scrapy.Request(
+                    next_url,
+                    method="GET",
+                    callback=self.parse_api_response,
+                    meta={'category_id': cat_id, 'offset': next_offset},
+                    headers={
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': response.url
+                    }
                 )
+        except Exception as e:
+            self.logger.error(f"API parse error: {e}")
 
-        if not next_data_script and found_css_count == 0:
-            self.logger.warning(f"No products found on {response.url}. The site might be blocking or using dynamic rendering.")
-
-        # 3. Pagination
-        if self.strategy in ["deep", "discovery"]:
-            next_page = response.css('a.pagination-button--next::attr(href)').get() or \
-                        response.css('.pagination__next a::attr(href)').get() or \
-                        response.xpath('//a[contains(@class, "pagination") and contains(., "Дальше")]/@href').get() or \
-                        response.xpath('//link[@rel="next"]/@href').get()
+    def parse_details_then_prices(self, response):
+        """
+        Parses details, then queues a price fetch.
+        """
+        parsed_products = {} # id -> partial item
+        try:
+            data = json.loads(response.text)
+            items = data.get('body', {}).get('products', [])
             
-            if next_page:
-                next_page_url = response.urljoin(next_page)
-                if next_page_url != response.url:
-                    self.logger.info(f"Following next page: {next_page_url}")
-                    yield response.follow(next_page_url, self.parse_catalog)
+            for item in items:
+                p_id = item.get('productId')
+                name = item.get('name')
+                image = item.get('image')
+                if image and not image.startswith('http'):
+                    image = f"https://static.mvideo.ru{image}"
+                    
+                parsed_products[p_id] = {
+                    "title": name,
+                    "product_url": f"https://www.mvideo.ru/products/{p_id}",
+                    "image_url": image,
+                    "merchant": "М.Видео",
+                    "raw_data": {"source": "bff_v3", "id": p_id},
+                    "price": None # Placeholder
+                }
+            
+            # Now fetch prices
+            products_ids = response.meta.get('products_ids', [])
+            prices_url = "https://www.mvideo.ru/bff/products/prices"
+            
+            full_prices_url = f"{prices_url}?productIds={','.join(products_ids)}&addBonusRubles=true&isPromoApplied=true"
+            
+            yield scrapy.Request(
+                full_prices_url,
+                method="GET",
+                callback=self.parse_prices,
+                headers={
+                    'Accept': 'application/json',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': response.url
+                },
+                meta={**response.meta, 'parsed_products': parsed_products}
+            )
+            
+        except Exception as e:
+            self.logger.error(f"Details parse error: {e}")
+
+    def parse_prices(self, response):
+        parsed_products = response.meta.get('parsed_products', {})
+        try:
+            data = json.loads(response.text)
+            # Structure usually: body -> materialPrices -> [ { productId, price: { salePrice } } ]
+            prices_list = data.get('body', {}).get('materialPrices', [])
+            
+            # Use a dict for faster lookup
+            price_map = {}
+            for p in prices_list:
+                p_id = p.get('price', {}).get('productId') # sometimes it's here
+                if not p_id:
+                     p_id = p.get('productId')
+
+                sale_price = p.get('price', {}).get('salePrice')
+                if p_id and sale_price:
+                    price_map[str(p_id)] = sale_price
+
+            # Now combine and yield
+            for p_id, item_data in parsed_products.items():
+                if str(p_id) in price_map:
+                    item_data['price'] = str(price_map[str(p_id)])
+                
+                yield self.create_product(**item_data)
+                
+        except Exception as e:
+            self.logger.error(f"Prices parse error: {e}")
+            # Yield what we have even if prices fail
+            for p in parsed_products.values():
+                yield self.create_product(**p)
 
     def _extract_from_next_data(self, data):
         """
