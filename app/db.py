@@ -57,14 +57,20 @@ if "sslmode" in db_url.query or "supabase" in str(db_url.host):
     query.pop("sslmode", None)
     db_url = db_url.set(query=query)
 
-engine = create_async_engine(
-    db_url, 
-    echo=settings.debug, 
-    pool_pre_ping=True,
-    pool_size=10,
-    max_overflow=20,
-    connect_args=connect_args
-)
+engine_args = {
+    "echo": settings.debug,
+    "connect_args": connect_args
+}
+
+# SQLite doesn't support pool_size and max_overflow
+if "sqlite" not in db_url.drivername:
+    engine_args.update({
+        "pool_pre_ping": True,
+        "pool_size": 10,
+        "max_overflow": 20,
+    })
+
+engine = create_async_engine(db_url, **engine_args)
 SessionLocal = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
 
 async def get_db() -> AsyncSession:
