@@ -21,6 +21,8 @@ def main():
     os.environ['SCRAPY_SETTINGS_MODULE'] = 'gifty_scraper.settings'
 
     settings = get_project_settings()
+    # Disable telnet console in test runs (can fail in restricted environments)
+    settings.set('TELNETCONSOLE_ENABLED', False)
     
     # Отключаем IngestionPipeline для тестов, чтобы не слать данные в API
     settings.set('ITEM_PIPELINES', {

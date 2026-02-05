@@ -1,7 +1,7 @@
-import scrapy
 import re
 import json
 from gifty_scraper.base_spider import GiftyBaseSpider
+from gifty_scraper.items import CategoryItem
 
 
 class DetmirSpider(GiftyBaseSpider):
@@ -22,13 +22,34 @@ class DetmirSpider(GiftyBaseSpider):
         }
     }
 
+    def parse_discovery(self, response):
+        """
+        Parse sitemap / hub pages and return CategoryItem entries.
+        """
+        links = response.css(self.category_selector)
+        seen = set()
+
+        for link in links:
+            url = response.urljoin(link.css("::attr(href)").get())
+            if not url or url in seen or url == response.url:
+                continue
+            seen.add(url)
+
+            name = link.css("::text").get()
+            name = name.strip() if name else None
+
+            yield CategoryItem(
+                name=name,
+                title=name,
+                url=url,
+                parent_url=response.url,
+                site_key=self.site_key,
+            )
+
     def parse_catalog(self, response):
         """
         Parses the catalog page.
         """
-        with open("scrapy_debug.html", "wb") as f:
-            f.write(response.body)
-            
         self.logger.info(f"Parsing catalog: {response.url}")
 
         # Extract product data from JSON state (essential for lazy-loaded items after the first 4)
