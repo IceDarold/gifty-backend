@@ -1,0 +1,8 @@
+scrapy
+pika
+httpx
+pydantic
+pydantic-settings
+beautifulsoup4
+python-dotenv
+prometheus_client

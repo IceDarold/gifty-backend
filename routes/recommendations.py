@@ -53,7 +53,7 @@ def get_anon_id(request: Request) -> Optional[str]:
     "/generate",
     response_model=RecommendationResponse,
     status_code=status.HTTP_200_OK,
-    summary="Generate recommendations from quiz answers",
+    summary="Сгенерировать подборку подарков",
 )
 async def generate_recommendations(
     payload: RecommendationRequest,
@@ -62,6 +62,16 @@ async def generate_recommendations(
     user: Optional[User] = Depends(get_optional_user),
     anon_id: Optional[str] = Depends(get_anon_id),
 ) -> RecommendationResponse:
+    """
+    Основной алгоритм подбора подарков.
+    
+    **Что происходит внутри:**
+    1. Ответы пользователя сохраняются в базе (`QuizRun`).
+    2. Если пользователь авторизован, анкета сохраняется в его профиле.
+    3. Выполняется запрос к сервису эмбеддингов для векторизации интересов.
+    4. Поиск по базе через `pgvector` с учетом переданных ограничений (цена, пол, категории).
+    5. Возвращается структурированный ответ с "Hero" подарком и списком альтернатив.
+    """
     # 1. Create Quiz Run
     quiz_run = await create_quiz_run(
         db,
