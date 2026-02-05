@@ -44,16 +44,28 @@ class GroupPriceSpider(GiftyBaseSpider):
                 found_hubs[url] = name
 
         for url, name in found_hubs.items():
+            # Yield CategoryItem with consistent fields (title, price) for easier viewing
             yield CategoryItem(
                 name=name,
+                title=f"[Category] {name}",
+                price=None,
                 url=url,
                 parent_url=response.url,
                 site_key=self.site_key
             )
+            
+            # Follow to parse products
+            yield response.follow(url, self.parse_catalog)
 
     def parse_catalog(self, response):
         # Each product card
         cards = response.css("div._product")
+        
+        # Limit products per page if requested (useful for discovery testing)
+        max_products = int(getattr(self, 'max_products', 0))
+        if max_products > 0:
+            cards = cards[:max_products]
+            self.logger.info(f"Limiting to {max_products} products on {response.url}")
 
         for card in cards:
             # Prefer data attributes as they contain FULL information (not truncated)
@@ -61,9 +73,11 @@ class GroupPriceSpider(GiftyBaseSpider):
             price = card.attrib.get("data-product-price")
             url = card.css("a::attr(href)").get()
             
-            # Image: try to get the one with better quality if possible
+            # Image: try to get the one with better quality if possible, 
+            # usually replacing 'thumb' with 'original' or just removing 'thumb' works on some CDNs
             image = card.css("img._cover::attr(src)").get()
             if image and "thumb" in image:
+                # GroupPrice specific: they have 'thumb.webp', removing 'thumb' gives the original image.
                 image = image.replace("thumb", "")
 
             if not title or not url:

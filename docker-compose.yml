@@ -105,7 +105,6 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
-
 volumes:
   pgdata:
   redisdata:

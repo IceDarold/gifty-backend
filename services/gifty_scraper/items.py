@@ -7,6 +7,7 @@ import scrapy
 
 
 class ProductItem(scrapy.Item):
+    name = scrapy.Field()  # Added for consistency
     title = scrapy.Field()
     description = scrapy.Field()
     price = scrapy.Field()
@@ -21,6 +22,8 @@ class ProductItem(scrapy.Item):
 
 class CategoryItem(scrapy.Item):
     name = scrapy.Field()
+    title = scrapy.Field() # Added for consistency
+    price = scrapy.Field() # Added for consistency (always None)
     url = scrapy.Field()
     parent_url = scrapy.Field()
     site_key = scrapy.Field()

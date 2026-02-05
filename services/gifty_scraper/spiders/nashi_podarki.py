@@ -28,10 +28,15 @@ class NashiPodarkiSpider(GiftyBaseSpider):
                 found_urls.add(url)
                 yield CategoryItem(
                     name=name.strip() if name else None,
+                    title=f"[Category] {name.strip()}" if name else None,
+                    price=None,
                     url=url,
                     parent_url=response.url,
                     site_key=self.site_key
                 )
+                
+                # Follow to parse products
+                yield response.follow(url, self.parse_catalog)
 
     def parse_catalog(self, response):
         """
