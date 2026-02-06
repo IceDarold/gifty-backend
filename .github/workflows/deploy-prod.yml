@@ -45,9 +45,11 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
-          source: ".,!.git,!.venv,!.pytest_cache,!.idea,!.vscode,!.ipynb_checkpoints,!.DS_Store,!site,!__pycache__,!**/*.pyc,!**/*.pyo"
+          source: "app,alembic,deploy,integrations,routes,scripts,services,requirements.txt,docker-compose.yml,Dockerfile,alembic.ini,README.md,make_migrations.sh"
           target: "/app/gifty-backend"
           rm: false
+          timeout: 120s
+          debug: true
 
       - name: Execute deployment script
         uses: appleboy/ssh-action@v1.0.3
