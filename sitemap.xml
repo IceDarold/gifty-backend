@@ -2,244 +2,210 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
     <url>
         <loc>https://dev.giftyai.ru/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/weeek_api_reference/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/weeek_api_reference/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/weeek_api_reference/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/api/models/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/models/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/models/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/api/repositories/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/repositories/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/repositories/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/api/services/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/services/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/services/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/gift_query_rules/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/gift_query_rules/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/gift_query_rules/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/grand_unified_theory/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/grand_unified_theory/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/grand_unified_theory/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/intelligence/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/intelligence/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/intelligence/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/overview/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/overview/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/overview/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/parsing/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/parsing/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/parsing/"/>
     </url>
     <url>
-        <loc>https://dev.giftyai.ru/architecture/product_analytics/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <loc>https://dev.giftyai.ru/architecture/parsing_plan/</loc>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/product_analytics/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/product_analytics/"/>
+        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/parsing_plan/"/>
+        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/parsing_plan/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/architecture/recommendations/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/recommendations/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/recommendations/"/>
     </url>
     <url>
-        <loc>https://dev.giftyai.ru/guides/analytics_api_quickstart/</loc>
-        <lastmod>2026-02-05</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/analytics_api_quickstart/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/analytics_api_quickstart/"/>
-    </url>
-    <url>
-        <loc>https://dev.giftyai.ru/guides/analytics_frontend_integration/</loc>
-        <lastmod>2026-02-05</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/analytics_frontend_integration/"/>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/analytics_frontend_integration/"/>
-    </url>
-    <url>
         <loc>https://dev.giftyai.ru/guides/deployment/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/deployment/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/deployment/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/guides/development/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/development/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/development/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/guides/parsing/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/parsing/"/>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/parsing/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/weeek_api_reference/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/weeek_api_reference/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/weeek_api_reference/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/api/models/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/models/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/models/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/api/repositories/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/repositories/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/repositories/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/api/services/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/api/services/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/api/services/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/gift_query_rules/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/gift_query_rules/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/gift_query_rules/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/grand_unified_theory/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/grand_unified_theory/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/grand_unified_theory/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/intelligence/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/intelligence/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/intelligence/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/overview/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/overview/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/overview/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/parsing/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/parsing/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/parsing/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/parsing_plan/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/parsing_plan/"/>
-    </url>
-    <url>
-        <loc>https://dev.giftyai.ru/en/architecture/product_analytics/</loc>
-        <lastmod>2026-02-05</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/product_analytics/"/>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/product_analytics/"/>
+        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/parsing_plan/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/architecture/recommendations/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/architecture/recommendations/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/architecture/recommendations/"/>
     </url>
     <url>
-        <loc>https://dev.giftyai.ru/en/guides/analytics_api_quickstart/</loc>
-        <lastmod>2026-02-05</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/analytics_api_quickstart/"/>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/analytics_api_quickstart/"/>
-    </url>
-    <url>
-        <loc>https://dev.giftyai.ru/en/guides/analytics_frontend_integration/</loc>
-        <lastmod>2026-02-05</lastmod>
-        <changefreq>daily</changefreq>
-        <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/analytics_frontend_integration/"/>
-        <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/analytics_frontend_integration/"/>
-    </url>
-    <url>
         <loc>https://dev.giftyai.ru/en/guides/deployment/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/deployment/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/deployment/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/guides/development/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/development/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/development/"/>
     </url>
     <url>
         <loc>https://dev.giftyai.ru/en/guides/parsing/</loc>
-        <lastmod>2026-02-05</lastmod>
+        <lastmod>2026-02-06</lastmod>
         <changefreq>daily</changefreq>
         <xhtml:link rel="alternate" hreflang="en" href="https://dev.giftyai.ru/en/guides/parsing/"/>
         <xhtml:link rel="alternate" hreflang="ru" href="https://dev.giftyai.ru/guides/parsing/"/>
