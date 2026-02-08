@@ -116,3 +116,31 @@ class CategoryMap(TimestampMixin, Base):
     external_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     internal_category_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
     is_verified: Mapped[bool] = mapped_column(sa.Boolean, server_default="false")
+
+
+class TeamMember(TimestampMixin, Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    photo_public_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sort_order: Mapped[int] = mapped_column(sa.Integer, server_default="0", index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+
+
+class InvestorContact(TimestampMixin, Base):
+    __tablename__ = "investor_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
