@@ -10,13 +10,13 @@
 
 ## 🔑 Аутентификация
 
-Эндпоинты **публичные** (пока), но в будущем могут потребовать авторизацию. Рекомендуется добавить заголовок:
+Все запросы к роутеру аналитики защищены и требуют передачи секретного токена в заголовке `X-Analytics-Token`. Без этого заголовка API вернет ошибку `403 Forbidden`.
 
 ```http
-Authorization: Bearer <admin_token>
+X-Analytics-Token: <your_analytics_api_token>
 ```
 
-*(Пока не требуется, но будет добавлено позже)*
+*Токен можно найти в переменной окружения `ANALYTICS_API_TOKEN` на сервере или запросить у Backend Team.*
 
 ---
 
@@ -29,7 +29,7 @@ Authorization: Bearer <admin_token>
 #### Request
 
 ```bash
-curl https://api.giftyai.ru/analytics/stats
+curl -H "X-Analytics-Token: your_token" https://api.giftyai.ru/analytics/stats
 ```
 
 #### Response
@@ -66,7 +66,11 @@ interface AnalyticsStats {
 }
 
 const fetchStats = async (): Promise<AnalyticsStats> => {
-  const response = await fetch('https://api.giftyai.ru/analytics/stats');
+  const response = await fetch('https://api.giftyai.ru/analytics/stats', {
+    headers: {
+      'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || ''
+    }
+  });
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 };
@@ -112,7 +116,7 @@ const StatsCards = () => {
 #### Request
 
 ```bash
-curl "https://api.giftyai.ru/analytics/trends?days=14"
+curl -H "X-Analytics-Token: your_token" "https://api.giftyai.ru/analytics/trends?days=14"
 ```
 
 #### Response
@@ -159,7 +163,9 @@ const TrendsChart = () => {
   const [trends, setTrends] = useState<TrendsData | null>(null);
   
   useEffect(() => {
-    fetch('https://api.giftyai.ru/analytics/trends?days=30')
+    fetch('https://api.giftyai.ru/analytics/trends?days=30', {
+      headers: { 'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || '' }
+    })
       .then(res => res.json())
       .then(setTrends);
   }, []);
@@ -199,7 +205,7 @@ const TrendsChart = () => {
 #### Request
 
 ```bash
-curl https://api.giftyai.ru/analytics/funnel
+curl -H "X-Analytics-Token: your_token" https://api.giftyai.ru/analytics/funnel
 ```
 
 #### Response
@@ -260,7 +266,9 @@ const FunnelChart = () => {
   const [funnel, setFunnel] = useState<FunnelData | null>(null);
   
   useEffect(() => {
-    fetch('https://api.giftyai.ru/analytics/funnel')
+    fetch('https://api.giftyai.ru/analytics/funnel', {
+      headers: { 'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || '' }
+    })
       .then(res => res.json())
       .then(setFunnel);
   }, []);
@@ -294,6 +302,71 @@ const FunnelChart = () => {
   );
 };
 ```
+
+---
+
+## 🛠️ Эндпоинт 4: Technical Health Stats
+
+### `GET /analytics/technical`
+
+Возвращает технические метрики состояния системы из Prometheus и Loki. Используется для мониторинга работоспособности API и воркеров.
+
+#### Response
+
+```json
+{
+  "api_health": "healthy",
+  "requests_per_minute": 120.5,
+  "error_rate_5xx": 0.001,
+  "last_errors": [
+    "ERROR:app.utils.errors:unhandled_exception path=/api/v1/recommendations/generate",
+    "..."
+  ],
+  "last_updated": "2026-02-08T18:56:27Z"
+}
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `api_health` | `string` | Статус API ("healthy" или описание ошибки) |
+| `requests_per_minute` | `float` | Количество запросов в минуту (среднее за 5 мин) |
+| `error_rate_5xx` | `float` | Частота ошибок 500 (ошибок в секунду) |
+| `last_errors` | `string[]` | Последние 5 строк логов из Loki с уровнем ERROR |
+
+---
+
+## 🏗️ Эндпоинт 5: Scraping Monitoring
+
+### `GET /analytics/scraping`
+
+Предоставляет детальную информацию о процессе сбора данных (спайдеров). Комбинирует данные из БД (ParsingSource) и Prometheus.
+
+#### Response
+
+```json
+{
+  "active_sources": 5,
+  "unmapped_categories": 12,
+  "total_scraped_items": 45020,
+  "ingestion_errors": 0,
+  "spiders": {
+    "mrgeek": { "items_scraped": 15200 },
+    "groupprice": { "items_scraped": 29820 }
+  }
+}
+```
+
+#### Поля ответа
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| `active_sources` | `int` | Количество активных источников в БД |
+| `unmapped_categories` | `int` | Категории, ожидающие AI маппинга |
+| `total_scraped_items` | `int` | Общее количество успешно собранных товаров |
+| `ingestion_errors` | `int` | Количество ошибок при загрузке в БД |
+| `spiders` | `object` | Разбивка по конкретным спайдерам |
 
 ---
 
