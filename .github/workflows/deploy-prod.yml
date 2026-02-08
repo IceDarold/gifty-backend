@@ -46,7 +46,7 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
           source: "app,alembic,deploy,integrations,routes,scripts,services,requirements.txt,docker-compose.yml,Dockerfile,alembic.ini,README.md,make_migrations.sh"
-          target: "/opt/giftiai-api/gifty-backend"
+          target: "/app/gifty-backend"
           rm: false
           timeout: 120s
           debug: true
@@ -60,7 +60,7 @@ jobs:
           port: ${{ secrets.PROD_SSH_PORT }}
           envs: PROD_ENV
           script: |
-            cd /opt/giftiai-api/gifty-backend
+            cd /app/gifty-backend
             echo "${{ secrets.PROD_ENV_FILE }}" > .env
             chmod +x scripts/deploy.sh
             ./scripts/deploy.sh
