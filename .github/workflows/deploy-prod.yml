@@ -58,9 +58,12 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
+          command_timeout: 30m
           envs: PROD_ENV
           script: |
             cd /opt/giftiai-api/gifty-backend
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env
+            if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
+              printf "%s" "${{ secrets.PROD_ENV_FILE }}" > .env
+            fi
             chmod +x scripts/deploy.sh
             ./scripts/deploy.sh
