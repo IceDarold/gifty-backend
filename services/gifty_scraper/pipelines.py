@@ -4,6 +4,8 @@ import httpx
 import os
 import asyncio
 from typing import List
+from gifty_scraper.metrics import scraped_items_total, ingestion_batches_total, ingestion_items_total
+from gifty_scraper.items import ProductItem, CategoryItem
 
 class IngestionPipeline:
     def __init__(self):
@@ -16,6 +18,10 @@ class IngestionPipeline:
     async def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         self.items_buffer.append(dict(item))
+
+        # Track scraped items
+        item_type = "product" if isinstance(item, ProductItem) else "category"
+        scraped_items_total.labels(spider=spider.name, item_type=item_type).inc()
 
         if len(self.items_buffer) >= self.batch_size:
             await self.flush_items()
@@ -33,11 +39,28 @@ class IngestionPipeline:
         batch = list(self.items_buffer)
         self.items_buffer = []
         
-        # Берем source_id из первого элемента (они обычно одинаковые для одного запуска)
-        source_id = batch[0].get("source_id", 0)
+        products = []
+        categories = []
+        
+        for item in batch:
+            # Check what kind of item it is. 
+            # We can't use isinstance easily because they might be dicts here
+            if "product_url" in item:
+                products.append(item)
+            elif "url" in item and "name" in item:
+                categories.append(item)
+
+        if not products and not categories:
+            return
+
+        # Use site_key from first available item
+        first_item = products[0] if products else categories[0]
+        source_id = first_item.get("source_id", 0)
+        spider_name = first_item.get("site_key", spider.name if 'spider' in locals() else "unknown")
 
         payload = {
-            "items": batch,
+            "items": products,
+            "categories": categories,
             "source_id": source_id,
             "stats": {"count": len(batch)}
         }
@@ -50,6 +73,11 @@ class IngestionPipeline:
                     headers={"X-Internal-Token": self.token}
                 )
                 response.raise_for_status()
-                self.logger.info(f"Successfully ingested batch of {len(batch)} items")
+                
+                ingestion_batches_total.labels(spider=spider_name, status="success").inc()
+                ingestion_items_total.labels(spider=spider_name).inc(len(batch))
+                
+                self.logger.info(f"Successfully ingested {len(products)} products and {len(categories)} categories")
         except Exception as e:
+            ingestion_batches_total.labels(spider=spider_name, status="error").inc()
             self.logger.error(f"Failed to ingest batch: {e}")
