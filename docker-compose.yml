@@ -3,6 +3,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - .:/app
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
     healthcheck:
@@ -62,6 +64,8 @@ services:
   scraper:
     build:
       context: ./services
+    volumes:
+      - ./services:/app
     restart: unless-stopped
     ports:
       - "127.0.0.1:9410:9410"
@@ -72,6 +76,19 @@ services:
       rabbitmq:
         condition: service_healthy
       postgres:
+        condition: service_healthy
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: python scripts/run_parsing_scheduler.py
+    env_file: .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
 
   prometheus:
@@ -105,6 +122,23 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
+
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m services.telegram_bot.app.main
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      API_BASE: "http://api:8000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    restart: always
 volumes:
   pgdata:
   redisdata:

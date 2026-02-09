@@ -39,13 +39,28 @@ class IngestionPipeline:
         batch = list(self.items_buffer)
         self.items_buffer = []
         
-        # Берем source_id и site_key из первого элемента
-        first_item = batch[0]
+        products = []
+        categories = []
+        
+        for item in batch:
+            # Check what kind of item it is. 
+            # We can't use isinstance easily because they might be dicts here
+            if "product_url" in item:
+                products.append(item)
+            elif "url" in item and "name" in item:
+                categories.append(item)
+
+        if not products and not categories:
+            return
+
+        # Use site_key from first available item
+        first_item = products[0] if products else categories[0]
         source_id = first_item.get("source_id", 0)
-        spider_name = first_item.get("site_key", "unknown")
+        spider_name = first_item.get("site_key", spider.name if 'spider' in locals() else "unknown")
 
         payload = {
-            "items": batch,
+            "items": products,
+            "categories": categories,
             "source_id": source_id,
             "stats": {"count": len(batch)}
         }
@@ -62,7 +77,7 @@ class IngestionPipeline:
                 ingestion_batches_total.labels(spider=spider_name, status="success").inc()
                 ingestion_items_total.labels(spider=spider_name).inc(len(batch))
                 
-                self.logger.info(f"Successfully ingested batch of {len(batch)} items")
+                self.logger.info(f"Successfully ingested {len(products)} products and {len(categories)} categories")
         except Exception as e:
             ingestion_batches_total.labels(spider=spider_name, status="error").inc()
             self.logger.error(f"Failed to ingest batch: {e}")

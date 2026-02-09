@@ -90,5 +90,34 @@ def install_exception_handlers(app: FastAPI) -> None:
         )
 
     @app.exception_handler(Exception)
-    async def unhandled_exception_handler(_: Request, exc: Exception) -> JSONResponse:
+    async def unhandled_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+        # 1. Log the error locally
+        logger.exception("unhandled_exception path=%s", request.url.path)
+        
+        # 2. Capture to PostHog if configured
+        try:
+            from app.config import get_settings
+            import posthog
+            
+            settings = get_settings()
+            if settings.posthog_api_key:
+                # Initialize posthog client if not already done (it handles session/batching internally)
+                posthog.project_api_key = settings.posthog_api_key
+                posthog.host = "https://app.posthog.com"
+                
+                # Capture the error
+                posthog.capture(
+                    distinct_id="system",  # Use a system-level id or try to get user id if available
+                    event="server_error",
+                    properties={
+                        "path": str(request.url.path),
+                        "method": request.method,
+                        "error_type": type(exc).__name__,
+                        "error_detail": str(exc),
+                        "env": settings.env
+                    }
+                )
+        except Exception as ph_err:
+            logger.error("Failed to capture error to PostHog: %s", ph_err)
+
         return error_response("internal_error", "Unexpected error", status.HTTP_500_INTERNAL_SERVER_ERROR)
