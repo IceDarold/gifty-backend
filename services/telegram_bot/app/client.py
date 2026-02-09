@@ -1,5 +1,6 @@
 import httpx
 import logging
+from typing import Optional, List
 
 class TelegramInternalClient:
     def __init__(self, api_base: str, token: str, analytics_token: str = None):
@@ -16,6 +17,13 @@ class TelegramInternalClient:
                 return resp.json()
             return None
 
+    async def get_subscriber_by_username(self, username: str):
+        url = f"{self.api_base}/internal/telegram/subscribers/by-username/{username}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            if resp.status_code == 200:
+                return resp.json()
+            return None
     async def create_subscriber(self, chat_id: int, name: str = None, slug: str = None):
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
@@ -26,6 +34,32 @@ class TelegramInternalClient:
             )
             return resp.json() if resp.status_code == 200 else None
 
+    async def create_invite(
+        self,
+        username: str,
+        password: str,
+        name: str = None,
+        mentor_id: Optional[int] = None,
+        permissions: Optional[List[str]] = None,
+    ):
+        url = f"{self.api_base}/internal/telegram/invites"
+        payload = {
+            "username": username,
+            "password": password,
+            "name": name,
+            "mentor_id": mentor_id,
+            "permissions": permissions or [],
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
+
+    async def claim_invite(self, username: str, password: str, chat_id: int, name: str = None):
+        url = f"{self.api_base}/internal/telegram/invites/claim"
+        payload = {"username": username, "password": password, "chat_id": chat_id, "name": name}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
     async def get_all_subscribers(self):
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
@@ -137,7 +171,13 @@ class TelegramInternalClient:
                 )
                 if resp.status_code != 200:
                     self.logger.error(f"Weeek connect failed: {resp.status_code} - {resp.text}")
-                return resp.json() if resp.status_code == 200 else None
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"detail": resp.text}
+                if resp.status_code != 200:
+                    data["status_code"] = resp.status_code
+                return data
             except Exception as e:
                 self.logger.error(f"Weeek connect exception: {e}")
                 return None
