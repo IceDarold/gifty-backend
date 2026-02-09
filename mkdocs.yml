@@ -63,6 +63,9 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -77,9 +80,13 @@ markdown_extensions:
 
 nav:
   - Home: index.md
+  - Onboarding:
+      - Quick Start: guides/onboarding.md
+      - Telegram Bot: guides/telegram_bot.md
+      - GitHub Workflow: guides/github_workflow.md
+      - Database Guide: guides/database_work.md
+      - Roadmap & Milestones: guides/roadmap.md
   - Overview: architecture/overview.md
-  - Gifty Interfaces:
-      - Telegram Admin Bot: guides/telegram_bot.md
   - Parsing System:
       - Architecture: architecture/parsing.md
       - Guide (How to add parser): guides/parsing.md
