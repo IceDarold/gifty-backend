@@ -58,7 +58,7 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
-          command_timeout: 30m
+          command_timeout: 60m
           envs: PROD_ENV
           script: |
             cd /opt/giftiai-api/gifty-backend
