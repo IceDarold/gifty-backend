@@ -412,11 +412,33 @@ async def submit_category_mappings(
 
 from app.repositories.telegram import TelegramRepository
 from pydantic import BaseModel
+import hashlib
 
 class SubscriberUpdate(BaseModel):
     chat_id: int
     name: Optional[str] = None
     slug: Optional[str] = None
+
+
+def _hash_invite_password(password: str) -> str:
+    secret = settings.secret_key or "change-me-in-production"
+    raw = f"{secret}:{password}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+class InviteCreate(BaseModel):
+    username: str
+    password: str
+    name: Optional[str] = None
+    mentor_id: Optional[int] = None
+    permissions: Optional[List[str]] = None
+
+
+class InviteClaim(BaseModel):
+    username: str
+    password: str
+    chat_id: int
+    name: Optional[str] = None
 
 @router.get("/telegram/subscribers", summary="Получить список всех подписчиков")
 async def list_telegram_subscribers(
@@ -438,6 +460,20 @@ async def get_telegram_subscriber(
         raise HTTPException(status_code=404, detail="Subscriber not found")
     return sub
 
+
+@router.get("/telegram/subscribers/by-username/{username}")
+async def get_telegram_subscriber_by_username(
+    username: str,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = username.strip().lstrip("@").lower()
+    sub = await repo.get_subscriber_by_slug(slug)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    return sub
+
 @router.post("/telegram/subscribers")
 async def create_telegram_subscriber(
     data: SubscriberUpdate,
@@ -446,6 +482,52 @@ async def create_telegram_subscriber(
 ):
     repo = TelegramRepository(db)
     sub = await repo.create_subscriber(data.chat_id, data.name, data.slug)
+    return sub
+
+
+@router.post("/telegram/invites")
+async def create_telegram_invite(
+    data: InviteCreate,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = data.username.strip().lstrip("@").lower()
+    if not slug:
+        raise HTTPException(status_code=400, detail="Invalid username")
+    existing = await repo.get_subscriber_by_slug(slug)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+    if data.mentor_id is not None:
+        mentor = await repo.get_subscriber_by_id(data.mentor_id)
+        if not mentor:
+            raise HTTPException(status_code=400, detail="Mentor not found")
+    sub = await repo.create_invite(
+        slug=slug,
+        name=data.name,
+        password_hash=_hash_invite_password(data.password),
+        mentor_id=data.mentor_id,
+        permissions=data.permissions or [],
+    )
+    return sub
+
+
+@router.post("/telegram/invites/claim")
+async def claim_telegram_invite(
+    data: InviteClaim,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = data.username.strip().lstrip("@").lower()
+    sub = await repo.claim_invite(
+        slug=slug,
+        password_hash=_hash_invite_password(data.password),
+        chat_id=data.chat_id,
+        name=data.name,
+    )
+    if not sub:
+        raise HTTPException(status_code=404, detail="Invite not found or password invalid")
     return sub
 
 @router.post("/telegram/subscribers/{chat_id}/role")
