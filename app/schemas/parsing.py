@@ -1,4 +1,4 @@
-from __future__ import annotations
+from datetime import datetime
 from typing import Any, Optional, List
 from pydantic import BaseModel, Field
 
@@ -26,3 +26,52 @@ class IngestBatchRequest(BaseModel):
     categories: List[ScrapedCategory] = Field(default_factory=list, description="Список найденных категорий (для discovery)")
     source_id: int = Field(..., description="Идентификатор источника задачи")
     stats: dict[str, Any] = Field(default_factory=dict, description="Техническая статистика парсинга (время, ошибки)")
+
+class ParsingSourceSchema(BaseModel):
+    id: int
+    url: str
+    type: str
+    site_key: str
+    strategy: str
+    priority: int
+    refresh_interval_hours: int
+    last_synced_at: Optional[datetime] = None
+    next_sync_at: datetime
+    is_active: bool
+    status: str
+    config: Optional[dict[str, Any]] = None
+    created_at: Optional[datetime] = None  # Add created_at
+    
+    # Extra stats fields (filled manually by route)
+    total_items: Optional[int] = Field(0, description="Total products in catalog")
+    last_run_new: Optional[int] = Field(0, description="New items from last run")
+    history: Optional[List[dict]] = Field(None, description="Recent run history")
+
+    class Config:
+        from_attributes = True
+
+class ParsingSourceCreate(BaseModel):
+    url: str
+    type: str
+    site_key: str
+    strategy: str = "deep"
+    priority: int = 50
+    refresh_interval_hours: int = 24
+    is_active: bool = True
+    config: Optional[dict[str, Any]] = None
+
+class ParsingErrorReport(BaseModel):
+    error: str
+    is_broken: bool = True
+
+class SpiderSyncRequest(BaseModel):
+    available_spiders: List[str]
+
+class ParsingSourceUpdate(BaseModel):
+    url: Optional[str] = None
+    type: Optional[str] = None
+    strategy: Optional[str] = None
+    priority: Optional[int] = None
+    refresh_interval_hours: Optional[int] = None
+    is_active: Optional[bool] = None
+    config: Optional[dict[str, Any]] = None
