@@ -134,6 +134,18 @@ class TelegramInternalClient:
             resp = await client.get(url, headers=self.headers)
             return resp.json() if resp.status_code == 200 else []
 
+    async def get_monitoring(self):
+        url = f"{self.api_base}/internal/monitoring"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else []
+
+    async def get_internal_stats(self):
+        url = f"{self.api_base}/internal/stats"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else {}
+
     async def get_source_details(self, source_id: int):
         url = f"{self.api_base}/internal/sources/{source_id}"
         async with httpx.AsyncClient() as client:
@@ -158,6 +170,12 @@ class TelegramInternalClient:
         async with httpx.AsyncClient() as client:
             resp = await client.patch(url, json=data, headers=self.headers)
             return resp.status_code == 200
+
+    async def get_active_workers(self):
+        url = f"{self.api_base}/internal/workers"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else []
 
     # Weeek Integration
     async def connect_weeek(self, chat_id: int, token: str):
