@@ -4,26 +4,80 @@
 
 ```mermaid
 graph TD
-    Parser[Scrapers / Scrapy] -->|JSON Data| RabbitMQ[RabbitMQ]
-    RabbitMQ -->|Task| Worker[Scrapy Worker]
-    Worker -->|Batch| API[Core API / FastAPI]
-    API -->|Prompt| LLM[Gifty Intelligence / External API]
-    LLM -->|Score / Class| API
-    API -->|Save| DB[(PostgreSQL + pgvector)]
-    Frontend[Web App / Next.js] -->|Quiz| API
-    Bot[Telegram Admin Bot] -->|Monitor/Manage| API
-    API -->|Search| DB
+    subgraph "Client Layer"
+        User[User Web App]
+        Admin[Telegram Admin Bot]
+        MiniApp[Parsing Dashboard]
+    end
+
+    subgraph "Core API Layer"
+        API[Core API / FastAPI]
+        Auth[OAuth & Sessions]
+        Analytics[Internal Analytics]
+    end
+
+    subgraph "Processing Layer"
+        Scheduler[Cron Scheduler]
+        RabbitMQ[RabbitMQ Queue]
+        Workers[Scrapy Workers]
+        Intelligence[Intelligence API / LLM]
+    end
+
+    subgraph "Data Layer"
+        DB[(PostgreSQL + pgvector)]
+        Redis[Redis Cache]
+    end
+
+    %% User Flow
+    User -->|1. Submit Quiz| API
+    API -->|2. Vector Search| DB
+    API -->|3. Filter by 10D Matrix| DB
+    API -->|4. Return Recommendations| User
+
+    %% Admin Flow
+    Admin -->|Manage Spiders| API
+    Admin -->|View Health/Stats| API
+    MiniApp -->|Edit Config| API
+
+    %% Parsing Flow
+    Scheduler -->|Schedule Sync| RabbitMQ
+    RabbitMQ -->|Task| Workers
+    Workers -->|Extract Data| API
+    API -->|Validation & Normalization| API
+    API -->|Request Scoring| Intelligence
+    Intelligence -->|Score & Tags| API
+    API -->|Save Product| DB
+
+    %% Service Interaction
+    API <-->|Sessions / Cache| Redis
 ```
+
 
 ### Основные слои
 
 1.  **Парсинг данных**: Сбор информации о товарах с сайтов-доноров.
+    *   👉 **[Архитектура парсинга](parsing.md)**
+    *   👉 **[Как добавить новый парсер](../guides/parsing.md)**
 2.  **Обработка и обогащение**: Использование LLM для оценки "подарочности" товара и автоматической привязки к категориям.
-3.  **Векторизация**: Превращение описаний товаров в векторы для семантического поиска.
-4.  **Рекомендательный движок**: Подбор наиболее подходящих векторов на основе анкеты пользователя.
-5.  **Интерфейсы**: 
-    - **Web App**: Потребительский интерфейс для подбора подарков.
-    - **Telegram Admin Bot**: Инструмент для внутреннего управления, мониторинга и связи с командой.
+    *   👉 **[Gifty Intelligence API](intelligence.md)**
+3.  **Векторизация и Рекомендации**: Превращение описаний в векторы и подбор на основе анкеты.
+    *   👉 **[Теория GUTG](grand_unified_theory.md)**
+    *   👉 **[Алгоритмы рекомендаций](recommendations.md)**
+4.  **Интерфейсы**: 
+    *   **Web App**: Фронтенд для подбора подарков.
+    *   **Telegram Admin Bot**: Управление и мониторинг. 👉 **[Гайд по боту](../guides/telegram_bot.md)**
+
+### Аналитика и Мониторинг 📊
+
+В системе внедрена сквозная аналитика для бизнес-метрик и технического мониторинга:
+
+- **PostHog**: Продуктовая аналитика (события, воронки, когорты).
+- **Prometheus & Grafana**: Техническое состояние серверов, время ответа API, RAM/CPU.
+- **Loki**: Централизованный сбор логов со всех микросервисов.
+
+👉 **[Гайд по Analytics API](../guides/analytics_api_quickstart.md)**
+
+👉 **[Интеграция аналитики в UI](../guides/analytics_frontend_integration.md)**
 
 ### Инфраструктура и CI/CD
 

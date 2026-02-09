@@ -82,8 +82,10 @@ nav:
   - Home: index.md
   - Onboarding:
       - Quick Start: guides/onboarding.md
+      - Local Setup: guides/local_setup.md
       - Telegram Bot: guides/telegram_bot.md
       - GitHub Workflow: guides/github_workflow.md
+      - Testing: guides/testing.md
       - Database Guide: guides/database_work.md
       - Roadmap & Milestones: guides/roadmap.md
   - Overview: architecture/overview.md
@@ -92,17 +94,13 @@ nav:
       - Guide (How to add parser): guides/parsing.md
   - Recommendation Engine:
       - The Philosophy (GUTG): architecture/grand_unified_theory.md
-      - Architecture:
-          - Overview: architecture/recommendations.md
-          - Product Analytics: architecture/product_analytics.md
+      - Overview: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
   - Analytics & Monitoring:
       - Dashboard Guide: guides/analytics_api_quickstart.md
-      - Frontend Integration: guides/analytics_frontend_integration.md
-      - Technical Health: api/services.md
   - Engineering & DevOps:
-      - Development Workflow: guides/development.md
+      - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
       - Models: api/models.md
