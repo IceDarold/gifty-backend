@@ -1,16 +1,17 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
-from typing import Optional, List, Sequence
+from typing import Optional, List, Sequence, Any
 
-from sqlalchemy import select, update, and_, func
+from sqlalchemy import select, update, and_, func, case
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ParsingSource, CategoryMap
+from app.models import ParsingSource, CategoryMap, ParsingRun
 
 class ParsingRepository:
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession, redis: Optional[Any] = None):
         self.session = session
+        self.redis = redis
 
     async def get_due_sources(self, limit: int = 10) -> Sequence[ParsingSource]:
         stmt = (
@@ -46,10 +47,10 @@ class ParsingRepository:
         await self.session.commit()
 
     async def set_queued(self, source_id: int):
+        """Marks source as queued in RabbitMQ. Status 'running' will be set by worker."""
         stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
-            status="running", # Use 'running' as soon as it's queued for simplicity? 
-            # Or 'waiting' (for worker). Let's use 'running' to show activity.
-            next_sync_at=datetime.now() + timedelta(minutes=30) # Temporary push to avoid re-scheduling
+            status="queued", 
+            next_sync_at=datetime.now() + timedelta(minutes=15)
         )
         await self.session.execute(stmt)
         await self.session.commit()
@@ -141,6 +142,10 @@ class ParsingRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_source(self, source_id: int) -> Optional[ParsingSource]:
+        """Alias for get_source_by_id used by IngestionService."""
+        return await self.get_source_by_id(source_id)
+
     async def report_source_error(self, source_id: int, error_msg: str, is_broken: bool = True) -> Optional[ParsingSource]:
         stmt = select(ParsingSource).where(ParsingSource.id == source_id)
         result = await self.session.execute(stmt)
@@ -149,14 +154,26 @@ class ParsingRepository:
         if source:
             if source.config is None:
                 source.config = {}
-            source.config["last_error"] = error_msg
-            source.config["fix_required"] = True
-            if is_broken:
+            
+            cfg = dict(source.config)
+            cfg["last_error"] = error_msg
+            
+            # Simple retry logic: if it's not a discovery (hub) which we want to be more careful with,
+            # or if it's discovery-deep, we can allow a few retries before marking as broken.
+            retries = cfg.get("retry_count", 0)
+            
+            if is_broken or retries >= 3:
+                cfg["fix_required"] = True
                 source.is_active = False
                 source.status = "broken"
+                cfg["retry_count"] = 0 # reset for next manual fix
             else:
+                cfg["retry_count"] = retries + 1
                 source.status = "error"
+                # Back-off: wait 10 mins * retries
+                source.next_sync_at = datetime.now() + timedelta(minutes=10 * (retries + 1))
             
+            source.config = cfg
             await self.session.commit()
             return source
         return None
@@ -281,11 +298,65 @@ class ParsingRepository:
         statuses = result.scalars().all()
         if "running" in statuses:
             return "running"
+        if "queued" in statuses:
+            return "queued"
         if "error" in statuses:
             return "error"
         if "broken" in statuses:
             return "broken"
         return "waiting"
+
+    async def get_sites_monitoring(self) -> List[dict]:
+        """Returns aggregate health and stats for all sites efficiently via SQL."""
+        # This performs GROUP BY on database side
+        # statuses per site
+        stmt_stats = (
+            select(
+                ParsingSource.site_key,
+                func.count(ParsingSource.id).label("total_sources"),
+                func.sum(case((ParsingSource.status == 'running', 1), else_=0)).label("running_count"),
+                func.sum(case((ParsingSource.status == 'queued', 1), else_=0)).label("queued_count"),
+                func.sum(case((ParsingSource.status == 'error', 1), else_=0)).label("error_count"),
+                func.sum(case((ParsingSource.status == 'broken', 1), else_=0)).label("broken_count"),
+                func.max(ParsingSource.last_synced_at).label("last_synced_at")
+            )
+            .group_by(ParsingSource.site_key)
+        )
+        
+        result = await self.session.execute(stmt_stats)
+        rows = result.all()
+        
+        monitoring = []
+        for row in rows:
+            status = "waiting"
+            if row.running_count > 0: status = "running"
+            elif row.queued_count > 0: status = "queued"
+            elif row.error_count > 0: status = "error"
+            elif row.broken_count > 0: status = "broken"
+            
+            monitoring.append({
+                "site_key": row.site_key,
+                "total_sources": row.total_sources,
+                "status": status,
+                "last_synced_at": row.last_synced_at.isoformat() if row.last_synced_at else None,
+                "is_active": True # Simplified for summary
+            })
+        return monitoring
+
+    async def get_24h_stats(self) -> dict:
+        """Returns scraped items count for the last 24h from DB ParsingRuns."""
+        since = datetime.now() - timedelta(hours=24)
+        stmt = select(
+            func.sum(ParsingRun.items_scraped).label("scraped"),
+            func.sum(ParsingRun.items_new).label("new")
+        ).where(ParsingRun.created_at >= since)
+        
+        result = await self.session.execute(stmt)
+        row = result.one_or_none()
+        return {
+            "scraped_24h": int(row.scraped or 0) if row else 0,
+            "new_24h": int(row.new or 0) if row else 0
+        }
 
     async def get_aggregate_history(self, site_key: str, limit_days: int = 15):
         """Returns runs aggregated by day for the entire site."""
@@ -365,3 +436,62 @@ class ParsingRepository:
         )
         result = await self.session.execute(stmt)
         return result.all()
+
+    async def get_active_workers(self) -> List[dict]:
+        """Fetches active workers from Redis heartbeats."""
+        if not self.redis:
+            return []
+            
+        workers = []
+        try:
+            keys = await self.redis.keys("worker_heartbeat:*")
+            for key in keys:
+                data = await self.redis.get(key)
+                if data:
+                    workers.append(json.loads(data))
+        except Exception as e:
+            logger.error(f"Error fetching workers from Redis: {e}")
+        return workers
+
+    async def get_source_by_url(self, url: str) -> Optional[ParsingSource]:
+        stmt = select(ParsingSource).where(ParsingSource.url == url)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def count_discovered_today(self) -> int:
+        """Counts how many sources were discovered/activated today."""
+        stmt = select(func.count(ParsingSource.id)).where(
+            and_(
+                ParsingSource.status != "discovered", # already activated
+                ParsingSource.created_at >= func.now() - timedelta(days=1)
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0
+
+    async def get_discovered_sources(self, limit: int = 50) -> List[ParsingSource]:
+        """Fetches inactive 'discovered' sources from the backlog."""
+        stmt = (
+            select(ParsingSource)
+            .where(ParsingSource.status == "discovered")
+            .order_by(ParsingSource.priority.desc(), ParsingSource.created_at.asc())
+            .limit(limit)
+        )
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def activate_sources(self, source_ids: List[int]):
+        """Activates sources from the backlog."""
+        if not source_ids:
+            return
+        stmt = (
+            update(ParsingSource)
+            .where(ParsingSource.id.in_(source_ids))
+            .values(
+                is_active=True,
+                status="waiting",
+                next_sync_at=func.now()
+            )
+        )
+        await self.session.execute(stmt)
+        await self.session.commit()

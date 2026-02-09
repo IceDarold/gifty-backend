@@ -7,7 +7,8 @@ from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
-    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, URLInputFile
+    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, URLInputFile,
+    WebAppInfo
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
@@ -121,7 +122,10 @@ def get_main_keyboard(lang: str, sub: dict = None):
     # Row 2: Scraping & Subs & Tasks
     row2 = []
     if has_permission(sub, "parsing:manage"):
-        row2.append(KeyboardButton(text=t("btn_scraping", lang)))
+        if settings.telegram_webapp_url:
+            row2.append(KeyboardButton(text=t("btn_scraping", lang), web_app=WebAppInfo(url=settings.telegram_webapp_url)))
+        else:
+            row2.append(KeyboardButton(text=t("btn_scraping", lang)))
     
     
     if has_permission(sub, "tasks:manage"):
@@ -255,7 +259,15 @@ async def cmd_start(message: Message, command: CommandObject):
         )
         if subscriber:
             lang = get_lang(subscriber)
-            await message.answer(t("welcome_new", lang), reply_markup=get_main_keyboard(lang, subscriber))
+            try:
+                await message.answer(t("welcome_new", lang), reply_markup=get_main_keyboard(lang, subscriber))
+            except TelegramBadRequest as e:
+                if "Web App" in str(e):
+                    await message.answer(t("welcome_new", lang))
+                    await message.answer(f"⚠️ <b>HTTPS Required</b>\n\nOpen Dashboard: {settings.telegram_webapp_url}", parse_mode="HTML")
+                else:
+                    raise e
+            
             await message.answer(t("onboarding", lang), parse_mode="Markdown")
             
             # Notify existing admins about new registration
@@ -275,7 +287,14 @@ async def cmd_start(message: Message, command: CommandObject):
         else:
             await message.answer("❌ Error during registration.")
     else:
-        await message.answer(t("welcome_back", lang), reply_markup=get_main_keyboard(lang, subscriber))
+        try:
+            await message.answer(t("welcome_back", lang), reply_markup=get_main_keyboard(lang, subscriber))
+        except TelegramBadRequest as e:
+            if "Web App" in str(e):
+                await message.answer(t("welcome_back", lang))
+                await message.answer(f"⚠️ <b>HTTPS Required</b>\n\nOpen Dashboard: {settings.telegram_webapp_url}", parse_mode="HTML")
+            else:
+                raise e
 
 @dp.message(Command("become_superadmin"))
 async def cmd_become_superadmin(message: Message, command: CommandObject):
@@ -570,7 +589,7 @@ async def process_invite_permissions(callback_query: CallbackQuery, state: FSMCo
             await callback_query.message.answer(t("add_user_error", lang))
         await callback_query.answer()
 
->>>>>>> develop
+
 @dp.message(F.text.in_(["📊 Stats", "📊 Статистика"]))
 @dp.message(Command("stats"))
 async def cmd_stats(message: Message):
@@ -695,61 +714,71 @@ async def cmd_scraping(message: Message):
         await message.answer(t("no_permission", lang))
         return
 
-    mon = await client.get_scraping_monitoring()
-    sources = await client.get_sources()
+    monitoring = await client.get_monitoring()
+    stats = await client.get_internal_stats()
+    workers = await client.get_active_workers()
 
-    if not mon or not sources:
-        await message.answer("❌ Error fetching data")
+    if monitoring is None:
+        await message.answer("❌ Error fetching monitoring data")
         return
 
+    # Aggregate stats from monitoring
+    active_count = sum(1 for m in monitoring if m.get("status") != "broken")
+    broken_count = sum(1 for m in monitoring if m.get("status") == "broken")
+    
     text = (
         f"{t('scraping_title', lang)}\n\n"
-        f"✅ *{t('scraping_active', lang)}:* {mon.get('active_sources', 0)}\n"
-        f"🧩 *{t('scraping_unmapped', lang)}:* {mon.get('unmapped_categories', 0)}\n"
-        f"📦 *{t('scraping_items', lang)}:* {mon.get('items_scraped_24h', 0)}\n\n"
-        f"*👇 Connected Spiders:*"
+        f"✅ *{t('scraping_active', lang)}:* {active_count}\n"
+        f"📦 *{t('scraping_items', lang)}:* {stats.get('scraped_24h', 0)}\n\n"
     )
     
-    # Group by site_key and pick the best representative
-    site_groups = {}
+    # 1. Workers Section
+    if workers:
+        text += f"{t('scraping_workers_title', lang, count=len(workers))}\n"
+        for w in workers:
+            hostname = w.get("hostname", "unknown")
+            ram = w.get("ram_usage_pct", 0)
+            tasks = w.get("concurrent_tasks", 0)
+            status_emoji = "🟢" if ram < 80 else "🟡" if ram < 90 else "🔴"
+            text += f"{status_emoji} <code>{hostname}</code>: Load {tasks} | RAM {ram}%\n"
+        text += "\n"
+    
+    # To get source IDs for buttons, we still need a list of sources, 
+    # but we only filter for the main representatives (hubs).
+    sources = await client.get_sources()
+    site_hubs = {s['site_key']: s['id'] for s in sources if s.get('type') == 'hub'}
+    # fallback to first source for site if no hub
     for s in sources:
-        key = s.get("site_key")
-        stype = s.get("type", "list")
-        
-        if key not in site_groups:
-            site_groups[key] = s
-        else:
-            current_best = site_groups[key].get("type", "list")
-            if stype == "hub":
-                site_groups[key] = s
-            elif stype == "sitemap" and current_best == "list":
-                site_groups[key] = s
-    
-    sorted_sites = sorted(site_groups.values(), key=lambda x: x.get("site_key"))
+        if s['site_key'] not in site_hubs:
+            site_hubs[s['site_key']] = s['id']
 
-    text = (
-        f"{t('scraping_title', lang)}\n\n"
-        f"✅ *{t('scraping_active', lang)}:* {mon.get('active_sources', 0)}\n"
-        f"🧩 *{t('scraping_unmapped', lang)}:* {mon.get('unmapped_categories', 0)}\n"
-        f"📦 *{t('scraping_items', lang)}:* {mon.get('items_scraped_24h', 0)}\n\n"
-        f"*👇 Sites Connected ({len(sorted_sites)}):*"
-    )
-    
     buttons = []
-    for s in sorted_sites:
-        key = s.get("site_key")
-        is_active = s.get("is_active")
-        status = s.get("status", "waiting")
+    # Sort monitoring by site_key
+    monitoring = sorted(monitoring, key=lambda x: x.get("site_key"))
+    
+    current_row = []
+    for m in monitoring:
+        key = m.get("site_key")
+        status = m.get("status", "waiting")
+        s_id = site_hubs.get(key)
         
-        status_icon = "🟢" if is_active else "🔴"
-        if status == "running": 
-            status_icon = "🔄"
-        elif status == "broken" or s.get("config", {}).get("fix_required"):
-             status_icon = "🛠"
+        icon = "🟢"
+        if status == "running": icon = "🔄"
+        if status == "queued": icon = "⏳"
+        if status == "error": icon = "🟡"
+        if status == "broken": icon = "🔴"
              
-        buttons.append([InlineKeyboardButton(text=f"{status_icon} {key}", callback_data=f"spider:view:{s['id']}")])
+        current_row.append(InlineKeyboardButton(text=f"{icon} {key}", callback_data=f"spider:view:{s_id}"))
+        if len(current_row) == 2:
+            buttons.append(current_row)
+            current_row = []
+    if current_row:
+        buttons.append(current_row)
         
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="Markdown")
+    # Navigation row
+    buttons.append([InlineKeyboardButton(text="🧩 Map Categories", callback_data="spider:unmapped:0")])
+        
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
 
 async def _show_spider_view(callback_query: CallbackQuery, source_id: int, lang: str):
     source = await client.get_source_details(source_id)
@@ -1313,6 +1342,14 @@ async def consume_notifications():
                                 logger.error("Private notification missing target_chat_id")
                             continue
 
+                        # Noise reduction for scraper errors
+                        # If it's a 'scrapers' notification, we only alert if it explicitly mentions a broken state
+                        # or if we want to implement more complex logic here.
+                        # For now, let's just make sure we don't spam for every minor error if it's not 'broken'.
+                        if topic == "scrapers" and "Broken:" not in text and "Need to Fix" not in text:
+                            logger.info(f"Skipping noisy scraper notification: {text[:50]}...")
+                            continue
+
                         # Find all subscribers for this topic
                         subscribers = await client.get_topic_subscribers(topic)
                         logger.info(f"Found {len(subscribers)} potential subscribers for topic {topic}")
@@ -1639,30 +1676,80 @@ async def process_reschedule_date(message: Message, state: FSMContext):
     await message.answer(t("reschedule_reason_prompt", lang))
     await state.set_state(RescheduleTask.waiting_for_reason)
 
-@dp.message(RescheduleTask.waiting_for_reason)
-async def process_reschedule_reason(message: Message, state: FSMContext):
+@dp.callback_query(lambda c: c.data.startswith("spider:config:"))
+async def handle_spider_config(callback_query: CallbackQuery):
+    source_id = int(callback_query.data.split(":")[2])
+    source = await client.get_source_details(source_id)
+    sub = await client.get_subscriber(callback_query.from_user.id)
+    lang = get_lang(sub)
+    
+    if not source:
+        await callback_query.answer("❌ Source not found")
+        return
+        
+    text = (
+        f"⚙️ *Configure: {source['site_key']}*\n"
+        f"URL: `{source['url']}`\n\n"
+        f"Current Interval: `{source['refresh_interval_hours']}h`\n"
+        f"Current Priority: `{source['priority']}`\n"
+        f"Params Strip: `{source.get('config', {}).get('strip_params', [])}`"
+    )
+    
+    btns = [
+        [
+            InlineKeyboardButton(text="⏰ Interval", callback_data=f"spider:edit:{source_id}:interval"),
+            InlineKeyboardButton(text="🔝 Priority", callback_data=f"spider:edit:{source_id}:priority")
+        ],
+        [InlineKeyboardButton(text="🔙 Back", callback_data=f"spider:view:{source_id}")]
+    ]
+    await smart_edit(callback_query.message, text=text, reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
+
+@dp.callback_query(lambda c: c.data.startswith("spider:edit:"))
+async def handle_spider_edit(callback_query: CallbackQuery, state: FSMContext):
+    data = callback_query.data.split(":")
+    source_id = int(data[2])
+    field = data[3]
+    
+    await state.update_data(source_id=source_id, field=field)
+    await state.set_state(SpiderConfigEdit.waiting_for_value)
+    
+    await callback_query.message.answer(f"Enter new value for *{field}* (current source ID: {source_id}):")
+    await callback_query.answer()
+
+class SpiderConfigEdit(StatesGroup):
+    waiting_for_value = State()
+
+@dp.message(SpiderConfigEdit.waiting_for_value)
+async def process_spider_config_value(message: Message, state: FSMContext):
+    data = await state.get_data()
+    source_id = data.get("source_id")
+    field = data.get("field")
+    value = message.text.strip()
+    
     sub = await client.get_subscriber(message.chat.id)
     lang = get_lang(sub)
-    reason = message.text.strip()
-    
-    data = await state.get_data()
-    task_id = data.get("task_id")
-    new_date = data.get("new_date")
-    
-    # client.reschedule_task signature: task_id, chat_id, ...
-    # Wait, check client.py signature from Step 3433:
-    # async def reschedule_task(self, chat_id: int, task_id: int, date: str, reason: str):
-    # It takes chat_id first!
-    resp = await client.reschedule_task(message.chat.id, task_id, new_date, reason)
-    
-    if resp and resp.get("status") == "ok":
-         await message.answer(t("reschedule_success", lang), reply_markup=get_main_keyboard(lang, sub))
+
+    update_payload = {}
+    if field == "interval":
+        try:
+            update_payload["refresh_interval_hours"] = int(value)
+        except ValueError:
+            await message.answer("❌ Please enter a valid number (hours).")
+            return
+    elif field == "priority":
+        try:
+            update_payload["priority"] = int(value)
+        except ValueError:
+            await message.answer("❌ Please enter a valid number (1-100).")
+            return
+
+    success = await client.update_source(source_id, update_payload)
+    if success:
+        await message.answer(f"✅ Successfully updated *{field}* to `{value}`.", 
+                             reply_markup=get_main_keyboard(lang, sub))
     else:
-         text = "❌ Error rescheduling task."
-         if isinstance(resp, dict) and resp.get("error"):
-             text += f" ({resp.get('error')})"
-         await message.answer(text, reply_markup=get_main_keyboard(lang, sub))
-         
+        await message.answer("❌ Failed to update configuration.", 
+                             reply_markup=get_main_keyboard(lang, sub))
     await state.clear()
 
 if __name__ == "__main__":
