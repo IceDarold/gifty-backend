@@ -1,15 +1,30 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Header
 from typing import Dict, Any, List
 import httpx
 from datetime import datetime, timedelta
 from app.config import get_settings, Settings
 from app.redis_client import get_redis
 from redis.asyncio import Redis
+from sqlalchemy.ext.asyncio import AsyncSession
 import json
 
-router = APIRouter(prefix="/analytics", tags=["Analytics"])
-
 POSTHOG_API_BASE = "https://app.posthog.com/api"
+
+
+async def verify_analytics_token(
+    x_analytics_token: str = Header(...),
+    settings: Settings = Depends(get_settings)
+):
+    if x_analytics_token != settings.analytics_api_token:
+        raise HTTPException(status_code=403, detail="Invalid analytics token")
+    return x_analytics_token
+
+
+router = APIRouter(
+    prefix="/analytics", 
+    tags=["Analytics"],
+    dependencies=[Depends(verify_analytics_token)]
+)
 
 
 async def query_posthog(
@@ -326,3 +341,155 @@ async def get_conversion_funnel(
             "last_updated": datetime.utcnow().isoformat(),
             "error": str(e)
         }
+@router.get("/technical")
+async def get_technical_stats(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    redis: Redis = Depends(get_redis)
+) -> Dict[str, Any]:
+    """
+    Get technical health metrics from Prometheus and Loki.
+    Used for the health-check section of the analytics dashboard.
+    """
+    cache_key = "analytics:technical_stats"
+    cached = await redis.get(cache_key)
+    if cached:
+        return json.loads(cached)
+
+    stats = {
+        "api_health": "unknown",
+        "requests_per_minute": 0,
+        "error_rate_5xx": 0,
+        "active_workers": 0,
+        "last_errors": [],
+        "last_updated": datetime.utcnow().isoformat()
+    }
+
+    async with httpx.AsyncClient(timeout=5.0) as client:
+        # 1. Fetch from Prometheus
+        try:
+            # Query RPM (Requests per minute)
+            # rate(http_requests_total[1m]) * 60
+            prom_url = f"{settings.prometheus_url}/api/v1/query"
+            
+            # Simple health check from prom
+            rpm_query = 'sum(rate(http_request_duration_seconds_count[5m])) * 60'
+            resp = await client.get(prom_url, params={"query": rpm_query})
+            if resp.status_code == 200:
+                results = resp.json().get("data", {}).get("result", [])
+                if results:
+                    stats["requests_per_minute"] = round(float(results[0]["value"][1]), 2)
+                    stats["api_health"] = "healthy"
+
+            # Query Errors (5xx)
+            err_query = 'sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m]))'
+            resp = await client.get(prom_url, params={"query": err_query})
+            if resp.status_code == 200:
+                results = resp.json().get("data", {}).get("result", [])
+                if results:
+                    stats["error_rate_5xx"] = round(float(results[0]["value"][1]), 4)
+
+        except Exception as e:
+            stats["api_health"] = f"error: {str(e)}"
+
+        # 2. Fetch from Loki (Last 5 errors)
+        try:
+            loki_url = f"{settings.loki_url}/loki/api/v1/query_range"
+            # Query for last 5 lines with 'error' or 'exception'
+            loki_query = '{job=~".+"} |= "error" or "exception"'
+            params = {
+                "query": loki_query,
+                "limit": 5,
+                "direction": "backward"
+            }
+            resp = await client.get(loki_url, params=params)
+            if resp.status_code == 200:
+                results = resp.json().get("data", {}).get("result", [])
+                logs = []
+                for stream in results:
+                    for val in stream.get("values", []):
+                        # val is [timestamp_ns, log_line]
+                        logs.append(val[1][:200] + "..." if len(val[1]) > 200 else val[1])
+                stats["last_errors"] = logs[:5]
+        except Exception:
+            pass # Silently fail for Loki in this summary
+
+    # Cache for 60 seconds
+    await redis.setex(cache_key, 60, json.dumps(stats))
+    return stats
+
+
+from app.db import get_db
+from app.repositories.parsing import ParsingRepository
+from sqlalchemy import select, func
+from app.models import CategoryMap, ParsingSource
+
+@router.get("/scraping")
+async def get_scraping_monitoring(
+    request: Request,
+    settings: Settings = Depends(get_settings),
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Detailed monitoring for the scraping system.
+    Returns:
+        - active_sources: Count of sources being scraped.
+        - unmapped_categories: Number of categories needing AI classification.
+        - scraped_items_24h: Total items scraped in last 24h (from Prometheus).
+        - spider_status: Real-time status of each spider.
+    """
+    # 1. Database Stats
+    repo = ParsingRepository(db)
+    
+    # Active sources count
+    sources_stmt = select(func.count(ParsingSource.id)).where(ParsingSource.is_active == True)
+    sources_count = (await db.execute(sources_stmt)).scalar() or 0
+    
+    # Unmapped categories
+    unmapped_stmt = select(func.count(CategoryMap.id)).where(CategoryMap.internal_category_id == None)
+    unmapped_count = (await db.execute(unmapped_stmt)).scalar() or 0
+    
+    # 2. Prometheus Metrics
+    scraping_stats = {
+        "active_sources": sources_count,
+        "unmapped_categories": unmapped_count,
+        "total_scraped_items": 0,
+        "ingestion_errors": 0,
+        "spiders": {}
+    }
+    
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        try:
+            prom_url = f"{settings.prometheus_url}/api/v1/query"
+            
+            # 2.1 Total items scraped (sum across all spiders)
+            items_query = 'sum(scraped_items_total)'
+            resp = await client.get(prom_url, params={"query": items_query})
+            if resp.status_code == 200:
+                results = resp.json().get("data", {}).get("result", [])
+                if results:
+                    scraping_stats["total_scraped_items"] = int(float(results[0]["value"][1]))
+
+            # 2.2 Ingestion errors
+            errors_query = 'sum(ingestion_batches_total{status="error"})'
+            resp = await client.get(prom_url, params={"query": errors_query})
+            if resp.status_code == 200:
+                results = resp.json().get("data", {}).get("result", [])
+                if results:
+                    scraping_stats["ingestion_errors"] = int(float(results[0]["value"][1]))
+
+            # 2.3 Breakdown by spider
+            spider_query = 'sum by (spider) (scraped_items_total)'
+            resp = await client.get(prom_url, params={"query": spider_query})
+            if resp.status_code == 200:
+                for res in resp.json().get("data", {}).get("result", []):
+                    spider_name = res["metric"]["spider"]
+                    scraping_stats["spiders"][spider_name] = {
+                        "items_scraped": int(float(res["value"][1]))
+                    }
+
+        except Exception as e:
+            scraping_stats["error"] = f"Metric fetch error: {str(e)}"
+
+    return scraping_stats
