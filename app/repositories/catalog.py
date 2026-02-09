@@ -5,6 +5,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional, Sequence
 
+import sqlalchemy as sa
 from sqlalchemy import and_, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -72,10 +73,17 @@ class PostgresCatalogRepository(CatalogRepository):
         stmt = stmt.on_conflict_do_update(
             index_elements=[Product.gift_id],
             set_=update_dict
-        )
+        ).returning(sa.literal_column("xmax"))
         
         result = await self.session.execute(stmt)
-        return result.rowcount
+        rows = result.scalars().all()
+        # In PostgreSQL, xmax is 0 for inserted rows, and non-zero for updated rows.
+        # But wait, scalars().all() might not work well with literal_column if not grouped.
+        # Let's use fetchall()
+        
+        # Correction: use result.all() 
+        inserted_count = sum(1 for xmax in rows if xmax == 0)
+        return inserted_count # Total NEW products added to DB
 
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
         """

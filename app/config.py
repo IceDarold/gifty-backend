@@ -59,6 +59,11 @@ class Settings(BaseSettings):
     secret_key: str = Field("change-me-in-production", alias="SECRET_KEY")
     analytics_api_token: str = Field("dev-analytics-token", alias="ANALYTICS_API_TOKEN")
     
+    # Telegram Bot
+    telegram_bot_token: Optional[str] = Field(None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_admin_secret: str = Field("admin123", alias="TELEGRAM_ADMIN_SECRET")
+
+    
     # PostHog Analytics
     posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
     posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
