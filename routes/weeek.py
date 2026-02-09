@@ -65,18 +65,21 @@ async def connect_weeek_account(
     user_data = me.get("user", {})
     weeek_user_id = user_data.get("id")
     
-    # 2. Check access to corporate workspace
-    workspaces_resp = await temp_client.get_workspaces()
-    if not workspaces_resp.get("success"):
-        raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
-    workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
-    workspace_id = settings.weeek_workspace_id
-    has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
-    if not has_access:
-        raise HTTPException(
-            status_code=403,
-            detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
-        )
+    # 2. Check access to corporate workspace (optional)
+    workspace_id = getattr(settings, "weeek_workspace_id", None)
+    if workspace_id:
+        workspaces_resp = await temp_client.get_workspaces()
+        if not workspaces_resp.get("success"):
+            raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
+        workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
+        has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
+        if not has_access:
+            raise HTTPException(
+                status_code=403,
+                detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
+            )
+    else:
+        workspace_id = None
 
     # 3. Check or Create Project 'Gifty 🎁' (Personal Workspace)
     projects_resp = await temp_client.get_projects()
