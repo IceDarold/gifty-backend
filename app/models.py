@@ -106,7 +106,20 @@ class ParsingSource(TimestampMixin, Base):
     last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
     config: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+
+
+class ParsingRun(TimestampMixin, Base):
+    __tablename__ = "parsing_runs"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("parsing_sources.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String, nullable=False) # processing, completed, error
+    items_scraped: Mapped[int] = mapped_column(sa.Integer, default=0)
+    items_new: Mapped[int] = mapped_column(sa.Integer, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
 
 
 class CategoryMap(TimestampMixin, Base):
@@ -143,4 +156,21 @@ class InvestorContact(TimestampMixin, Base):
     ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class TelegramSubscriber(TimestampMixin, Base):
+    __tablename__ = "telegram_subscribers"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(sa.BigInteger, unique=True, nullable=False, index=True)
+    slug: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # TG Username or similar
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    subscriptions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+    language: Mapped[str] = mapped_column(String, server_default="ru", nullable=False)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    permissions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
 

@@ -18,7 +18,7 @@ class MrGeekSpider(GiftyBaseSpider):
                 raw_data={"source": "scrapy_mrgeek"}
             )
 
-        if self.strategy == "deep":
+        if self.strategy in ["deep", "discovery"]:
             next_page = response.css('a.next-page-link::attr(href)').get()
             if next_page:
                 yield response.follow(next_page, self.parse_catalog)

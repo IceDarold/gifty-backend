@@ -10,8 +10,14 @@ from redis.asyncio import Redis
 
 from app.db import get_db
 from app.models import TeamMember, InvestorContact
-from app.schemas.public import TeamMemberSchema, InvestorContactCreate
+from app.schemas.public import (
+    TeamMemberSchema, 
+    InvestorContactCreate, 
+    PartnerContactCreate, 
+    NewsletterSubscribe
+)
 from app.redis_client import get_redis
+from app.services.notifications import NotificationService, get_notification_service
 
 router = APIRouter(prefix="/api/v1/public", tags=["Public"])
 logger = logging.getLogger(__name__)
@@ -34,7 +40,8 @@ async def create_investor_contact(
     request: Request,
     data: InvestorContactCreate,
     db: AsyncSession = Depends(get_db),
-    redis: Redis = Depends(get_redis)
+    redis: Redis = Depends(get_redis),
+    notifications: NotificationService = Depends(get_notification_service)
 ):
     """
     Accepted investor contact form.
@@ -56,14 +63,12 @@ async def create_investor_contact(
             detail={"message": "Too many requests. Please try again later."}
         )
     
-    # Increment with TTL
     await redis.incr(rate_key)
     if not current_count:
         await redis.expire(rate_key, 600)
 
     # 3. Duplicate prevention (7 days by email)
     seven_days_ago_dt = datetime.now() - timedelta(days=7)
-
     stmt = select(InvestorContact).where(
         and_(
             InvestorContact.email == data.email,
@@ -72,7 +77,6 @@ async def create_investor_contact(
     )
     existing = await db.execute(stmt)
     if existing.scalar_one_or_none():
-        # SILENTLY return 201 to avoid email enumeration
         logger.info(f"Duplicate investor contact ignored for email: {data.email}")
         return {"ok": True}
 
@@ -89,5 +93,58 @@ async def create_investor_contact(
     db.add(new_contact)
     await db.commit()
     
-    logger.info(f"New investor contact saved: {data.email} from company {data.company}")
+    import html
+    message = (
+        f"🚀 <b>New Investor Lead</b>\n"
+        f"Name: {html.escape(data.name)}\n"
+        f"Company: {html.escape(data.company or 'N/A')}\n"
+        f"Email: {html.escape(data.email)}\n"
+        f"LinkedIn: {html.escape(str(data.linkedin) or 'N/A')}"
+    )
+    # We await it here. In a high-load scenario, we could use BackgroundTasks.
+    await notifications.notify(topic="investors", message=message, data=data)
+    
+    logger.info(f"New investor contact saved and notified: {data.email}")
+    return {"ok": True}
+
+
+@router.post("/partner-contact", status_code=status.HTTP_201_CREATED)
+async def create_partner_contact(
+    request: Request,
+    data: PartnerContactCreate,
+    notifications: NotificationService = Depends(get_notification_service)
+):
+    """
+    Partner contact form skeleton.
+    """
+    if data.hp:
+        return {"ok": True}
+    
+    # For now, we only notify. We can add DB storage later if needed.
+    message = (
+        f"🤝 *New Partner Lead*\n"
+        f"Name: {data.name}\n"
+        f"Company: {data.company or 'N/A'}\n"
+        f"Email: {data.email}\n"
+        f"Website: {data.website or 'N/A'}\n"
+        f"Message: {data.message}"
+    )
+    await notifications.notify(topic="partners", message=message, data=data.dict())
+    return {"ok": True}
+
+
+@router.post("/newsletter-subscribe", status_code=status.HTTP_201_CREATED)
+async def newsletter_subscribe(
+    request: Request,
+    data: NewsletterSubscribe,
+    notifications: NotificationService = Depends(get_notification_service)
+):
+    """
+    Newsletter subscription skeleton.
+    """
+    if data.hp:
+        return {"ok": True}
+    
+    message = f"📧 *New Newsletter Subscription*: {data.email}"
+    await notifications.notify(topic="newsletter", message=message, data=data.dict())
     return {"ok": True}
