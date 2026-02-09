@@ -44,18 +44,13 @@ class GroupPriceSpider(GiftyBaseSpider):
                 found_hubs[url] = name
 
         for url, name in found_hubs.items():
-            # Yield CategoryItem with consistent fields (title, price) for easier viewing
+            # Yield CategoryItem to be saved as a new ParsingSource
             yield CategoryItem(
                 name=name,
-                title=f"[Category] {name}",
-                price=None,
                 url=url,
                 parent_url=response.url,
                 site_key=self.site_key
             )
-            
-            # Follow to parse products
-            yield response.follow(url, self.parse_catalog)
 
     def parse_catalog(self, response):
         # Each product card
@@ -94,8 +89,7 @@ class GroupPriceSpider(GiftyBaseSpider):
                 }
             )
 
-        # Pagination (only in deep mode)
-        if self.strategy == "deep":
+        if self.strategy in ["deep", "discovery"]:
             next_page = response.css("a.__ajax-pagination::attr(href)").get()
             if not next_page:
                 next_page = response.css("nav.pagy a[rel='next']::attr(href)").get()

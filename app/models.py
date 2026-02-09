@@ -106,7 +106,20 @@ class ParsingSource(TimestampMixin, Base):
     last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
     config: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+
+
+class ParsingRun(TimestampMixin, Base):
+    __tablename__ = "parsing_runs"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("parsing_sources.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String, nullable=False) # processing, completed, error
+    items_scraped: Mapped[int] = mapped_column(sa.Integer, default=0)
+    items_new: Mapped[int] = mapped_column(sa.Integer, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
 
 
 class CategoryMap(TimestampMixin, Base):
@@ -116,3 +129,70 @@ class CategoryMap(TimestampMixin, Base):
     external_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     internal_category_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
     is_verified: Mapped[bool] = mapped_column(sa.Boolean, server_default="false")
+
+
+class TeamMember(TimestampMixin, Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    photo_public_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sort_order: Mapped[int] = mapped_column(sa.Integer, server_default="0", index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+
+
+class InvestorContact(TimestampMixin, Base):
+    __tablename__ = "investor_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class TelegramSubscriber(TimestampMixin, Base):
+    __tablename__ = "telegram_subscribers"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[int] = mapped_column(sa.BigInteger, unique=True, nullable=False, index=True)
+    slug: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # TG Username or similar
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    subscriptions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+    language: Mapped[str] = mapped_column(String, server_default="ru", nullable=False)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    role: Mapped[str] = mapped_column(String, server_default="user", nullable=False) # user, admin, superadmin
+    permissions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+
+class WeeekAccount(TimestampMixin, Base):
+    __tablename__ = "weeek_accounts"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    telegram_chat_id: Mapped[int] = mapped_column(sa.BigInteger, ForeignKey("telegram_subscribers.chat_id"), unique=True, index=True)
+    
+    # Weeek credentials
+    weeek_api_token: Mapped[str] = mapped_column(String, nullable=False)  # Encrypted!
+    weeek_user_id: Mapped[str] = mapped_column(String, nullable=True)    # ID пользователя в Weeek
+    weeek_workspace_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    
+    # Personal project setup
+    personal_project_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)  # Проект "Gifty" у юзера
+    personal_board_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)    # Основная доска
+    
+    # Preferences
+    reminder_time: Mapped[str] = mapped_column(String, server_default="09:00")  # Время напоминаний
+    timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
+    
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+

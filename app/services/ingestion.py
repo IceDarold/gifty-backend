@@ -24,11 +24,17 @@ class IngestionService:
 
         # 2. Prepare Product data for Upsert
         product_dicts = []
+        seen_gift_ids = set()
+        
         for p in products:
             # Generate gift_id if not present or mapping to site_key:url/id
             # For now, let's use site_key:url as a simple unique ID placeholder
             # Real implementation might differ based on provider
             gift_id = f"{p.site_key}:{p.product_url}" 
+            
+            if gift_id in seen_gift_ids:
+                continue
+            seen_gift_ids.add(gift_id)
             
             product_dicts.append({
                 "gift_id": gift_id,
@@ -48,12 +54,48 @@ class IngestionService:
         count = await self.catalog_repo.upsert_products(product_dicts)
         
         # 4. Update Source Stats (Simplified)
-        await self.parsing_repo.update_source_stats(source_id, {"processed_items": len(products)})
+        await self.parsing_repo.update_source_stats(source_id, {
+            "processed_items": len(products),
+            "new_items": count
+        })
+        
+        # 5. Log Run History
+        await self.parsing_repo.log_parsing_run(
+            source_id=source_id,
+            status="completed",
+            items_scraped=len(products),
+            items_new=count
+        )
         
         await self.db.commit()
         return count
 
     async def ingest_categories(self, categories: List[ScrapedCategory]):
-        # Logic for discovery: potentially creating new ParsingSource entries
-        # For now, just a placeholder
-        pass
+        if not categories:
+            return 0
+            
+        count = 0
+        for cat in categories:
+            # We use the category URL as a unique identifier for the ParsingSource
+            source_data = {
+                "url": cat.url,
+                "site_key": cat.site_key,
+                "type": "list", # Discovered categories are usually 'list' types
+                "strategy": "deep", # They should be parsed thoroughly
+                "priority": 50,
+                "refresh_interval_hours": 24,
+                "is_active": True,
+                "status": "waiting",
+                "config": {
+                    "discovery_name": cat.name,
+                    "parent_url": cat.parent_url
+                }
+            }
+            try:
+                await self.parsing_repo.upsert_source(source_data)
+                count += 1
+            except Exception as e:
+                logger.error(f"Failed to upsert discovered source {cat.url}: {e}")
+        
+        await self.db.commit()
+        return count
