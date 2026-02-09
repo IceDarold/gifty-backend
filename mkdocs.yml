@@ -78,6 +78,8 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Overview: architecture/overview.md
+  - Gifty Interfaces:
+      - Telegram Admin Bot: guides/telegram_bot.md
   - Parsing System:
       - Architecture: architecture/parsing.md
       - Guide (How to add parser): guides/parsing.md
@@ -88,9 +90,10 @@ nav:
           - Product Analytics: architecture/product_analytics.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
-  - Analytics Dashboard:
-      - Quick Start: guides/analytics_api_quickstart.md
-      - Frontend Integration Guide: guides/analytics_frontend_integration.md
+  - Analytics & Monitoring:
+      - Dashboard Guide: guides/analytics_api_quickstart.md
+      - Frontend Integration: guides/analytics_frontend_integration.md
+      - Technical Health: api/services.md
   - Engineering & DevOps:
       - Development Workflow: guides/development.md
       - Deployment & CI/CD: guides/deployment.md
