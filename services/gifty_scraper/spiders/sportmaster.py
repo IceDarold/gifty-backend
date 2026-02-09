@@ -17,63 +17,94 @@ class SportmasterSpider(GiftyBaseSpider):
         'ROBOTSTXT_OBEY': False,
         'DOWNLOAD_DELAY': 2.0,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'USER_AGENT': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
-        'DEFAULT_REQUEST_HEADERS': {
-            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-            'Accept-Language': 'ru-RU,ru;q=0.9',
-            'Accept-Encoding': 'gzip, deflate, br',
-            'Referer': 'https://www.sportmaster.ru/',
-            'Sec-Ch-Ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
-            'Sec-Ch-Ua-Mobile': '?0',
-            'Sec-Ch-Ua-Platform': '"Windows"',
-            'Sec-Fetch-Dest': 'document',
-            'Sec-Fetch-Mode': 'navigate',
-            'Sec-Fetch-Site': 'same-origin',
-            'Sec-Fetch-User': '?1',
-            'Upgrade-Insecure-Requests': '1',
+        'CONCURRENT_REQUESTS': 2,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
+        'DOWNLOAD_TIMEOUT': 90,
+        'HTTPERROR_ALLOW_ALL': True,  # Allow 401 responses to be processed
+        
+        # Playwright settings
+        'DOWNLOAD_HANDLERS': {
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
         },
+        'TWISTED_REACTOR': "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        'PLAYWRIGHT_BROWSER_TYPE': 'chromium',
+        'PLAYWRIGHT_LAUNCH_OPTIONS': {
+            'headless': True,
+            'args': [
+                '--disable-blink-features=AutomationControlled',
+                '--disable-dev-shm-usage',
+                '--no-sandbox',
+            ]
+        },
+        
+        # Standard settings
+        'USER_AGENT': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36',
         'COOKIES_ENABLED': True,
-        'CONCURRENT_REQUESTS': 8,
-        'DOWNLOAD_TIMEOUT': 30,
     }
 
     def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
         # Default to main catalog if no URL provided
         if not url:
-            url = "https://www.sportmaster.ru/catalog/"
+            url = "https://www.sportmaster.ru"
         super(SportmasterSpider, self).__init__(url=url, strategy=strategy, source_id=source_id, *args, **kwargs)
 
     def start_requests(self):
-        url = getattr(self, 'url', "https://www.sportmaster.ru/catalog/")
+        from scrapy_playwright.page import PageMethod
+        
+        url = getattr(self, 'url', "https://www.sportmaster.ru")
+        
+        # Use Playwright to render the page with a real browser
         yield scrapy.Request(
-            url, 
+            url,
             callback=self.parse,
             dont_filter=True,
-            headers={
-                'Referer': 'https://www.google.com/',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'cross-site',
-                'Upgrade-Insecure-Requests': '1'
-            }
+            meta={
+                'playwright': True,
+                'playwright_include_page': True,
+                'playwright_page_methods': [
+                    # Wait for anti-bot challenge to complete
+                    PageMethod('wait_for_timeout', 5000),  # Wait 5 seconds for Qrator
+                    PageMethod('wait_for_load_state', 'networkidle'),
+                ],
+            },
+            errback=self.errback_close_page,
         )
+    
+    async def errback_close_page(self, failure):
+        """Close the page when there's an error"""
+        page = failure.request.meta.get("playwright_page")
+        if page:
+            await page.close()
+        self.logger.error(f"Request failed: {failure}")
 
-    def parse(self, response):
+    async def parse(self, response):
         """
         Main parse method that routes to catalog or discovery based on strategy.
         """
+        # Close the Playwright page after getting the response
+        page = response.meta.get("playwright_page")
+        if page:
+            await page.close()
+        
         # Save response for debugging
         with open("sportmaster_response.html", "w", encoding="utf-8") as f:
             f.write(response.text)
+        
+        self.logger.info(f"Successfully accessed: {response.url} (status: {response.status})")
         
         # Check if this is a catalog page with products
         has_products = response.css('[data-test-id*="product"], [class*="product-card"], article[class*="product"]').get()
         
         if has_products:
-            yield from self.parse_catalog(response)
+            for item in self.parse_catalog(response):
+                yield item
         elif self.strategy == "discovery" or "/catalog/" in response.url:
-            yield from self.parse_discovery(response)
+            for item in self.parse_discovery(response):
+                yield item
         else:
-            yield from self.parse_catalog(response)
+            for item in self.parse_catalog(response):
+                yield item
 
     def parse_catalog(self, response):
         """
@@ -338,7 +369,20 @@ class SportmasterSpider(GiftyBaseSpider):
         # Pattern 1: Next page link
         next_page = response.css('a[rel="next"]::attr(href), a[class*="next"]::attr(href), [data-test-id="next-page"]::attr(href)').get()
         if next_page:
-            yield response.follow(next_page, self.parse_catalog)
+            from scrapy_playwright.page import PageMethod
+            yield scrapy.Request(
+                response.urljoin(next_page),
+                callback=self.parse,
+                meta={
+                    'playwright': True,
+                    'playwright_include_page': True,
+                    'playwright_page_methods': [
+                        PageMethod('wait_for_timeout', 5000),
+                        PageMethod('wait_for_load_state', 'networkidle'),
+                    ],
+                },
+                errback=self.errback_close_page,
+            )
             return
         
         # Pattern 2: Page number in URL
@@ -372,7 +416,20 @@ class SportmasterSpider(GiftyBaseSpider):
                 next_url = f"{response.url}?page={next_page_num}"
             
             self.logger.info(f"Following pagination: page {next_page_num} of {max_page}")
-            yield response.follow(next_url, self.parse_catalog)
+            from scrapy_playwright.page import PageMethod
+            yield scrapy.Request(
+                next_url,
+                callback=self.parse,
+                meta={
+                    'playwright': True,
+                    'playwright_include_page': True,
+                    'playwright_page_methods': [
+                        PageMethod('wait_for_timeout', 5000),
+                        PageMethod('wait_for_load_state', 'networkidle'),
+                    ],
+                },
+                errback=self.errback_close_page,
+            )
 
     def parse_discovery(self, response):
         """
@@ -398,4 +455,17 @@ class SportmasterSpider(GiftyBaseSpider):
         self.logger.info(f"Found {len(category_urls)} potential category links")
         
         for url in category_urls:
-            yield response.follow(url, self.parse_catalog)
+            from scrapy_playwright.page import PageMethod
+            yield scrapy.Request(
+                url,
+                callback=self.parse,
+                meta={
+                    'playwright': True,
+                    'playwright_include_page': True,
+                    'playwright_page_methods': [
+                        PageMethod('wait_for_timeout', 5000),
+                        PageMethod('wait_for_load_state', 'networkidle'),
+                    ],
+                },
+                errback=self.errback_close_page,
+            )
