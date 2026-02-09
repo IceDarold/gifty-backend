@@ -10,13 +10,9 @@
 
 ## 🔑 Аутентификация
 
-Все запросы к роутеру аналитики защищены и требуют передачи секретного токена в заголовке `X-Analytics-Token`. Без этого заголовка API вернет ошибку `403 Forbidden`.
+*(Временно отключена, эндпоинты публичные)*
 
-```http
-X-Analytics-Token: <your_analytics_api_token>
-```
-
-*Токен можно найти в переменной окружения `ANALYTICS_API_TOKEN` на сервере или запросить у Backend Team.*
+На текущий момент эндпоинты не требуют передачи токена, но в будущем авторизация будет возвращена через заголовок `X-Analytics-Token`.
 
 ---
 
@@ -29,7 +25,7 @@ X-Analytics-Token: <your_analytics_api_token>
 #### Request
 
 ```bash
-curl -H "X-Analytics-Token: your_token" https://api.giftyai.ru/analytics/stats
+curl https://api.giftyai.ru/analytics/stats
 ```
 
 #### Response
@@ -66,11 +62,7 @@ interface AnalyticsStats {
 }
 
 const fetchStats = async (): Promise<AnalyticsStats> => {
-  const response = await fetch('https://api.giftyai.ru/analytics/stats', {
-    headers: {
-      'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || ''
-    }
-  });
+  const response = await fetch('https://api.giftyai.ru/analytics/stats');
   if (!response.ok) throw new Error('Failed to fetch stats');
   return response.json();
 };
@@ -116,7 +108,7 @@ const StatsCards = () => {
 #### Request
 
 ```bash
-curl -H "X-Analytics-Token: your_token" "https://api.giftyai.ru/analytics/trends?days=14"
+curl "https://api.giftyai.ru/analytics/trends?days=14"
 ```
 
 #### Response
@@ -163,9 +155,7 @@ const TrendsChart = () => {
   const [trends, setTrends] = useState<TrendsData | null>(null);
   
   useEffect(() => {
-    fetch('https://api.giftyai.ru/analytics/trends?days=30', {
-      headers: { 'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || '' }
-    })
+    fetch('https://api.giftyai.ru/analytics/trends?days=30')
       .then(res => res.json())
       .then(setTrends);
   }, []);
@@ -205,7 +195,7 @@ const TrendsChart = () => {
 #### Request
 
 ```bash
-curl -H "X-Analytics-Token: your_token" https://api.giftyai.ru/analytics/funnel
+curl https://api.giftyai.ru/analytics/funnel
 ```
 
 #### Response
@@ -266,9 +256,7 @@ const FunnelChart = () => {
   const [funnel, setFunnel] = useState<FunnelData | null>(null);
   
   useEffect(() => {
-    fetch('https://api.giftyai.ru/analytics/funnel', {
-      headers: { 'X-Analytics-Token': process.env.ANALYTICS_API_TOKEN || '' }
-    })
+    fetch('https://api.giftyai.ru/analytics/funnel')
       .then(res => res.json())
       .then(setFunnel);
   }, []);

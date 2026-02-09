@@ -62,6 +62,7 @@ class Settings(BaseSettings):
     # Telegram Bot
     telegram_bot_token: Optional[str] = Field(None, alias="TELEGRAM_BOT_TOKEN")
     telegram_admin_secret: str = Field("admin123", alias="TELEGRAM_ADMIN_SECRET")
+    telegram_superadmin_secret: str = Field("superadmin123", alias="TELEGRAM_SUPERADMIN_SECRET")
 
     
     # PostHog Analytics

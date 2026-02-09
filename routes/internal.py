@@ -418,6 +418,14 @@ class SubscriberUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
 
+@router.get("/telegram/subscribers", summary="Получить список всех подписчиков")
+async def list_telegram_subscribers(
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    return await repo.get_all_subscribers()
+
 @router.get("/telegram/subscribers/{chat_id}")
 async def get_telegram_subscriber(
     chat_id: int,
@@ -439,6 +447,32 @@ async def create_telegram_subscriber(
     repo = TelegramRepository(db)
     sub = await repo.create_subscriber(data.chat_id, data.name, data.slug)
     return sub
+
+@router.post("/telegram/subscribers/{chat_id}/role")
+async def set_subscriber_role(
+    chat_id: int,
+    role: str,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    success = await repo.set_role(chat_id, role)
+    if not success:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    return {"status": "ok"}
+
+@router.post("/telegram/subscribers/{chat_id}/permissions")
+async def set_subscriber_permissions(
+    chat_id: int,
+    perms: List[str],
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    success = await repo.set_permissions(chat_id, perms)
+    if not success:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    return {"status": "ok"}
 
 @router.post("/telegram/subscribers/{chat_id}/subscribe")
 async def subscribe_telegram_topic(
