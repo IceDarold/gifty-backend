@@ -72,3 +72,24 @@ class TelegramRepository:
         sub.language = language
         await self.session.commit()
         return True
+
+    async def get_all_subscribers(self) -> Sequence[TelegramSubscriber]:
+        stmt = select(TelegramSubscriber).order_by(TelegramSubscriber.id.asc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def set_role(self, chat_id: int, role: str) -> bool:
+        sub = await self.get_subscriber(chat_id)
+        if not sub:
+            return False
+        sub.role = role
+        await self.session.commit()
+        return True
+
+    async def set_permissions(self, chat_id: int, perms: List[str]) -> bool:
+        sub = await self.get_subscriber(chat_id)
+        if not sub:
+            return False
+        sub.permissions = perms
+        await self.session.commit()
+        return True

@@ -139,6 +139,23 @@ class WeeekClient:
             except Exception as e:
                 return {"success": False, "error": str(e)}
 
+    async def create_project(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Create a new project."""
+        if not self.token:
+            return {"success": False, "error": "Token missing"}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/tm/projects",
+                    headers=self.headers,
+                    json=data
+                )
+                if not response.is_success:
+                    return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
+                return response.json()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
     async def get_projects(self) -> Dict[str, Any]:
         """Fetch all projects."""
         if not self.token:
@@ -164,7 +181,7 @@ class WeeekClient:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.get(
-                    f"{self.base_url}/users/me",
+                    f"{self.base_url}/user/me",
                     headers=self.headers
                 )
                 if not response.is_success:

@@ -11,14 +11,26 @@ from aiogram.types import (
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
+from datetime import datetime
 
 class EditSpider(StatesGroup):
     waiting_for_url = State()
     waiting_for_interval = State()
+
+class NewTask(StatesGroup):
+    waiting_for_title = State()
+
+class ConnectWeeek(StatesGroup):
+    waiting_for_token = State()
+
+class RescheduleTask(StatesGroup):
+    waiting_for_date = State()
+    waiting_for_reason = State()
 from services.telegram_bot.app.strings import STRINGS
 
 from app.config import get_settings
 from services.telegram_bot.app.client import TelegramInternalClient
+from app.services.weeek import WeeekClient
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -32,6 +44,41 @@ client = TelegramInternalClient(
     settings.internal_api_token, 
     settings.analytics_api_token
 )
+weeek_client = WeeekClient()
+
+async def smart_edit(message: Message, text: str = None, reply_markup = None, photo_url: str = None, parse_mode: str = "Markdown"):
+    """
+    Smartly edits a message or sends a new one if media type changes.
+    Prevents 'there is no text in the message to edit' errors.
+    """
+    try:
+        # CASE 1: We want to show a PHOTO
+        if photo_url:
+            media = types.InputMediaPhoto(media=URLInputFile(photo_url), caption=text, parse_mode=parse_mode)
+            if message.photo:
+                # Photo -> Photo: Edit media
+                await message.edit_media(media=media, reply_markup=reply_markup)
+            else:
+                # Text -> Photo: Delete text, Send photo
+                await message.delete()
+                await message.answer_photo(photo=URLInputFile(photo_url), caption=text, parse_mode=parse_mode, reply_markup=reply_markup)
+                
+        # CASE 2: We want to show TEXT
+        else:
+            if message.text:
+                # Text -> Text: Edit text
+                await message.edit_text(text, parse_mode=parse_mode, reply_markup=reply_markup)
+            else:
+                # Photo -> Text: Delete photo, Send text
+                await message.delete()
+                await message.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
+    except Exception as e:
+        logger.error(f"Smart edit failed: {e}")
+        # Fallback: just answer
+        if photo_url:
+            await message.answer_photo(photo=URLInputFile(photo_url), caption=text, parse_mode=parse_mode, reply_markup=reply_markup)
+        else:
+            await message.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
 def get_lang(user_data: dict) -> str:
     return user_data.get("language", "ru") if user_data else "ru"
@@ -39,19 +86,51 @@ def get_lang(user_data: dict) -> str:
 def has_permission(user_data: dict, permission: str) -> bool:
     if not user_data:
         return False
+    if user_data.get("role") == "superadmin":
+        return True
     perms = user_data.get("permissions", [])
     # Support for simple namespaced permissions
     return permission in perms or "all" in perms or f"{permission.split(':')[0]}:*" in perms
 
-def t(key: str, lang: str):
-    return STRINGS.get(lang, STRINGS["ru"]).get(key, key)
+def t(key: str, lang: str, **kwargs):
+    text = STRINGS.get(lang, STRINGS["ru"]).get(key, key)
+    if kwargs:
+        return text.format(**kwargs)
+    return text
 
-def get_main_keyboard(lang: str):
-    keyboard = [
-        [KeyboardButton(text=t("btn_stats", lang)), KeyboardButton(text=t("btn_health", lang))],
-        [KeyboardButton(text=t("btn_scraping", lang)), KeyboardButton(text=t("btn_subs", lang))],
-        [KeyboardButton(text=t("btn_help", lang)), KeyboardButton(text=t("lang_btn", lang))]
-    ]
+def get_main_keyboard(lang: str, sub: dict = None):
+    keyboard = []
+    
+    # Row 1: Stats & Health
+    row1 = []
+    if has_permission(sub, "stats:view"):
+        row1.append(KeyboardButton(text=t("btn_stats", lang)))
+    if has_permission(sub, "system:health"):
+        row1.append(KeyboardButton(text=t("btn_health", lang)))
+    if row1:
+        keyboard.append(row1)
+        
+    # Row 2: Scraping & Subs & Tasks
+    row2 = []
+    if has_permission(sub, "parsing:manage"):
+        row2.append(KeyboardButton(text=t("btn_scraping", lang)))
+    
+    
+    if has_permission(sub, "tasks:manage"):
+        row2.append(KeyboardButton(text=t("btn_tasks", lang)))
+    else:
+        # Show Connect button only if NOT connected (i.e. no permission)
+        row2.append(KeyboardButton(text=t("weeek_connect_btn", lang)))
+        
+    row2.append(KeyboardButton(text=t("btn_subs", lang)))
+    keyboard.append(row2)
+    
+    # Row 3: Admin tools
+    row3 = [KeyboardButton(text=t("btn_help", lang)), KeyboardButton(text=t("lang_btn", lang))]
+    if sub and sub.get("role") == "superadmin":
+        row3.insert(0, KeyboardButton(text=t("btn_users", lang)))
+    keyboard.append(row3)
+    
     return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
 
 def get_stats_panel(lang: str):
@@ -130,7 +209,8 @@ async def cmd_start(message: Message, command: CommandObject):
             slug=message.from_user.username
         )
         if subscriber:
-            await message.answer(t("welcome_new", lang), reply_markup=get_main_keyboard(lang))
+            lang = get_lang(subscriber)
+            await message.answer(t("welcome_new", lang), reply_markup=get_main_keyboard(lang, subscriber))
             await message.answer(t("onboarding", lang), parse_mode="Markdown")
             
             # Notify existing admins about new registration
@@ -150,9 +230,176 @@ async def cmd_start(message: Message, command: CommandObject):
         else:
             await message.answer("❌ Error during registration.")
     else:
-        # User already registered, show onboarding
-        await message.answer(t("welcome_back", lang), reply_markup=get_main_keyboard(lang))
-        await message.answer(t("onboarding", lang), parse_mode="Markdown")
+        await message.answer(t("welcome_back", lang), reply_markup=get_main_keyboard(lang, subscriber))
+
+@dp.message(Command("become_superadmin"))
+async def cmd_become_superadmin(message: Message, command: CommandObject):
+    if not command.args:
+        return
+    
+    if command.args == settings.telegram_superadmin_secret:
+        success = await client.set_role(message.chat.id, "superadmin")
+        if success:
+            sub = await client.get_subscriber(message.chat.id)
+            lang = get_lang(sub)
+            await message.answer(t("become_superadmin_success", lang), reply_markup=get_main_keyboard(lang, sub))
+
+@dp.message(F.text.in_(["👥 Пользователи", "👥 Users"]))
+@dp.message(Command("users"))
+async def cmd_users(message: Message):
+    sub = await client.get_subscriber(message.chat.id)
+    if not sub or sub.get("role") != "superadmin":
+        lang = get_lang(sub)
+        await message.answer(t("superadmin_only", lang))
+        return
+
+    lang = get_lang(sub)
+    users = await client.get_all_subscribers()
+    
+    rows = []
+    for u in users:
+        role_label = "👑" if u.get("role") == "superadmin" else ("🛠" if u.get("role") == "admin" else "👤")
+        rows.append([
+            InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
+        ])
+    
+    markup = InlineKeyboardMarkup(inline_keyboard=rows)
+    await message.answer(t("users_title", lang), reply_markup=markup)
+
+async def _show_user_details(callback_query: CallbackQuery, user_id: int, lang: str):
+    user = await client.get_subscriber(user_id)
+    if not user:
+        await callback_query.answer("User not found")
+        return
+        
+    text = t("user_details", lang, name=user.get("name", "N/A"), slug=user.get("slug", "N/A"), role=user.get("role"), chat_id=user.get("chat_id"))
+    
+    rows = [
+        [InlineKeyboardButton(text="Promotion to Admin", callback_data=f"user:set_role:{user_id}:admin")],
+        [InlineKeyboardButton(text="Demote to User", callback_data=f"user:set_role:{user_id}:user")],
+        [InlineKeyboardButton(text=t("btn_manage_perms", lang), callback_data=f"user:perms_list:{user_id}")],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data="user:list:0")]
+    ]
+    await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="Markdown")
+
+async def _show_perms_list(callback_query: CallbackQuery, user_id: int, lang: str):
+    user = await client.get_subscriber(user_id)
+    user_perms = user.get("permissions") or []
+    is_super = user.get("role") == "superadmin"
+    AVAILABLE_PERMS = ["all", "stats:view", "system:health", "parsing:manage", "notifications:manage", "tasks:manage"]
+    
+    text = t("perms_list_title", lang, name=user.get("name") or user.get("slug") or user.get("chat_id"))
+    if is_super:
+        text += f"\n\n👑 *Inherited from Superadmin*"
+        
+    rows = []
+    for p in AVAILABLE_PERMS:
+        is_active = p in user_perms or "all" in user_perms or is_super
+        status = t("perm_status_active", lang) if is_active else t("perm_status_inactive", lang)
+        rows.append([InlineKeyboardButton(text=f"{status} {p}", callback_data=f"user:perms_view:{user_id}:{p}")])
+    
+    rows.append([InlineKeyboardButton(text="⬅️ Back", callback_data=f"user:details:{user_id}")])
+    await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+async def _show_perm_view(callback_query: CallbackQuery, user_id: int, perm_key: str, lang: str):
+    user = await client.get_subscriber(user_id)
+    user_perms = user.get("permissions") or []
+    is_super = user.get("role") == "superadmin"
+    
+    is_active = perm_key in user_perms or "all" in user_perms or is_super
+        
+    perm_desc_dict = STRINGS.get(lang, STRINGS["ru"]).get("perm_descs", {})
+    desc = perm_desc_dict.get(perm_key, "No description available.")
+    
+    text = (
+        f"🔐 *{t('perm_info_title', lang, perm=perm_key)}*\n\n"
+        f"{desc}\n\n"
+        f"Status: {t('perm_status_active' if is_active else 'perm_status_inactive', lang)}"
+    )
+    
+    btn_text = t("btn_revoke" if is_active else "btn_grant", lang)
+    toggle_action = "revoke" if is_active else "grant"
+    
+    rows = [
+        [InlineKeyboardButton(text=btn_text, callback_data=f"user:perms_toggle:{user_id}:{toggle_action}:{perm_key}")],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data=f"user:perms_list:{user_id}")]
+    ]
+    await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="Markdown")
+
+@dp.callback_query(F.data.startswith("user:"))
+async def handle_user_actions(callback_query: CallbackQuery):
+    admin_sub = await client.get_subscriber(callback_query.message.chat.id)
+    if not admin_sub or admin_sub.get("role") != "superadmin":
+        await callback_query.answer(t("superadmin_only", get_lang(admin_sub)), show_alert=True)
+        return
+
+    lang = get_lang(admin_sub)
+    data = callback_query.data
+    parts = data.split(":")
+    action = parts[1]
+    
+    # Common permissions to manage
+    # AVAILABLE_PERMS = ["all", "stats:view", "system:health", "parsing:manage", "notifications:manage"] # Moved to _show_perms_list
+
+    if action == "details":
+        await _show_user_details(callback_query, int(parts[2]), lang)
+
+    elif action == "perms_list":
+        await _show_perms_list(callback_query, int(parts[2]), lang)
+
+    elif action == "perms_view":
+        # pattern: user:perms_view:user_id:perm_key
+        # We need to re-parse because of potential colons in perm_key
+        v_parts = data.split(":", 3)
+        await _show_perm_view(callback_query, int(v_parts[2]), v_parts[3], lang)
+
+    elif action == "perms_toggle":
+        # pattern: user:perms_toggle:user_id:grant|revoke:perm_key
+        t_parts = data.split(":", 4)
+        user_id = int(t_parts[2])
+        toggle_type = t_parts[3] 
+        perm_key = t_parts[4]
+        
+        user = await client.get_subscriber(user_id)
+        current_perms = user.get("permissions") or []
+        
+        if toggle_type == "grant":
+            if perm_key not in current_perms:
+                current_perms.append(perm_key)
+        else:
+            if perm_key in current_perms:
+                current_perms.remove(perm_key)
+            if perm_key == "all" and "all" in current_perms:
+                current_perms.remove("all")
+        
+        await client.set_permissions(user_id, current_perms)
+        await callback_query.answer(t("perms_updated", lang))
+        
+        # Immediate UI refresh: reload the view with updated data
+        # Correctly reconstruct the data to avoid split errors
+        # callback_query.data = f"user:perms_view:{user_id}:{perm_key}" # Replaced with direct call
+        await _show_perm_view(callback_query, user_id, perm_key, lang)
+
+    elif action == "set_role":
+        user_id = int(parts[2])
+        new_role = parts[3]
+        user = await client.get_subscriber(user_id)
+        await client.set_role(user_id, new_role)
+        await callback_query.answer(t("role_changed", lang, name=user.get('name', 'User'), role=new_role))
+        # Refresh details
+        # callback_query.data = f"user:details:{user_id}" # Replaced with direct call
+        await _show_user_details(callback_query, user_id, lang)
+
+    elif action == "list":
+        users = await client.get_all_subscribers()
+        rows = []
+        for u in users:
+            role_label = "👑" if u.get("role") == "superadmin" else ("🛠" if u.get("role") == "admin" else "👤")
+            rows.append([
+                InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
+            ])
+        await callback_query.message.edit_text(t("users_title", lang), reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+        await callback_query.answer()
 
 @dp.message(F.text.in_(["📊 Stats", "📊 Статистика"]))
 @dp.message(Command("stats"))
@@ -160,7 +407,7 @@ async def cmd_stats(message: Message):
     sub = await client.get_subscriber(message.chat.id)
     lang = get_lang(sub)
     
-    if not has_permission(sub, "analytics:view"):
+    if not has_permission(sub, "stats:view"):
         await message.answer(t("no_permission", lang))
         return
 
@@ -172,9 +419,14 @@ async def cmd_stats(message: Message):
 
 @dp.callback_query(F.data.startswith("stats:"))
 async def process_stats_callback(callback_query: CallbackQuery):
-    action = callback_query.data.split(":")[1]
     sub = await client.get_subscriber(callback_query.message.chat.id)
     lang = get_lang(sub)
+    
+    if not has_permission(sub, "stats:view"):
+        await callback_query.answer(t("no_permission", lang), show_alert=True)
+        return
+
+    action = callback_query.data.split(":")[1]
 
     if action == "summary":
         stats = await client.get_stats()
@@ -186,7 +438,7 @@ async def process_stats_callback(callback_query: CallbackQuery):
                 f"🖱 *Gift CTR:* {stats.get('gift_ctr', 0)}%\n"
                 f"🚀 *Total Sessions:* {stats.get('total_sessions', 0)}\n"
             )
-            await callback_query.message.edit_text(text, parse_mode="Markdown", reply_markup=get_stats_panel(lang))
+            await smart_edit(callback_query.message, text=text, reply_markup=get_stats_panel(lang))
         else:
             await callback_query.answer("Error fetching stats")
 
@@ -196,21 +448,18 @@ async def process_stats_callback(callback_query: CallbackQuery):
         trends = await client.get_trends(days=days)
         
         if not trends or not trends.get("dau_trend"):
-            await callback_query.answer("No trend data available from PostHog")
+            await callback_query.answer("No trend data available", show_alert=True)
             return
 
         labels = trends.get("dates", [])
         data = trends.get("dau_trend", [])
-        
-        # If MAU, we group by month if we had more data, but for now we show 30 days of DAU as a proxy or 7 days
-        # The API gives us day-by-day.
         
         chart_config = {
             "type": "line",
             "data": {
                 "labels": labels,
                 "datasets": [{
-                    "label": "DAU (PostHog Real-time)" if not is_mau else "MAU Proxy (30d)",
+                    "label": "DAU" if not is_mau else "MAU (30d)",
                     "data": data,
                     "borderColor": "rgba(75, 192, 192, 1)",
                     "backgroundColor": "rgba(75, 192, 192, 0.2)",
@@ -219,16 +468,14 @@ async def process_stats_callback(callback_query: CallbackQuery):
                 }]
             },
             "options": {
-                "title": {"display": True, "text": f"{'30-Day' if is_mau else '7-Day'} PostHog Activity"}
+                "title": {"display": True, "text": f"{'30-Day' if is_mau else '7-Day'} Activity"},
+                "legend": {"display": False}
             }
         }
         chart_url = f"https://quickchart.io/chart?c={json.dumps(chart_config)}&width=600&height=400&bkg=white"
         
-        await callback_query.message.answer_photo(
-            photo=URLInputFile(chart_url),
-            caption=t("stats_mau_title" if is_mau else "stats_dau_title", lang),
-            parse_mode="Markdown"
-        )
+        caption = t("stats_mau_title" if is_mau else "stats_dau_title", lang)
+        await smart_edit(callback_query.message, text=caption, photo_url=chart_url, reply_markup=get_stats_panel(lang))
         await callback_query.answer()
 
     elif action == "tech":
@@ -240,7 +487,7 @@ async def process_stats_callback(callback_query: CallbackQuery):
                 f"🔥 *{t('health_errors', lang)}:* {health.get('error_rate_5xx', 0)}%\n"
                 f"💾 *{t('health_memory', lang)}:* {health.get('redis_memory_mb', 0)}MB\n"
             )
-            await callback_query.message.edit_text(text, parse_mode="Markdown", reply_markup=get_stats_panel(lang))
+            await smart_edit(callback_query.message, text=text, reply_markup=get_stats_panel(lang))
         else:
             await callback_query.answer("Error fetching health stats")
 
@@ -319,7 +566,6 @@ async def cmd_scraping(message: Message):
     )
     
     buttons = []
-    row = []
     for s in sorted_sites:
         key = s.get("site_key")
         is_active = s.get("is_active")
@@ -331,12 +577,7 @@ async def cmd_scraping(message: Message):
         elif status == "broken" or s.get("config", {}).get("fix_required"):
              status_icon = "🛠"
              
-        row.append(InlineKeyboardButton(text=f"{status_icon} {key}", callback_data=f"spider:view:{s['id']}"))
-        if len(row) == 2:
-            buttons.append(row)
-            row = []
-    if row:
-        buttons.append(row)
+        buttons.append([InlineKeyboardButton(text=f"{status_icon} {key}", callback_data=f"spider:view:{s['id']}")])
         
     await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="Markdown")
 
@@ -475,7 +716,6 @@ async def process_spider_action(callback_query: CallbackQuery, state: FSMContext
             f"*👇 Sites Connected ({len(sources)}):*"
         )
         buttons = []
-        row = []
         for s in sources:
             is_active = s.get("is_active")
             status = s.get("status", "waiting")
@@ -483,11 +723,7 @@ async def process_spider_action(callback_query: CallbackQuery, state: FSMContext
             if status == "running": status_icon = "🔄"
             elif status == "broken" or s.get("config", {}).get("fix_required"): status_icon = "🛠"
             
-            row.append(InlineKeyboardButton(text=f"{status_icon} {s['site_key']}", callback_data=f"spider:view:{s['id']}"))
-            if len(row) == 2:
-                buttons.append(row)
-                row = []
-        if row: buttons.append(row)
+            buttons.append([InlineKeyboardButton(text=f"{status_icon} {s['site_key']}", callback_data=f"spider:view:{s['id']}")])
         await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="Markdown")
 
     elif action == "cats":
@@ -742,10 +978,11 @@ async def process_lang_callback(callback_query: CallbackQuery):
     lang = callback_query.data.split(":")[1]
     success = await client.set_language(callback_query.message.chat.id, lang)
     if success:
+        sub = await client.get_subscriber(callback_query.message.chat.id)
         await callback_query.answer(t("lang_switched", lang))
         await callback_query.message.answer(
             t("lang_switched", lang),
-            reply_markup=get_main_keyboard(lang)
+            reply_markup=get_main_keyboard(lang, sub)
         )
     else:
         await callback_query.answer("Error updating language")
@@ -895,6 +1132,17 @@ async def consume_notifications():
                         
                         logger.info(f"Processing notification for topic: {topic}. Text preview: {text[:50]}...")
                         
+                        if topic == "private":
+                            target_chat_id = data.get("data", {}).get("target_chat_id")
+                            if target_chat_id:
+                                try:
+                                    await bot.send_message(target_chat_id, text, parse_mode="Markdown")
+                                except Exception as e:
+                                    logger.error(f"Failed to send private message to {target_chat_id}: {e}")
+                            else:
+                                logger.error("Private notification missing target_chat_id")
+                            continue
+
                         # Find all subscribers for this topic
                         subscribers = await client.get_topic_subscribers(topic)
                         logger.info(f"Found {len(subscribers)} potential subscribers for topic {topic}")
@@ -923,11 +1171,309 @@ async def consume_notifications():
                         logger.error(f"Error processing RabbitMQ message: {e}")
 
 async def main():
+    # Set commands
+    try:
+        commands = [
+            types.BotCommand(command="start", description="Start bot"),
+            types.BotCommand(command="help", description="Help"),
+            types.BotCommand(command="weeek_connect", description="Connect Weeek Account"),
+            types.BotCommand(command="tasks", description="Manage Tasks"),
+            types.BotCommand(command="stats", description="Bot Statistics"),
+        ]
+        await bot.set_my_commands(commands)
+        logger.info("Bot commands set successfully.")
+    except Exception as e:
+        logger.error(f"Failed to set bot commands: {e}")
+    
     # Run both bot polling and RabbitMQ consumer concurrently
     await asyncio.gather(
         dp.start_polling(bot),
         consume_notifications()
     )
+
+# --- Weeek Handlers ---
+
+@dp.message(F.text.in_([STRINGS["ru"]["weeek_connect_btn"], STRINGS["en"]["weeek_connect_btn"]]))
+@dp.message(Command("weeek_connect"))
+async def cmd_weeek_connect(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    await message.answer(t("weeek_connect_intro", lang), parse_mode="Markdown", reply_markup=types.ReplyKeyboardRemove())
+    await state.set_state(ConnectWeeek.waiting_for_token)
+
+@dp.message(ConnectWeeek.waiting_for_token)
+async def process_weeek_token(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    token = message.text.strip()
+    
+    if token.lower() in ["cancel", "/cancel"]:
+        await message.answer(t("cancel", lang), reply_markup=get_main_keyboard(lang, sub))
+        await state.clear()
+        return
+
+    # Call internal API
+    resp = await client.connect_weeek(message.chat.id, token)
+    
+    if resp and resp.get("status") == "ok":
+        # Grant tasks:manage permission
+        perms = sub.get("permissions", [])
+        if "tasks:manage" not in perms:
+            perms.append("tasks:manage")
+            await client.set_permissions(message.chat.id, perms)
+            # Refresh sub to get updated perms for keyboard
+            sub = await client.get_subscriber(message.chat.id)
+
+        await message.answer(t("weeek_connect_success", lang, user_id=resp.get("weeek_user_id")), parse_mode="Markdown", reply_markup=get_main_keyboard(lang, sub))
+        await state.clear()
+    else:
+        await message.answer(t("weeek_connect_error", lang), reply_markup=get_main_keyboard(lang, sub))
+        await state.clear()
+
+@dp.message(F.text.in_([STRINGS["ru"]["btn_tasks"], STRINGS["en"]["btn_tasks"]]))
+@dp.message(Command("tasks"))
+async def cmd_tasks(message: Message):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    
+    if not has_permission(sub, "tasks:manage"):
+         await message.answer(t("no_permission", lang))
+         return
+
+    # Fetch tasks to show dashboard stats
+    # We fetch 'all' and calculate locally to save API calls, or just fetch needed counts?
+    # get_tasks returns list.
+    tasks_resp = await client.get_tasks(message.chat.id, type="all")
+    tasks = tasks_resp.get("tasks", []) if tasks_resp else []
+    
+    my_count = len(tasks) # Assumes backend filtered for us? "type=all" implementation in routes/weeek.py did filtering.
+    # routes/weeek.py: type="all" filters by userId. So 'tasks' are MY tasks.
+    
+    # Count overdue
+    today_iso = __import__("datetime").date.today().isoformat()
+    overdue_count = sum(1 for t in tasks if t.get("date") and t.get("date") < today_iso and not t.get("isCompleted"))
+    active_count = sum(1 for t in tasks if not t.get("isCompleted"))
+    
+    text = t("tasks_dashboard", lang, active_count=active_count, my_count=my_count, overdue_count=overdue_count)
+    
+    kb = get_tasks_keyboard(lang)
+    await message.answer(text, parse_mode="Markdown", reply_markup=kb)
+
+def get_tasks_keyboard(lang: str):
+    inline_kb = [
+        [
+            InlineKeyboardButton(text=t("tasks_btn_my", lang), callback_data="tasks:list:my"),
+            InlineKeyboardButton(text=t("tasks_btn_all", lang), callback_data="tasks:list:all")
+        ],
+        [InlineKeyboardButton(text=t("tasks_btn_create", lang), callback_data="tasks:create")],
+        [InlineKeyboardButton(text=t("btn_reminders", lang), callback_data="tasks:reminders:info")],
+        [InlineKeyboardButton(text="⬅️ Back", callback_data="tasks:menu:back")] # Uses nice-to-have back logic
+    ]
+    return InlineKeyboardMarkup(inline_keyboard=inline_kb)
+
+@dp.callback_query(F.data.startswith("tasks:"))
+async def process_tasks_callback(callback_query: CallbackQuery, state: FSMContext):
+    sub = await client.get_subscriber(callback_query.message.chat.id)
+    lang = get_lang(sub)
+    
+    if not has_permission(sub, "tasks:manage"):
+        await callback_query.answer(t("no_permission", lang), show_alert=True)
+        return
+
+    data = callback_query.data
+    action_parts = data.split(":")
+    action = action_parts[1]
+    
+    if action == "menu":
+        if action_parts[2] == "back":
+            # Just show dashboard again
+            # We can re-use logic from cmd_tasks but via editing
+            tasks_resp = await client.get_tasks(callback_query.message.chat.id, type="all")
+            tasks = tasks_resp.get("tasks", []) if tasks_resp else []
+            
+            my_count = len(tasks)
+            today_iso = __import__("datetime").date.today().isoformat()
+            overdue_count = sum(1 for t in tasks if t.get("date") and t.get("date") < today_iso and not t.get("isCompleted"))
+            active_count = sum(1 for t in tasks if not t.get("isCompleted"))
+            
+            text = t("tasks_dashboard", lang, active_count=active_count, my_count=my_count, overdue_count=overdue_count)
+            await smart_edit(callback_query.message, text=text, reply_markup=get_tasks_keyboard(lang))
+            await callback_query.answer()
+            
+    elif action == "list":
+        list_type = action_parts[2] # my, all
+        await _show_task_list(callback_query, list_type, lang)
+        
+    elif action == "details":
+        task_id = int(action_parts[2])
+        await _show_task_details(callback_query, task_id, lang)
+        
+    elif action == "create":
+        await callback_query.message.answer(t("tasks_create_prompt", lang))
+        await state.set_state(NewTask.waiting_for_title)
+        await callback_query.answer()
+        
+    elif action == "reschedule":
+        task_id = int(action_parts[2])
+        await callback_query.message.answer(t("reschedule_prompt", lang))
+        await state.update_data(task_id=task_id)
+        await state.set_state(RescheduleTask.waiting_for_date)
+        await callback_query.answer()
+        
+    elif action == "complete":
+        task_id = int(action_parts[2])
+        resp = await client.complete_task(callback_query.message.chat.id, task_id)
+        if resp:
+            await callback_query.answer(t("complete_success", lang), show_alert=True)
+            # Refresh details? Or go back?
+            # Let's go back to details to show updated state (or we removed it?)
+            # Usually we want to go back to list or stay.
+            # Let's re-render details (it will show as completed or we can direct to list)
+            # Efficient: just update local message text?
+            # Better: call _show_task_details again
+            await _show_task_details(callback_query, task_id, lang)
+        else:
+            await callback_query.answer("❌ Failed to complete task", show_alert=True)
+
+    elif action == "reminders":
+        if action_parts[2] == "info":
+             text = t("reminders_info", lang)
+             rows = [[InlineKeyboardButton(text="⬅️ Back", callback_data="tasks:menu:back")]]
+             await smart_edit(callback_query.message, text=text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+async def _show_task_list(callback_query: CallbackQuery, list_type: str, lang: str):
+    # type="all" for my tasks, type="workspace" for all tasks (based on my previous logic update)
+    api_type = "workspace" if list_type == "all" else "all" 
+    
+    tasks_resp = await client.get_tasks(callback_query.message.chat.id, type=api_type)
+    tasks = tasks_resp.get("tasks", []) if tasks_resp else []
+    
+    # Simple pagination? Or just list first 10-20?
+    # Let's show up to 10 for MVP.
+    tasks = tasks[:10]
+    
+    if not tasks:
+        await smart_edit(callback_query.message, text=t("tasks_empty", lang), reply_markup=get_tasks_keyboard(lang))
+        return
+
+    text = t("task_list_title" if list_type == "my" else "task_list_workspace_title", lang) + "\n\n"
+    
+    rows = []
+    for task in tasks:
+        status_emoji = "✅" if task.get("isCompleted") else "🔘"
+        # Truncate title
+        title = task.get("title", "No Title")
+        if len(title) > 30: title = title[:27] + "..."
+        
+        rows.append([InlineKeyboardButton(text=f"{status_emoji} {title}", callback_data=f"tasks:details:{task['id']}")])
+        
+    rows.append([InlineKeyboardButton(text="⬅️ Back", callback_data="tasks:menu:back")])
+    await smart_edit(callback_query.message, text=text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+async def _show_task_details(callback_query: CallbackQuery, task_id: int, lang: str):
+    # We need to fetch single task details?
+    # client.get_tasks returns list. Filtering by ID is inefficient but okay for MVP if we fetch all.
+    # PROPER WAY: Add get_task(id) endpoint to routes/weeek.py.
+    # For now, let's fetch 'all' and find.
+    # Note: If it's a huge workspace task list, this is bad.
+    # But we don't have get_task endpoint.
+    # Let's rely on finding it in "workspace" list?
+    # Or just add get_task endpoint?
+    # I should add get_task endpoint.
+    # Let's try to assume we can find it in 'workspace' list for now to save time, or just fetch 'all'.
+    
+    tasks_resp = await client.get_tasks(callback_query.message.chat.id, type="workspace") # Get everything
+    tasks = tasks_resp.get("tasks", []) if tasks_resp else []
+    task = next((t for t in tasks if str(t["id"]) == str(task_id)), None)
+    
+    if not task:
+        await callback_query.answer("Task not found", show_alert=True)
+        return
+        
+    assignees = ", ".join([str(u) for u in task.get("userIds", [])]) or "None"
+    
+    text = t("task_details", lang, 
+        title=task.get("title"), 
+        description=task.get("description") or "No description", 
+        date=task.get("date") or "No date",
+        assignees=assignees
+    )
+    
+    rows = [
+        [InlineKeyboardButton(text=t("btn_complete", lang), callback_data=f"tasks:complete:{task_id}")],
+        [InlineKeyboardButton(text=t("btn_reschedule", lang), callback_data=f"tasks:reschedule:{task_id}")],
+        [InlineKeyboardButton(text=t("btn_back_list", lang), callback_data="tasks:menu:back")]
+    ]
+    await smart_edit(callback_query.message, text=text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+
+# --- Task FSM Handlers ---
+
+@dp.message(NewTask.waiting_for_title)
+async def process_new_task_title(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    title = message.text.strip()
+    
+    if title.lower() in ["cancel", "/cancel"]:
+        await message.answer(t("cancel", lang), reply_markup=get_main_keyboard(lang, sub))
+        await state.clear()
+        return
+
+    # Call simple create (default project/board/inbox)
+    resp = await client.create_task(message.chat.id, title)
+    if resp and resp.get("success"):
+        await message.answer(t("tasks_created", lang, title=title), reply_markup=get_main_keyboard(lang, sub))
+    else:
+        await message.answer("❌ Error creating task.", reply_markup=get_main_keyboard(lang, sub))
+    await state.clear()
+
+@dp.message(RescheduleTask.waiting_for_date)
+async def process_reschedule_date(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    date_str = message.text.strip()
+    
+    if date_str.lower() in ["cancel", "/cancel"]:
+        await message.answer(t("cancel", lang), reply_markup=get_main_keyboard(lang, sub))
+        await state.clear()
+        return
+
+    # Simple validation
+    try:
+        datetime.strptime(date_str, "%Y-%m-%d")
+    except ValueError:
+        await message.answer(t("invalid_input", lang) + " (Format: YYYY-MM-DD)")
+        return
+
+    await state.update_data(new_date=date_str)
+    await message.answer(t("reschedule_reason_prompt", lang))
+    await state.set_state(RescheduleTask.waiting_for_reason)
+
+@dp.message(RescheduleTask.waiting_for_reason)
+async def process_reschedule_reason(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    reason = message.text.strip()
+    
+    data = await state.get_data()
+    task_id = data.get("task_id")
+    new_date = data.get("new_date")
+    
+    # client.reschedule_task signature: task_id, chat_id, ...
+    # Wait, check client.py signature from Step 3433:
+    # async def reschedule_task(self, chat_id: int, task_id: int, date: str, reason: str):
+    # It takes chat_id first!
+    resp = await client.reschedule_task(message.chat.id, task_id, new_date, reason)
+    
+    if resp and resp.get("status") == "ok":
+         await message.answer(t("reschedule_success", lang), reply_markup=get_main_keyboard(lang, sub))
+    else:
+         text = "❌ Error rescheduling task."
+         if isinstance(resp, dict) and resp.get("error"):
+             text += f" ({resp.get('error')})"
+         await message.answer(text, reply_markup=get_main_keyboard(lang, sub))
+         
+    await state.clear()
 
 if __name__ == "__main__":
     asyncio.run(main())

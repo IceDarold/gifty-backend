@@ -23,7 +23,7 @@ async def verify_analytics_token(
 router = APIRouter(
     prefix="/analytics", 
     tags=["Analytics"],
-    # dependencies=[Depends(verify_analytics_token)]  # Temporarily disabled
+    dependencies=[Depends(verify_analytics_token)]
 )
 
 
@@ -459,7 +459,7 @@ async def get_scraping_monitoring(
         "spiders": {}
     }
     
-    async with httpx.AsyncClient(timeout=5.0) as client:
+    async with httpx.AsyncClient(timeout=30.0) as client:
         try:
             prom_url = f"{settings.prometheus_url}/api/v1/query"
             

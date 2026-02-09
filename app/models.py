@@ -170,7 +170,29 @@ class TelegramSubscriber(TimestampMixin, Base):
     )
     language: Mapped[str] = mapped_column(String, server_default="ru", nullable=False)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    role: Mapped[str] = mapped_column(String, server_default="user", nullable=False) # user, admin, superadmin
     permissions: Mapped[list[str]] = mapped_column(
         sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
     )
+
+class WeeekAccount(TimestampMixin, Base):
+    __tablename__ = "weeek_accounts"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    telegram_chat_id: Mapped[int] = mapped_column(sa.BigInteger, ForeignKey("telegram_subscribers.chat_id"), unique=True, index=True)
+    
+    # Weeek credentials
+    weeek_api_token: Mapped[str] = mapped_column(String, nullable=False)  # Encrypted!
+    weeek_user_id: Mapped[str] = mapped_column(String, nullable=True)    # ID пользователя в Weeek
+    weeek_workspace_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    
+    # Personal project setup
+    personal_project_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)  # Проект "Gifty" у юзера
+    personal_board_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)    # Основная доска
+    
+    # Preferences
+    reminder_time: Mapped[str] = mapped_column(String, server_default="09:00")  # Время напоминаний
+    timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
+    
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
 

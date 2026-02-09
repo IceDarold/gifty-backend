@@ -26,6 +26,24 @@ class TelegramInternalClient:
             )
             return resp.json() if resp.status_code == 200 else None
 
+    async def get_all_subscribers(self):
+        url = f"{self.api_base}/internal/telegram/subscribers"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else []
+
+    async def set_role(self, chat_id: int, role: str):
+        url = f"{self.api_base}/internal/telegram/subscribers/{chat_id}/role"
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, params={"role": role}, headers=self.headers)
+            return resp.status_code == 200
+
+    async def set_permissions(self, chat_id: int, perms: list[str]):
+        url = f"{self.api_base}/internal/telegram/subscribers/{chat_id}/permissions"
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=perms, headers=self.headers)
+            return resp.status_code == 200
+
     async def subscribe(self, chat_id: int, topic: str):
         url = f"{self.api_base}/internal/telegram/subscribers/{chat_id}/subscribe"
         async with httpx.AsyncClient() as client:
@@ -48,19 +66,19 @@ class TelegramInternalClient:
 
     async def get_stats(self):
         url = f"{self.api_base}/analytics/stats"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, headers=self.analytics_headers)
             return resp.json() if resp.status_code == 200 else None
 
     async def get_technical_health(self):
         url = f"{self.api_base}/analytics/technical"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, headers=self.analytics_headers)
             return resp.json() if resp.status_code == 200 else None
 
     async def get_scraping_monitoring(self):
         url = f"{self.api_base}/analytics/scraping"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, headers=self.analytics_headers)
             return resp.json() if resp.status_code == 200 else None
 
@@ -72,7 +90,7 @@ class TelegramInternalClient:
 
     async def get_trends(self, days: int = 7):
         url = f"{self.api_base}/analytics/trends"
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(timeout=30.0) as client:
             resp = await client.get(url, params={"days": days}, headers=self.analytics_headers)
             return resp.json() if resp.status_code == 200 else None
 
@@ -106,3 +124,53 @@ class TelegramInternalClient:
         async with httpx.AsyncClient() as client:
             resp = await client.patch(url, json=data, headers=self.headers)
             return resp.status_code == 200
+
+    # Weeek Integration
+    async def connect_weeek(self, chat_id: int, token: str):
+        url = f"{self.api_base}/internal/weeek/connect"
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            try:
+                resp = await client.post(
+                    url, 
+                    json={"telegram_chat_id": chat_id, "weeek_api_token": token},
+                    headers=self.headers
+                )
+                if resp.status_code != 200:
+                    self.logger.error(f"Weeek connect failed: {resp.status_code} - {resp.text}")
+                return resp.json() if resp.status_code == 200 else None
+            except Exception as e:
+                self.logger.error(f"Weeek connect exception: {e}")
+                return None
+
+    async def get_tasks(self, chat_id: int, type: str = "all", project_id: int = None):
+        url = f"{self.api_base}/internal/weeek/tasks"
+        params = {"telegram_chat_id": chat_id, "type": type}
+        if project_id:
+            params["project_id"] = project_id
+            
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, params=params, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
+
+    async def create_task(self, chat_id: int, title: str, description: str = None, due_date: str = None):
+        url = f"{self.api_base}/internal/weeek/tasks"
+        data = {
+            "telegram_chat_id": chat_id,
+            "title": title,
+            "description": description,
+            "due_date": due_date
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=data, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
+            
+    async def reschedule_task(self, task_id: int, chat_id: int, new_date: str, reason: str):
+        url = f"{self.api_base}/internal/weeek/tasks/{task_id}/reschedule"
+        data = {
+            "telegram_chat_id": chat_id,
+            "new_date": new_date,
+            "reason": reason
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=data, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
