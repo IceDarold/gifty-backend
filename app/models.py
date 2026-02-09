@@ -162,9 +162,13 @@ class TelegramSubscriber(TimestampMixin, Base):
     __tablename__ = "telegram_subscribers"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
-    chat_id: Mapped[int] = mapped_column(sa.BigInteger, unique=True, nullable=False, index=True)
+    chat_id: Mapped[Optional[int]] = mapped_column(sa.BigInteger, unique=True, nullable=True, index=True)
     slug: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # TG Username or similar
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    invite_password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mentor_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer, ForeignKey("telegram_subscribers.id", ondelete="SET NULL"), nullable=True
+    )
     subscriptions: Mapped[list[str]] = mapped_column(
         sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
     )

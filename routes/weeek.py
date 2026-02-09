@@ -65,12 +65,20 @@ async def connect_weeek_account(
     user_data = me.get("user", {})
     weeek_user_id = user_data.get("id")
     
-    # Weeek API doesn't provide workspace endpoint in public API
-    # We'll use None for workspace_id and rely on projects
-    workspace_id = None
-    
-    # 2. Check or Create Project 'Gifty 🎁'
-    # We need to search projects. API doesn't support search? We iterate.
+    # 2. Check access to corporate workspace
+    workspaces_resp = await temp_client.get_workspaces()
+    if not workspaces_resp.get("success"):
+        raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
+    workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
+    workspace_id = settings.weeek_workspace_id
+    has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
+    if not has_access:
+        raise HTTPException(
+            status_code=403,
+            detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
+        )
+
+    # 3. Check or Create Project 'Gifty 🎁' (Personal Workspace)
     projects_resp = await temp_client.get_projects()
     projects = projects_resp.get("projects", [])
     
@@ -88,11 +96,6 @@ async def connect_weeek_account(
 
     if gifty_project:
         personal_project_id = gifty_project["id"]
-        
-        # Basic check if board exists if not new? 
-        # For simplicity, if we found existing project, we assume setup is done or user manages it.
-        # If created_new, we set up boards.
-        
         if created_new:
             # Create "Onboarding" board
             board_resp = await temp_client.create_board({"name": "Onboarding", "projectId": personal_project_id})
@@ -129,6 +132,7 @@ async def connect_weeek_account(
         existing.weeek_api_token = req.weeek_api_token
         existing.weeek_user_id = str(weeek_user_id)
         existing.weeek_workspace_id = workspace_id
+        existing.is_active = True
     else:
         new_acc = WeeekAccount(
             telegram_chat_id=req.telegram_chat_id,
@@ -139,7 +143,7 @@ async def connect_weeek_account(
         db.add(new_acc)
     
     await db.commit()
-    return {"status": "ok", "weeek_user_id": weeek_user_id}
+    return {"status": "ok", "weeek_user_id": weeek_user_id, "workspace_id": workspace_id}
 
 @router.get("/tasks")
 async def get_tasks(
@@ -177,6 +181,13 @@ async def get_tasks(
         raise HTTPException(status_code=500, detail=resp.get("error"))
         
     tasks = resp.get("tasks", [])
+    # Filter by corporate workspace (if possible)
+    target_workspace_id = account.weeek_workspace_id or settings.weeek_workspace_id
+    projects_workspace_map: Dict[int, Optional[int]] = {}
+    projects_resp = await client.get_projects()
+    if projects_resp.get("success"):
+        projects_workspace_map = _build_projects_workspace_map(projects_resp.get("projects", []))
+    tasks = _filter_tasks_by_workspace(tasks, target_workspace_id, projects_workspace_map)
     
     # Filter
     filtered = []
@@ -274,3 +285,38 @@ async def complete_task_endpoint(
         raise HTTPException(status_code=500, detail="Failed to complete task")
         
     return {"status": "ok"}
+
+def _extract_workspace_id(obj):
+    if not obj:
+        return None
+    ws_id = obj.get("workspaceId") or obj.get("workspace_id")
+    if ws_id is not None:
+        return ws_id
+    workspace = obj.get("workspace") or {}
+    return workspace.get("id")
+
+def _build_projects_workspace_map(projects):
+    mapping = {}
+    for proj in projects or []:
+        pid = proj.get("id")
+        if pid is None:
+            continue
+        mapping[pid] = _extract_workspace_id(proj)
+    return mapping
+
+def _filter_tasks_by_workspace(tasks, target_workspace_id, projects_map):
+    if not target_workspace_id:
+        return tasks
+    filtered = []
+    for t in tasks:
+        task_ws = _extract_workspace_id(t)
+        if task_ws is not None:
+            if str(task_ws) == str(target_workspace_id):
+                filtered.append(t)
+            continue
+        project_id = t.get("projectId")
+        if project_id is None:
+            continue
+        if str(projects_map.get(project_id)) == str(target_workspace_id):
+            filtered.append(t)
+    return filtered
