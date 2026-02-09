@@ -1,6 +1,7 @@
 import asyncio
 import json
 import logging
+import re
 import aio_pika
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
@@ -26,6 +27,13 @@ class ConnectWeeek(StatesGroup):
 class RescheduleTask(StatesGroup):
     waiting_for_date = State()
     waiting_for_reason = State()
+
+class AddUser(StatesGroup):
+    waiting_for_username = State()
+    waiting_for_password = State()
+    waiting_for_name = State()
+    waiting_for_mentor = State()
+    waiting_for_permissions = State()
 from services.telegram_bot.app.strings import STRINGS
 
 from app.config import get_settings
@@ -157,6 +165,25 @@ TOPICS = {
     "scraping": "Scraping Status"
 }
 
+AVAILABLE_PERMS = ["all", "stats:view", "system:health", "parsing:manage", "notifications:manage", "tasks:manage"]
+
+def get_permissions_keyboard(selected: list, lang: str):
+    rows = []
+    row = []
+    for perm in AVAILABLE_PERMS:
+        status = "✅" if perm in selected else "❌"
+        row.append(InlineKeyboardButton(text=f"{status} {perm}", callback_data=f"invite_perm:toggle:{perm}"))
+        if len(row) == 2:
+            rows.append(row)
+            row = []
+    if row:
+        rows.append(row)
+    rows.append([
+        InlineKeyboardButton(text=t("perm_save", lang), callback_data="invite_perm:save"),
+        InlineKeyboardButton(text=t("perm_cancel", lang), callback_data="invite_perm:cancel"),
+    ])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
 def get_subscription_keyboard(current_subs: list, lang: str):
     rows = []
     # Grid: 2 topics per row
@@ -200,6 +227,24 @@ async def cmd_start(message: Message, command: CommandObject):
             return
 
         if command.args != settings.telegram_admin_secret:
+            username = (message.from_user.username or "").strip()
+            if not username:
+                await message.answer(t("invite_need_username", "ru"))
+                return
+            claimed = await client.claim_invite(
+                username=username,
+                password=command.args,
+                chat_id=message.chat.id,
+                name=message.from_user.full_name
+            )
+            if claimed:
+                lang = get_lang(claimed)
+                await message.answer(
+                    t("welcome_invited", lang, name=claimed.get("name") or message.from_user.full_name),
+                    reply_markup=get_main_keyboard(lang, claimed)
+                )
+                await message.answer(t("onboarding", lang), parse_mode="Markdown")
+                return
             await message.answer(t("invalid_secret", "ru"))
             return
 
@@ -262,6 +307,7 @@ async def cmd_users(message: Message):
         rows.append([
             InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
         ])
+    rows.append([InlineKeyboardButton(text=t("btn_add_user", lang), callback_data="user:add")])
     
     markup = InlineKeyboardMarkup(inline_keyboard=rows)
     await message.answer(t("users_title", lang), reply_markup=markup)
@@ -327,7 +373,7 @@ async def _show_perm_view(callback_query: CallbackQuery, user_id: int, perm_key:
     await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("user:"))
-async def handle_user_actions(callback_query: CallbackQuery):
+async def handle_user_actions(callback_query: CallbackQuery, state: FSMContext):
     admin_sub = await client.get_subscriber(callback_query.message.chat.id)
     if not admin_sub or admin_sub.get("role") != "superadmin":
         await callback_query.answer(t("superadmin_only", get_lang(admin_sub)), show_alert=True)
@@ -343,6 +389,11 @@ async def handle_user_actions(callback_query: CallbackQuery):
 
     if action == "details":
         await _show_user_details(callback_query, int(parts[2]), lang)
+    elif action == "add":
+        await state.clear()
+        await state.set_state(AddUser.waiting_for_username)
+        await callback_query.message.answer(t("add_user_username", lang))
+        await callback_query.answer()
 
     elif action == "perms_list":
         await _show_perms_list(callback_query, int(parts[2]), lang)
@@ -398,7 +449,127 @@ async def handle_user_actions(callback_query: CallbackQuery):
             rows.append([
                 InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
             ])
+        rows.append([InlineKeyboardButton(text=t("btn_add_user", lang), callback_data="user:add")])
         await callback_query.message.edit_text(t("users_title", lang), reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+        await callback_query.answer()
+
+@dp.message(AddUser.waiting_for_username)
+async def process_add_user_username(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    username = message.text.strip().lstrip("@").lower()
+    if not re.match(r"^[a-z0-9_]{3,32}$", username):
+        await message.answer(t("add_user_username_invalid", lang))
+        return
+    await state.update_data(username=username)
+    await state.set_state(AddUser.waiting_for_password)
+    await message.answer(t("add_user_password", lang))
+
+@dp.message(AddUser.waiting_for_password)
+async def process_add_user_password(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    password = message.text.strip()
+    if len(password) < 4:
+        await message.answer(t("add_user_password_invalid", lang))
+        return
+    await state.update_data(password=password)
+    await state.set_state(AddUser.waiting_for_name)
+    await message.answer(t("add_user_name", lang))
+
+@dp.message(AddUser.waiting_for_name)
+async def process_add_user_name(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    name = message.text.strip()
+    if len(name) < 2:
+        await message.answer(t("add_user_name_invalid", lang))
+        return
+    await state.update_data(name=name)
+    await state.set_state(AddUser.waiting_for_mentor)
+    await message.answer(t("add_user_mentor", lang))
+
+@dp.message(AddUser.waiting_for_mentor)
+async def process_add_user_mentor(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    raw = message.text.strip()
+    if raw in {"-", "skip", "пропуск", "нет"}:
+        await state.update_data(mentor_id=None, permissions=[])
+        await state.set_state(AddUser.waiting_for_permissions)
+        await message.answer(t("add_user_permissions", lang), reply_markup=get_permissions_keyboard([], lang))
+        return
+    username = raw.lstrip("@").lower()
+    if not re.match(r"^[a-z0-9_]{3,32}$", username):
+        await message.answer(t("add_user_mentor_invalid", lang))
+        return
+    mentor = await client.get_subscriber_by_username(username)
+    if not mentor:
+        await message.answer(t("add_user_mentor_not_found", lang))
+        return
+    await state.update_data(mentor_id=mentor.get("id"), permissions=[])
+    await state.set_state(AddUser.waiting_for_permissions)
+    await message.answer(t("add_user_permissions", lang), reply_markup=get_permissions_keyboard([], lang))
+
+@dp.callback_query(AddUser.waiting_for_permissions, F.data.startswith("invite_perm:"))
+async def process_invite_permissions(callback_query: CallbackQuery, state: FSMContext):
+    sub = await client.get_subscriber(callback_query.message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await callback_query.answer(t("superadmin_only", lang), show_alert=True)
+        await state.clear()
+        return
+    data = await state.get_data()
+    selected = list(data.get("permissions", []))
+    action = callback_query.data.split(":")[1]
+    if action == "toggle":
+        perm = callback_query.data.split(":")[2]
+        if perm in selected:
+            selected.remove(perm)
+        else:
+            selected.append(perm)
+        await state.update_data(permissions=selected)
+        await callback_query.message.edit_reply_markup(reply_markup=get_permissions_keyboard(selected, lang))
+        await callback_query.answer()
+        return
+    if action == "cancel":
+        await state.clear()
+        await callback_query.message.answer(t("add_user_cancelled", lang))
+        await callback_query.answer()
+        return
+    if action == "save":
+        data = await state.get_data()
+        created = await client.create_invite(
+            username=data.get("username"),
+            password=data.get("password"),
+            name=data.get("name"),
+            mentor_id=data.get("mentor_id"),
+            permissions=data.get("permissions", []),
+        )
+        await state.clear()
+        if created:
+            await callback_query.message.answer(
+                t("add_user_done", lang, username=data.get("username"), password=data.get("password")),
+                parse_mode="Markdown"
+            )
+        else:
+            await callback_query.message.answer(t("add_user_error", lang))
         await callback_query.answer()
 
 @dp.message(F.text.in_(["📊 Stats", "📊 Статистика"]))
