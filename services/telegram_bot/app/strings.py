@@ -105,6 +105,7 @@ STRINGS = {
         "tasks_btn_my": "👤 Мои задачи",
         "tasks_btn_all": "📋 Все задачи",
         "tasks_btn_create": "➕ Новая задача",
+        "tasks_btn_onboarding": "🎓 Онбординг",
         "tasks_empty": "👋 Задач не найдено",
         "tasks_create_prompt": "📝 Введите название новой задачи:",
         "tasks_created": "✅ Задача *{title}* успешно создана!",
@@ -114,6 +115,14 @@ STRINGS = {
         "weeek_connect_intro": "🔗 *Подключение Weeek*\n\nПожалуйста, отправьте ваш API токен. Вы можете получить его в настройках профиля Weeek.",
         "weeek_connect_success": "✅ Weeek успешно подключен!\nUser ID: `{user_id}`",
         "weeek_connect_error": "❌ Ошибка подключения. Проверьте токен и попробуйте снова.",
+        "onboarding_tasks": (
+            "🎓 *Онбординг — чеклист*\n\n"
+            "1. Получить персональный пароль у ментора для регистрации в телеграм-боте.\n"
+            "2. Зарегистрироваться в боте и запросить нужные доступы.\n"
+            "3. Получить доступ к GitHub-репозиторию и настроить локальную среду.\n"
+            "4. Настроить доступ к базе данных через DataGrip + SSH.\n"
+            "5. Ознакомиться с архитектурой системы и актуальными направлениями работы."
+        ),
         "task_list_title": "📝 *Ваши задачи*",
         "task_list_workspace_title": "🏢 *Задачи Workspace*",
         "task_item": "• {status} *{title}* — {date}",
@@ -234,6 +243,7 @@ STRINGS = {
         "tasks_btn_my": "👤 My Tasks",
         "tasks_btn_all": "📋 All Tasks",
         "tasks_btn_create": "➕ New Task",
+        "tasks_btn_onboarding": "🎓 Onboarding",
         "tasks_empty": "👋 No tasks found",
         "tasks_create_prompt": "📝 Enter title for the new task:",
         "tasks_created": "✅ Task *{title}* created successfully!",
@@ -243,6 +253,14 @@ STRINGS = {
         "weeek_connect_intro": "🔗 *Connect Weeek*\n\nPlease send your API token. You can generate it in your Weeek profile settings.",
         "weeek_connect_success": "✅ Weeek connected successfully!\nUser ID: `{user_id}`",
         "weeek_connect_error": "❌ Connection failed. Please check your token and try again.",
+        "onboarding_tasks": (
+            "🎓 *Onboarding Checklist*\n\n"
+            "1. Get a personal password from your mentor for Telegram bot registration.\n"
+            "2. Register in the bot and request the required access.\n"
+            "3. Get access to the GitHub repository and set up your local environment.\n"
+            "4. Set up database access via DataGrip + SSH.\n"
+            "5. Review the system architecture and current areas of work."
+        ),
         "task_list_title": "📝 *Your Tasks*",
         "task_list_workspace_title": "🏢 *Workspace Tasks*",
         "task_item": "• {status} *{title}* — {date}",

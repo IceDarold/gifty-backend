@@ -361,6 +361,40 @@ class WeeekClient:
             except Exception as e:
                 return {"success": False, "error": str(e)}
 
+    async def update_task(self, task_id: int, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Update an existing task."""
+        if not self.token:
+            return {"success": False, "error": "Token missing"}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.put(
+                    f"{self.base_url}/tm/tasks/{task_id}",
+                    headers=self.headers,
+                    json=data
+                )
+                if not response.is_success:
+                    return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
+                return response.json()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
+    async def add_task_comment(self, task_id: int, text: str) -> Dict[str, Any]:
+        """Add a comment to a task."""
+        if not self.token:
+            return {"success": False, "error": "Token missing"}
+        async with httpx.AsyncClient() as client:
+            try:
+                response = await client.post(
+                    f"{self.base_url}/tm/tasks/{task_id}/comments",
+                    headers=self.headers,
+                    json={"text": text}
+                )
+                if not response.is_success:
+                    return {"success": False, "error": f"Status {response.status_code}: {response.text}"}
+                return response.json()
+            except Exception as e:
+                return {"success": False, "error": str(e)}
+
     async def change_task_board(self, task_id: int, board_id: int) -> Dict[str, Any]:
         """Move task to another board."""
         if not self.token:

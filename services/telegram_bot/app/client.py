@@ -173,7 +173,13 @@ class TelegramInternalClient:
                 )
                 if resp.status_code != 200:
                     self.logger.error(f"Weeek connect failed: {resp.status_code} - {resp.text}")
-                return resp.json() if resp.status_code == 200 else None
+                try:
+                    data = resp.json()
+                except Exception:
+                    data = {"detail": resp.text}
+                if resp.status_code != 200:
+                    data["status_code"] = resp.status_code
+                return data
             except Exception as e:
                 self.logger.error(f"Weeek connect exception: {e}")
                 return None

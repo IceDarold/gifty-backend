@@ -6,8 +6,27 @@ from sqlalchemy import select
 from app.models import WeeekAccount
 from app.services.weeek import WeeekClient
 from app.services.notifications import get_notification_service
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+def _extract_workspace_id(obj):
+    if not obj:
+        return None
+    ws_id = obj.get("workspaceId") or obj.get("workspace_id")
+    if ws_id is not None:
+        return ws_id
+    workspace = obj.get("workspace") or {}
+    return workspace.get("id")
+
+def _build_projects_workspace_map(projects):
+    mapping = {}
+    for proj in projects or []:
+        pid = proj.get("id")
+        if pid is None:
+            continue
+        mapping[pid] = _extract_workspace_id(proj)
+    return mapping
 
 async def run_weeek_reminders():
     """
@@ -53,6 +72,25 @@ async def run_weeek_reminders():
                 continue
                 
             tasks = tasks_resp.get("tasks", [])
+            target_workspace_id = acc.weeek_workspace_id or get_settings().weeek_workspace_id
+            if target_workspace_id:
+                projects_resp = await client.get_projects()
+                projects_map = {}
+                if projects_resp.get("success"):
+                    projects_map = _build_projects_workspace_map(projects_resp.get("projects", []))
+                filtered_tasks = []
+                for t in tasks:
+                    task_ws = _extract_workspace_id(t)
+                    if task_ws is not None:
+                        if str(task_ws) == str(target_workspace_id):
+                            filtered_tasks.append(t)
+                        continue
+                    project_id = t.get("projectId")
+                    if project_id is None:
+                        continue
+                    if str(projects_map.get(project_id)) == str(target_workspace_id):
+                        filtered_tasks.append(t)
+                tasks = filtered_tasks
             my_tasks = []
             for t in tasks:
                  is_mine = str(t.get("userId")) == str(acc.weeek_user_id) or \

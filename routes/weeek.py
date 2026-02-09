@@ -50,7 +50,6 @@ async def connect_weeek_account(
     """
     Connects a Telegram user to Weeek.
     - Validates token
-    - Creates 'Gifty 🎁' project if missing
     - Saves account
     """
     # 1. Validate Token & Get User Info
@@ -65,58 +64,18 @@ async def connect_weeek_account(
     user_data = me.get("user", {})
     weeek_user_id = user_data.get("id")
     
-    # Weeek API doesn't provide workspace endpoint in public API
-    # We'll use None for workspace_id and rely on projects
-    workspace_id = None
-    
-    # 2. Check or Create Project 'Gifty 🎁'
-    # We need to search projects. API doesn't support search? We iterate.
-    projects_resp = await temp_client.get_projects()
-    projects = projects_resp.get("projects", [])
-    
-    gifty_project = next((p for p in projects if "Gifty" in p["name"]), None)
-    
-    created_new = False
-    if not gifty_project:
-        proj_resp = await temp_client.create_project({"name": "Gifty 🎁"})
-        if proj_resp.get("success"):
-            gifty_project = proj_resp.get("project")
-            created_new = True
-            
-    personal_project_id = None
-    personal_board_id = None
-
-    if gifty_project:
-        personal_project_id = gifty_project["id"]
-        
-        # Basic check if board exists if not new? 
-        # For simplicity, if we found existing project, we assume setup is done or user manages it.
-        # If created_new, we set up boards.
-        
-        if created_new:
-            # Create "Onboarding" board
-            board_resp = await temp_client.create_board({"name": "Onboarding", "projectId": personal_project_id})
-            if board_resp.get("success"):
-                board = board_resp.get("board")
-                personal_board_id = board["id"]
-                
-                # Create Column "To Do"
-                col_resp = await temp_client.create_board_column({"name": "To Do", "boardId": personal_board_id})
-                if col_resp.get("success"):
-                    # Create Task
-                    col_id = col_resp["boardColumn"]["id"]
-                    await temp_client.create_task({
-                        "title": "Welcome to Gifty! 🎁", 
-                        "description": "This is your personal workspace. Manage your tasks here!",
-                        "projectId": personal_project_id,
-                        "boardId": personal_board_id,
-                        "boardColumnId": col_id,
-                        "type": "action"
-                    })
-            
-            # Create other boards
-            await temp_client.create_board({"name": "Weekly Goals 🎯", "projectId": personal_project_id})
-            await temp_client.create_board({"name": "Ideas 💡", "projectId": personal_project_id})
+    # 2. Check access to corporate workspace
+    workspaces_resp = await temp_client.get_workspaces()
+    if not workspaces_resp.get("success"):
+        raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
+    workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
+    workspace_id = settings.weeek_workspace_id
+    has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
+    if not has_access:
+        raise HTTPException(
+            status_code=403,
+            detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
+        )
 
     # For now, let's just save the account and handling project creation logic can be refined 
     # if we add create_project to client.
@@ -129,6 +88,7 @@ async def connect_weeek_account(
         existing.weeek_api_token = req.weeek_api_token
         existing.weeek_user_id = str(weeek_user_id)
         existing.weeek_workspace_id = workspace_id
+        existing.is_active = True
     else:
         new_acc = WeeekAccount(
             telegram_chat_id=req.telegram_chat_id,
@@ -139,7 +99,7 @@ async def connect_weeek_account(
         db.add(new_acc)
     
     await db.commit()
-    return {"status": "ok", "weeek_user_id": weeek_user_id}
+    return {"status": "ok", "weeek_user_id": weeek_user_id, "workspace_id": workspace_id}
 
 @router.get("/tasks")
 async def get_tasks(
@@ -177,6 +137,14 @@ async def get_tasks(
         raise HTTPException(status_code=500, detail=resp.get("error"))
         
     tasks = resp.get("tasks", [])
+
+    # Filter by corporate workspace (if possible)
+    target_workspace_id = account.weeek_workspace_id or settings.weeek_workspace_id
+    projects_workspace_map: Dict[int, Optional[int]] = {}
+    projects_resp = await client.get_projects()
+    if projects_resp.get("success"):
+        projects_workspace_map = _build_projects_workspace_map(projects_resp.get("projects", []))
+    tasks = _filter_tasks_by_workspace(tasks, target_workspace_id, projects_workspace_map)
     
     # Filter
     filtered = []
