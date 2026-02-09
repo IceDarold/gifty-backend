@@ -10,7 +10,7 @@ Gifty helps users find perfect gifts using modern machine learning and vector se
 
 *   **[Architecture](architecture/overview.md)**: How everything works under the hood — from parsing to recommendations.
 *   **[API Reference](api/services.md)**: Automatically generated Python class and function references.
-*   **[Guides](guides/development.md)**: Environment setup, development rules, and deployment instructions.
+*   **[Guides](guides/onboarding.md)**: Environment setup, development rules, and deployment instructions.
 
 ## Quick Start for Developers
 
