@@ -1224,10 +1224,19 @@ async def process_weeek_token(message: Message, state: FSMContext):
             # Refresh sub to get updated perms for keyboard
             sub = await client.get_subscriber(message.chat.id)
 
-        await message.answer(t("weeek_connect_success", lang, user_id=resp.get("weeek_user_id")), parse_mode="Markdown", reply_markup=get_main_keyboard(lang, sub))
+        await message.answer(
+            t("weeek_connect_success", lang, user_id=resp.get("weeek_user_id")),
+            parse_mode="Markdown",
+            reply_markup=get_main_keyboard(lang, sub)
+        )
+        await message.answer(t("onboarding_tasks", lang), parse_mode="Markdown")
         await state.clear()
     else:
-        await message.answer(t("weeek_connect_error", lang), reply_markup=get_main_keyboard(lang, sub))
+        detail = resp.get("detail") if isinstance(resp, dict) else None
+        if detail:
+            await message.answer(detail, reply_markup=get_main_keyboard(lang, sub))
+        else:
+            await message.answer(t("weeek_connect_error", lang), reply_markup=get_main_keyboard(lang, sub))
         await state.clear()
 
 @dp.message(F.text.in_([STRINGS["ru"]["btn_tasks"], STRINGS["en"]["btn_tasks"]]))
@@ -1265,7 +1274,10 @@ def get_tasks_keyboard(lang: str):
             InlineKeyboardButton(text=t("tasks_btn_my", lang), callback_data="tasks:list:my"),
             InlineKeyboardButton(text=t("tasks_btn_all", lang), callback_data="tasks:list:all")
         ],
-        [InlineKeyboardButton(text=t("tasks_btn_create", lang), callback_data="tasks:create")],
+        [
+            InlineKeyboardButton(text=t("tasks_btn_create", lang), callback_data="tasks:create"),
+            InlineKeyboardButton(text=t("tasks_btn_onboarding", lang), callback_data="tasks:onboarding")
+        ],
         [InlineKeyboardButton(text=t("btn_reminders", lang), callback_data="tasks:reminders:info")],
         [InlineKeyboardButton(text="⬅️ Back", callback_data="tasks:menu:back")] # Uses nice-to-have back logic
     ]
@@ -1311,6 +1323,15 @@ async def process_tasks_callback(callback_query: CallbackQuery, state: FSMContex
     elif action == "create":
         await callback_query.message.answer(t("tasks_create_prompt", lang))
         await state.set_state(NewTask.waiting_for_title)
+        await callback_query.answer()
+        
+    elif action == "onboarding":
+        rows = [[InlineKeyboardButton(text="⬅️ Back", callback_data="tasks:menu:back")]]
+        await smart_edit(
+            callback_query.message,
+            text=t("onboarding_tasks", lang),
+            reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
+        )
         await callback_query.answer()
         
     elif action == "reschedule":
