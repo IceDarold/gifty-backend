@@ -25,7 +25,13 @@ echo "Active port: $ACTIVE_PORT ($ACTIVE_COLOR). Deploying to $NEW_PORT ($NEW_CO
 # 2. Build and start new version in the free slot
 # We use project name + color to keep containers separate if needed, 
 # but here we'll just use environment variables for port mapping.
-APP_PORT=$NEW_PORT docker-compose up -d --build $APP_SERVICE
+if command -v docker-compose >/dev/null 2>&1; then
+    COMPOSE_CMD="docker-compose"
+else
+    COMPOSE_CMD="docker compose"
+fi
+
+APP_PORT=$NEW_PORT $COMPOSE_CMD up -d --build $APP_SERVICE
 
 # 3. Health Check
 echo "Waiting for $NEW_COLOR version to be healthy at localhost:$NEW_PORT..."
@@ -43,7 +49,7 @@ done
 
 if [ $COUNT -eq $MAX_RETRIES ]; then
     echo "Error: New version failed health check. Rolling back..."
-    APP_PORT=$NEW_PORT docker-compose stop $APP_SERVICE
+    APP_PORT=$NEW_PORT $COMPOSE_CMD stop $APP_SERVICE
     exit 1
 fi
 
