@@ -9,6 +9,8 @@ from app.services.notifications import get_notification_service
 
 from app.config import get_settings
 
+from app.config import get_settings
+
 logger = logging.getLogger(__name__)
 
 def _extract_workspace_id(obj):

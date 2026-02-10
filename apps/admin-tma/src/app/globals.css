@@ -1,0 +1,92 @@
+@import "tailwindcss";
+
+:root {
+  --tg-theme-bg-color: #ffffff;
+  --tg-theme-text-color: #000000;
+  --tg-theme-hint-color: #999999;
+  --tg-theme-link-color: #2481cc;
+  --tg-theme-button-color: #2481cc;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #efeff3;
+  --tg-theme-header-bg-color: #ffffff;
+  --tg-theme-accent-text-color: #2481cc;
+  --tg-theme-section-bg-color: #ffffff;
+  --tg-theme-section-header-text-color: #6d6d71;
+  --tg-theme-subtitle-text-color: #8e8e93;
+  --tg-theme-destructive-text-color: #ff3b30;
+}
+
+[data-theme='dark'] {
+  --tg-theme-bg-color: #17212b;
+  --tg-theme-text-color: #f5f5f5;
+  --tg-theme-hint-color: #708499;
+  --tg-theme-link-color: #64b5ef;
+  --tg-theme-button-color: #5288c1;
+  --tg-theme-button-text-color: #ffffff;
+  --tg-theme-secondary-bg-color: #0e1621;
+  --tg-theme-header-bg-color: #17212b;
+  --tg-theme-accent-text-color: #64b5ef;
+  --tg-theme-section-bg-color: #17212b;
+  --tg-theme-section-header-text-color: #8e8e93;
+  --tg-theme-subtitle-text-color: #708499;
+  --tg-theme-destructive-text-color: #ec3942;
+}
+
+body {
+  color: var(--tg-theme-text-color);
+  background: var(--tg-theme-bg-color);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol';
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+@layer components {
+  .card {
+    background-color: var(--tg-theme-section-bg-color);
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--tg-theme-secondary-bg-color);
+  }
+
+  .glass {
+    background-color: rgb(from var(--tg-theme-bg-color) r g b / 0.8);
+    backdrop-filter: blur(12px);
+  }
+
+  .btn-primary {
+    background-color: var(--tg-theme-button-color);
+    color: var(--tg-theme-button-text-color);
+    font-weight: 500;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: all 0.2s;
+  }
+
+  .btn-primary:active {
+    transform: scale(0.95);
+  }
+
+  .text-hint {
+    color: var(--tg-theme-hint-color);
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--tg-theme-hint-color);
+  border-radius: 10px;
+}
