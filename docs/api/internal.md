@@ -30,7 +30,21 @@ Internal API предназначен для взаимодействия меж
 *   **Метод**: `GET`
 *   **Response**: `ParsingSourceSchema` (включая массив `history` и `total_items`).
 
-### 3. Принудительный запуск (`/{id}/force-run`)
+### 3. Бэклог обнаружения (`/sources/backlog`)
+Список новых сайтов или категорий, которые система нашла автоматически, но еще не начала парсить.
+
+*   **URL**: `/internal/sources/backlog`
+*   **Метод**: `GET`
+*   **Response**: `List[ParsingSourceSchema]` (объекты со статусом `discovered`).
+
+### 4. Активация обнаруженного (`/sources/backlog/activate`)
+Массовый перевод источников из бэклога в активный режим.
+
+*   **URL**: `/internal/sources/backlog/activate`
+*   **Метод**: `POST`
+*   **Body**: `{ "source_ids": [1, 2, 3] }`
+
+### 5. Принудительный запуск (`/{id}/force-run`)
 Отправляет задачу на парсинг в RabbitMQ немедленно, игнорируя расписание.
 
 *   **URL**: `/internal/sources/{source_id}/force-run`

@@ -30,7 +30,21 @@ Returns full run history, current configuration, and statistics for a specific p
 *   **Method**: `GET`
 *   **Response**: `ParsingSourceSchema` (including `history` array and `total_items`).
 
-### 3. Force Run (`/{id}/force-run`)
+### 3. Discovery Backlog (`/sources/backlog`)
+List of new sites or categories automatically found by the system but not yet processed.
+
+*   **URL**: `/internal/sources/backlog`
+*   **Method**: `GET`
+*   **Response**: `List[ParsingSourceSchema]` (objects with `discovered` status).
+
+### 4. Backlog Activation (`/sources/backlog/activate`)
+Mass activation of sources from the backlog.
+
+*   **URL**: `/internal/sources/backlog/activate`
+*   **Method**: `POST`
+*   **Body**: `{ "source_ids": [1, 2, 3] }`
+
+### 5. Force Run (`/{id}/force-run`)
 Immediately dispatches a parsing task to RabbitMQ, bypassing the schedule.
 
 *   **URL**: `/internal/sources/{source_id}/force-run`
