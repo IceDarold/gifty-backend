@@ -24,6 +24,8 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tabs
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - search.share
@@ -77,6 +79,11 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - Home: index.md
@@ -106,4 +113,5 @@ nav:
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
+      - Analytics: api/analytics.md
       - Integrations (Weeek): weeek_api_reference.md
