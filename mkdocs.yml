@@ -110,6 +110,7 @@ nav:
       - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
+      - Overview: api/index.md
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
