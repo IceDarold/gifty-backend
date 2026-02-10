@@ -3,6 +3,8 @@ services:
     build: .
     restart: unless-stopped
     env_file: .env
+    volumes:
+      - .:/app
     ports:
       - "127.0.0.1:${APP_PORT:-8000}:8000"
     healthcheck:
@@ -62,7 +64,11 @@ services:
   scraper:
     build:
       context: ./services
+    volumes:
+      - ./services:/app
     restart: unless-stopped
+    ports:
+      - "127.0.0.1:9410:9410"
     env_file: .env
     environment:
       CORE_API_URL: http://api:8000/internal/ingest-batch
@@ -72,7 +78,69 @@ services:
       postgres:
         condition: service_healthy
 
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: python scripts/run_parsing_scheduler.py
+    env_file: .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  loki:
+    image: grafana/loki:3.1.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./deploy/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m services.telegram_bot.app.main
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      API_BASE: "http://api:8000"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    restart: always
 volumes:
   pgdata:
   redisdata:
   rabbitmqdata:
+  prometheus_data:

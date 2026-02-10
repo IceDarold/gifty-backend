@@ -8,11 +8,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.routes import router as auth_router
 from routes.recommendations import router as recommendations_router
 from routes.internal import router as internal_router
+from routes.analytics import router as analytics_router
+from routes.public import router as public_router
 from app.routes.integrations import router as integrations_router
+from routes.weeek import router as weeek_router
 from app.config import get_settings
 from app.redis_client import init_redis
 from app.utils.errors import install_exception_handlers
 from app.services.embeddings import EmbeddingService
+from prometheus_fastapi_instrumentator import Instrumentator
 
 settings = get_settings()
 
@@ -69,13 +73,19 @@ async def scalar_html():
 
 frontend_origin = str(settings.frontend_base).rstrip("/")
 
+# CORS configuration
+origins = [
+    frontend_origin,
+    "https://giftyai.ru",
+    "https://analytics.giftyai.ru",
+    "https://aistudio.google.com",
+    "http://localhost:5173",
+    "http://localhost:8001",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "*", 
-        frontend_origin,
-        "http://localhost:8001",  # Local documentation
-    ],
+    allow_origins=origins,
     allow_origin_regex=settings.cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
@@ -86,10 +96,16 @@ install_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(recommendations_router)
 app.include_router(internal_router)
+app.include_router(analytics_router)
 app.include_router(integrations_router)
+app.include_router(public_router)
+app.include_router(weeek_router)
 
 
 @app.get("/health")
 async def health() -> dict:
     return {"status": "ok"}
+
+
+Instrumentator().instrument(app).expose(app)
 
