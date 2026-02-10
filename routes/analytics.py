@@ -90,9 +90,10 @@ async def get_analytics_stats(
     
     Returns:
         - dau: Daily Active Users (last 24h)
-        - quiz_completion_rate: Percentage who completed quiz
-        - gift_ctr: Click-through rate on gift recommendations
-        - total_sessions: Total quiz sessions started
+        - quiz_completion_rate: % who completed quiz (last 7d)
+        - gift_ctr: % click-through rate on recommendations (last 7d)
+        - total_sessions: Total quiz sessions (last 7d)
+        - last_updated: Timestamp
     """
     try:
         # 1. Get DAU (Daily Active Users) using TrendsQuery
@@ -109,7 +110,6 @@ async def get_analytics_stats(
             cache_ttl=300
         )
         
-        # Extract DAU value
         dau = 0
         results = dau_data.get("results", [])
         if results and len(results) > 0:
@@ -133,14 +133,12 @@ async def get_analytics_stats(
             cache_ttl=600
         )
         
-        # Calculate completion rate
         quiz_started = 0
         quiz_completed = 0
         completion_rate = 0.0
         
         results = funnel_data.get("results", [])
         if results and len(results) > 0:
-            # Funnel results structure: [[step1_count, step2_count, ...]]
             steps = results[0] if isinstance(results[0], list) else results
             if len(steps) > 0:
                 quiz_started = steps[0].get("count", 0) if isinstance(steps[0], dict) else steps[0]
@@ -187,18 +185,17 @@ async def get_analytics_stats(
             "quiz_completion_rate": completion_rate,
             "gift_ctr": gift_ctr,
             "total_sessions": quiz_started,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
         
-    except Exception as e:
+    except Exception:
         # Return graceful fallback
         return {
             "dau": 0,
             "quiz_completion_rate": 0.0,
             "gift_ctr": 0.0,
             "total_sessions": 0,
-            "last_updated": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
 
 
@@ -211,15 +208,6 @@ async def get_analytics_trends(
 ) -> Dict[str, Any]:
     """
     Get trend data for charts.
-    
-    Args:
-        days: Number of days to fetch (default 7, max 90)
-    
-    Returns:
-        - dates: List of dates
-        - dau_trend: Daily active users by date
-        - quiz_starts: Quiz starts by date
-        - completion_rate_trend: Daily completion rate
     """
     if days > 90:
         days = 90
@@ -273,16 +261,15 @@ async def get_analytics_trends(
             "dates": dates,
             "dau_trend": dau_values,
             "quiz_starts": quiz_starts,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
         
-    except Exception as e:
+    except Exception:
         return {
             "dates": [],
             "dau_trend": [],
             "quiz_starts": [],
-            "last_updated": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
 
 
@@ -294,9 +281,6 @@ async def get_conversion_funnel(
 ) -> Dict[str, Any]:
     """
     Get full conversion funnel visualization data.
-    
-    Returns funnel steps with counts and conversion rates:
-    quiz_started → quiz_completed → results_shown → gift_clicked
     """
     try:
         funnel_query = {
@@ -321,7 +305,6 @@ async def get_conversion_funnel(
         steps = []
         results = funnel_data.get("results", [])
         if results:
-            # FunnelsQuery returns structured step data
             for i, step_data in enumerate(results):
                 if isinstance(step_data, dict):
                     steps.append({
@@ -332,15 +315,15 @@ async def get_conversion_funnel(
         
         return {
             "steps": steps,
-            "last_updated": datetime.utcnow().isoformat()
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
-        
-    except Exception as e:
+    except Exception:
         return {
             "steps": [],
-            "last_updated": datetime.utcnow().isoformat(),
-            "error": str(e)
+            "last_updated": datetime.utcnow().isoformat() + "Z"
         }
+
+
 @router.get("/technical")
 async def get_technical_stats(
     request: Request,
@@ -349,7 +332,6 @@ async def get_technical_stats(
 ) -> Dict[str, Any]:
     """
     Get technical health metrics from Prometheus and Loki.
-    Used for the health-check section of the analytics dashboard.
     """
     cache_key = "analytics:technical_stats"
     cached = await redis.get(cache_key)
@@ -358,63 +340,61 @@ async def get_technical_stats(
 
     stats = {
         "api_health": "unknown",
-        "requests_per_minute": 0,
-        "error_rate_5xx": 0,
+        "requests_per_minute": 0.0,
+        "error_rate_5xx": 0.0,
         "active_workers": 0,
         "last_errors": [],
-        "last_updated": datetime.utcnow().isoformat()
+        "last_updated": datetime.utcnow().isoformat() + "Z"
     }
 
     async with httpx.AsyncClient(timeout=5.0) as client:
-        # 1. Fetch from Prometheus
         try:
-            # Query RPM (Requests per minute)
-            # rate(http_requests_total[1m]) * 60
             prom_url = f"{settings.prometheus_url}/api/v1/query"
             
-            # Simple health check from prom
+            # RPM
             rpm_query = 'sum(rate(http_request_duration_seconds_count[5m])) * 60'
             resp = await client.get(prom_url, params={"query": rpm_query})
             if resp.status_code == 200:
-                results = resp.json().get("data", {}).get("result", [])
-                if results:
-                    stats["requests_per_minute"] = round(float(results[0]["value"][1]), 2)
+                res = resp.json().get("data", {}).get("result", [])
+                if res:
+                    stats["requests_per_minute"] = round(float(res[0]["value"][1]), 2)
                     stats["api_health"] = "healthy"
 
-            # Query Errors (5xx)
+            # 5xx Errors
             err_query = 'sum(rate(http_request_duration_seconds_count{status=~"5.."}[5m]))'
             resp = await client.get(prom_url, params={"query": err_query})
             if resp.status_code == 200:
-                results = resp.json().get("data", {}).get("result", [])
-                if results:
-                    stats["error_rate_5xx"] = round(float(results[0]["value"][1]), 4)
+                res = resp.json().get("data", {}).get("result", [])
+                if res:
+                    stats["error_rate_5xx"] = round(float(res[0]["value"][1]), 4)
+
+            # Active Workers (Scrapers)
+            workers_query = 'count(up{job="scraper"})'
+            resp = await client.get(prom_url, params={"query": workers_query})
+            if resp.status_code == 200:
+                res = resp.json().get("data", {}).get("result", [])
+                if res:
+                    stats["active_workers"] = int(float(res[0]["value"][1]))
 
         except Exception as e:
             stats["api_health"] = f"error: {str(e)}"
 
-        # 2. Fetch from Loki (Last 5 errors)
+        # Loki (Last 5 errors)
         try:
             loki_url = f"{settings.loki_url}/loki/api/v1/query_range"
-            # Query for last 5 lines with 'error' or 'exception'
             loki_query = '{job=~".+"} |= "error" or "exception"'
-            params = {
-                "query": loki_query,
-                "limit": 5,
-                "direction": "backward"
-            }
+            params = {"query": loki_query, "limit": 5, "direction": "backward"}
             resp = await client.get(loki_url, params=params)
             if resp.status_code == 200:
-                results = resp.json().get("data", {}).get("result", [])
+                res = resp.json().get("data", {}).get("result", [])
                 logs = []
-                for stream in results:
+                for stream in res:
                     for val in stream.get("values", []):
-                        # val is [timestamp_ns, log_line]
                         logs.append(val[1][:200] + "..." if len(val[1]) > 200 else val[1])
                 stats["last_errors"] = logs[:5]
         except Exception:
-            pass # Silently fail for Loki in this summary
+            pass
 
-    # Cache for 60 seconds
     await redis.setex(cache_key, 60, json.dumps(stats))
     return stats
 
@@ -432,25 +412,15 @@ async def get_scraping_monitoring(
     db: AsyncSession = Depends(get_db)
 ) -> Dict[str, Any]:
     """
-    Detailed monitoring for the scraping system.
-    Returns:
-        - active_sources: Count of sources being scraped.
-        - unmapped_categories: Number of categories needing AI classification.
-        - scraped_items_24h: Total items scraped in last 24h (from Prometheus).
-        - spider_status: Real-time status of each spider.
+    Monitoring for the scraping system.
     """
     # 1. Database Stats
-    repo = ParsingRepository(db)
+    sources_count_stmt = select(func.count(ParsingSource.id)).where(ParsingSource.is_active == True)
+    sources_count = (await db.execute(sources_count_stmt)).scalar() or 0
     
-    # Active sources count
-    sources_stmt = select(func.count(ParsingSource.id)).where(ParsingSource.is_active == True)
-    sources_count = (await db.execute(sources_stmt)).scalar() or 0
-    
-    # Unmapped categories
     unmapped_stmt = select(func.count(CategoryMap.id)).where(CategoryMap.internal_category_id == None)
     unmapped_count = (await db.execute(unmapped_stmt)).scalar() or 0
     
-    # 2. Prometheus Metrics
     scraping_stats = {
         "active_sources": sources_count,
         "unmapped_categories": unmapped_count,
@@ -459,37 +429,31 @@ async def get_scraping_monitoring(
         "spiders": {}
     }
     
-    async with httpx.AsyncClient(timeout=30.0) as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         try:
             prom_url = f"{settings.prometheus_url}/api/v1/query"
             
-            # 2.1 Total items scraped (sum across all spiders)
-            items_query = 'sum(scraped_items_total)'
-            resp = await client.get(prom_url, params={"query": items_query})
-            if resp.status_code == 200:
-                results = resp.json().get("data", {}).get("result", [])
+            # Total items scraped
+            items_resp = await client.get(prom_url, params={"query": "sum(scraped_items_total)"})
+            if items_resp.status_code == 200:
+                results = items_resp.json().get("data", {}).get("result", [])
                 if results:
                     scraping_stats["total_scraped_items"] = int(float(results[0]["value"][1]))
 
-            # 2.2 Ingestion errors
-            errors_query = 'sum(ingestion_batches_total{status="error"})'
-            resp = await client.get(prom_url, params={"query": errors_query})
-            if resp.status_code == 200:
-                results = resp.json().get("data", {}).get("result", [])
+            # Ingestion errors
+            errors_resp = await client.get(prom_url, params={"query": 'sum(ingestion_batches_total{status="error"})'})
+            if errors_resp.status_code == 200:
+                results = errors_resp.json().get("data", {}).get("result", [])
                 if results:
                     scraping_stats["ingestion_errors"] = int(float(results[0]["value"][1]))
 
-            # 2.3 Breakdown by spider
-            spider_query = 'sum by (spider) (scraped_items_total)'
-            resp = await client.get(prom_url, params={"query": spider_query})
-            if resp.status_code == 200:
-                for res in resp.json().get("data", {}).get("result", []):
-                    spider_name = res["metric"]["spider"]
-                    scraping_stats["spiders"][spider_name] = {
-                        "items_scraped": int(float(res["value"][1]))
-                    }
-
-        except Exception as e:
-            scraping_stats["error"] = f"Metric fetch error: {str(e)}"
+            # Per spider
+            spider_resp = await client.get(prom_url, params={"query": "sum by (spider) (scraped_items_total)"})
+            if spider_resp.status_code == 200:
+                for res in spider_resp.json().get("data", {}).get("result", []):
+                    spider = res["metric"]["spider"]
+                    scraping_stats["spiders"][spider] = {"items_scraped": int(float(res["value"][1]))}
+        except Exception:
+            pass
 
     return scraping_stats
