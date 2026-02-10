@@ -1,5 +1,6 @@
 import httpx
 import logging
+from typing import Optional, List
 
 class TelegramInternalClient:
     def __init__(self, api_base: str, token: str, analytics_token: str = None):
@@ -16,6 +17,13 @@ class TelegramInternalClient:
                 return resp.json()
             return None
 
+    async def get_subscriber_by_username(self, username: str):
+        url = f"{self.api_base}/internal/telegram/subscribers/by-username/{username}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            if resp.status_code == 200:
+                return resp.json()
+            return None
     async def create_subscriber(self, chat_id: int, name: str = None, slug: str = None):
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
@@ -26,6 +34,32 @@ class TelegramInternalClient:
             )
             return resp.json() if resp.status_code == 200 else None
 
+    async def create_invite(
+        self,
+        username: str,
+        password: str,
+        name: str = None,
+        mentor_id: Optional[int] = None,
+        permissions: Optional[List[str]] = None,
+    ):
+        url = f"{self.api_base}/internal/telegram/invites"
+        payload = {
+            "username": username,
+            "password": password,
+            "name": name,
+            "mentor_id": mentor_id,
+            "permissions": permissions or [],
+        }
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
+
+    async def claim_invite(self, username: str, password: str, chat_id: int, name: str = None):
+        url = f"{self.api_base}/internal/telegram/invites/claim"
+        payload = {"username": username, "password": password, "chat_id": chat_id, "name": name}
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(url, json=payload, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else None
     async def get_all_subscribers(self):
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
@@ -100,6 +134,18 @@ class TelegramInternalClient:
             resp = await client.get(url, headers=self.headers)
             return resp.json() if resp.status_code == 200 else []
 
+    async def get_monitoring(self):
+        url = f"{self.api_base}/internal/monitoring"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else []
+
+    async def get_internal_stats(self):
+        url = f"{self.api_base}/internal/stats"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else {}
+
     async def get_source_details(self, source_id: int):
         url = f"{self.api_base}/internal/sources/{source_id}"
         async with httpx.AsyncClient() as client:
@@ -124,6 +170,12 @@ class TelegramInternalClient:
         async with httpx.AsyncClient() as client:
             resp = await client.patch(url, json=data, headers=self.headers)
             return resp.status_code == 200
+
+    async def get_active_workers(self):
+        url = f"{self.api_base}/internal/workers"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, headers=self.headers)
+            return resp.json() if resp.status_code == 200 else []
 
     # Weeek Integration
     async def connect_weeek(self, chat_id: int, token: str):

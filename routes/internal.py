@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 from typing import List, Optional
 
-from app.db import get_db
+from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
 from app.schemas_v2 import ScoringTask, ScoringBatchSubmit
 from app.config import get_settings
+
+from app.config import get_settings
+from app.utils.telegram_auth import verify_telegram_init_data
+from app.repositories.parsing import ParsingRepository
+from app.repositories.telegram import TelegramRepository
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 settings = get_settings()
@@ -52,41 +58,33 @@ async def submit_scoring_results(
 from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate
 from app.services.ingestion import IngestionService
 
-@router.get("/sources", response_model=List[ParsingSourceSchema], summary="Получить список источников парсинга")
-async def get_parsing_sources(
+@router.get("/monitoring", summary="Агрегированный мониторинг по сайтам")
+async def get_sites_monitoring(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
+    return await repo.get_sites_monitoring()
+
+@router.get("/stats", summary="Статистика парсинга за 24ч")
+async def get_parsing_stats(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
+    return await repo.get_24h_stats()
+
+@router.get("/sources", response_model=List[ParsingSourceSchema], summary="Получить список источников парсинга")
+async def get_parsing_sources(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
     sources = await repo.get_all_sources()
-    
-    # We want to show aggregate status for hubs in the list view too
-    # but we need to do it efficiently.
-    # First, collect all statuses per site_key
-    site_statuses = {}
-    for s in sources:
-        if s.site_key not in site_statuses:
-            site_statuses[s.site_key] = []
-        site_statuses[s.site_key].append(s.status)
-        
-    results = []
-    for s in sources:
-        source_data = {c.name: getattr(s, c.name) for c in s.__table__.columns}
-        source_data["status"] = s.status
-        
-        # If it's a hub, use aggregate status
-        if s.type == "hub":
-            statuses = site_statuses.get(s.site_key, [])
-            if "running" in statuses:
-                source_data["status"] = "running"
-            elif "error" in statuses:
-                 source_data["status"] = "error"
-            elif "broken" in statuses:
-                 source_data["status"] = "broken"
-                 
-        results.append(source_data)
-        
-    return results
+    # Still keep full list for now, but in future this should be paginated
+    return sources
 
 @router.post("/sources", response_model=ParsingSourceSchema, summary="Создать или обновить источник парсинга")
 async def upsert_parsing_source(
@@ -101,9 +99,10 @@ async def upsert_parsing_source(
 async def ingest_batch(
     request: IngestBatchRequest,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token)
 ):
-    service = IngestionService(db)
+    service = IngestionService(db, redis=redis)
     
     p_count = 0
     if request.items:
@@ -130,6 +129,15 @@ async def ingest_batch(
         "items_ingested": p_count, 
         "categories_ingested": c_count
     }
+
+@router.get("/workers", summary="Получить список активных воркеров")
+async def get_active_workers(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
+    return await repo.get_active_workers()
 
 from app.schemas.parsing import ParsingErrorReport
 from app.services.notifications import get_notification_service
@@ -412,12 +420,32 @@ async def submit_category_mappings(
 
 from app.repositories.telegram import TelegramRepository
 from pydantic import BaseModel
+import hashlib
 
 class SubscriberUpdate(BaseModel):
     chat_id: int
     name: Optional[str] = None
     slug: Optional[str] = None
 
+def _hash_invite_password(password: str) -> str:
+    secret = settings.secret_key or "change-me-in-production"
+    raw = f"{secret}:{password}".encode("utf-8")
+    return hashlib.sha256(raw).hexdigest()
+
+
+class InviteCreate(BaseModel):
+    username: str
+    password: str
+    name: Optional[str] = None
+    mentor_id: Optional[int] = None
+    permissions: Optional[List[str]] = None
+
+
+class InviteClaim(BaseModel):
+    username: str
+    password: str
+    chat_id: int
+    name: Optional[str] = None
 @router.get("/telegram/subscribers", summary="Получить список всех подписчиков")
 async def list_telegram_subscribers(
     db: AsyncSession = Depends(get_db),
@@ -438,6 +466,18 @@ async def get_telegram_subscriber(
         raise HTTPException(status_code=404, detail="Subscriber not found")
     return sub
 
+@router.get("/telegram/subscribers/by-username/{username}")
+async def get_telegram_subscriber_by_username(
+    username: str,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = username.strip().lstrip("@").lower()
+    sub = await repo.get_subscriber_by_slug(slug)
+    if not sub:
+        raise HTTPException(status_code=404, detail="Subscriber not found")
+    return sub
 @router.post("/telegram/subscribers")
 async def create_telegram_subscriber(
     data: SubscriberUpdate,
@@ -448,6 +488,50 @@ async def create_telegram_subscriber(
     sub = await repo.create_subscriber(data.chat_id, data.name, data.slug)
     return sub
 
+@router.post("/telegram/invites")
+async def create_telegram_invite(
+    data: InviteCreate,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = data.username.strip().lstrip("@").lower()
+    if not slug:
+        raise HTTPException(status_code=400, detail="Invalid username")
+    existing = await repo.get_subscriber_by_slug(slug)
+    if existing:
+        raise HTTPException(status_code=409, detail="Username already exists")
+    if data.mentor_id is not None:
+        mentor = await repo.get_subscriber_by_id(data.mentor_id)
+        if not mentor:
+            raise HTTPException(status_code=400, detail="Mentor not found")
+    sub = await repo.create_invite(
+        slug=slug,
+        name=data.name,
+        password_hash=_hash_invite_password(data.password),
+        mentor_id=data.mentor_id,
+        permissions=data.permissions or [],
+    )
+    return sub
+
+
+@router.post("/telegram/invites/claim")
+async def claim_telegram_invite(
+    data: InviteClaim,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = TelegramRepository(db)
+    slug = data.username.strip().lstrip("@").lower()
+    sub = await repo.claim_invite(
+        slug=slug,
+        password_hash=_hash_invite_password(data.password),
+        chat_id=data.chat_id,
+        name=data.name,
+    )
+    if not sub:
+        raise HTTPException(status_code=404, detail="Invite not found or password invalid")
+    return sub
 @router.post("/telegram/subscribers/{chat_id}/role")
 async def set_subscriber_role(
     chat_id: int,
@@ -516,3 +600,61 @@ async def set_telegram_language(
     repo = TelegramRepository(db)
     success = await repo.set_language(chat_id, language)
     return {"status": "ok" if success else "error"}
+@router.post("/webapp/auth", summary="Авторизация через Telegram WebApp")
+async def webapp_auth(
+    init_data: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+):
+    import logging
+    logger = logging.getLogger("webapp_auth")
+    logger.info(f"Webapp auth attempt. Init data length: {len(init_data)}")
+    
+    if not settings.telegram_bot_token:
+        logger.error("Bot token not configured")
+        raise HTTPException(status_code=500, detail="Bot token not configured")
+        
+    # Dev bypass
+    if settings.env == "dev" and init_data == "dev_user_1821014162":
+        logger.info("Using DEV BYPASS authentication for user 1821014162")
+        user_id = 1821014162
+    else:
+        if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
+            logger.warning("Invalid init data verification failed")
+            raise HTTPException(status_code=403, detail="Invalid init data")
+            
+        from urllib.parse import parse_qsl
+        import json
+        
+        params = dict(parse_qsl(init_data))
+        user_data = json.loads(params.get("user", "{}"))
+        user_id = int(user_data.get("id", 0))
+    
+    logger.info(f"User ID from init_data: {user_id}")
+    
+    if not user_id:
+        logger.warning("User ID not found in init data")
+        raise HTTPException(status_code=400, detail="User ID not found in init data")
+        
+    repo = TelegramRepository(db)
+    subscriber = await repo.get_subscriber(user_id)
+    
+    if not subscriber:
+        logger.warning(f"Subscriber not found for {user_id}")
+        
+    if subscriber:
+        logger.info(f"Subscriber found: {subscriber.chat_id}, Role: {subscriber.role}")
+
+    if not subscriber or subscriber.role not in ["admin", "superadmin"]:
+        logger.warning(f"Access denied for {user_id}. Role: {subscriber.role if subscriber else 'None'}")
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    logger.info(f"Auth successful for {user_id}")
+    return {
+        "status": "ok",
+        "user": {
+            "id": subscriber.chat_id,
+            "name": subscriber.name,
+            "role": subscriber.role,
+            "permissions": subscriber.permissions
+        }
+    }
