@@ -1540,8 +1540,6 @@ async def process_tasks_callback(callback_query: CallbackQuery, state: FSMContex
             reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
         )
         await callback_query.answer()
-        
-
     elif action == "reschedule":
         task_id = int(action_parts[2])
         await callback_query.message.answer(t("reschedule_prompt", lang))

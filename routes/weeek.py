@@ -90,6 +90,7 @@ async def connect_weeek_account(
     """
     Connects a Telegram user to Weeek.
     - Validates token
+    - Creates 'Gifty 🎁' project if missing
     - Saves account
     """
     # 1. Validate Token & Get User Info
@@ -223,8 +224,6 @@ async def get_tasks(
         raise HTTPException(status_code=500, detail=resp.get("error"))
         
     tasks = resp.get("tasks", [])
-
-
     # Filter by corporate workspace (if possible)
     target_workspace_id = account.weeek_workspace_id or settings.weeek_workspace_id
     projects_workspace_map: Dict[int, Optional[int]] = {}

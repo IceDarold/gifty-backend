@@ -395,6 +395,34 @@ async def sync_spiders_endpoint(
     
     return {"status": "ok", "new_spiders": new_spiders}
 
+@router.get("/sources/backlog", response_model=List[ParsingSourceSchema], summary="Получить список обнаруженных источников (бэклог)")
+async def get_discovery_backlog(
+    limit: int = 50,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db)
+    return await repo.get_discovered_sources(limit=limit)
+
+@router.post("/sources/backlog/activate", summary="Массовая активация источников из бэклога")
+async def activate_backlog_sources(
+    source_ids: List[int] = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db)
+    await repo.activate_sources(source_ids)
+    return {"status": "ok", "activated_count": len(source_ids)}
+
+@router.get("/sources/backlog/stats", summary="Статистика обнаружения за 24ч")
+async def get_backlog_stats(
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db)
+    count = await repo.count_discovered_today()
+    return {"discovered_today": count}
+
 from app.schemas_v2 import CategoryMappingTask, CategoryBatchSubmit
 from app.repositories.parsing import ParsingRepository
 
