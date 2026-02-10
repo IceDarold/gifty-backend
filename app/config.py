@@ -57,10 +57,20 @@ class Settings(BaseSettings):
     env: str = Field("prod", alias="ENV")
     cors_origins: str = Field("*", alias="CORS_ORIGINS")
     secret_key: str = Field("change-me-in-production", alias="SECRET_KEY")
+    analytics_api_token: str = Field("dev-analytics-token", alias="ANALYTICS_API_TOKEN")
+    
+    # Telegram Bot
+    telegram_bot_token: Optional[str] = Field(None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_admin_secret: str = Field("admin123", alias="TELEGRAM_ADMIN_SECRET")
+    telegram_superadmin_secret: str = Field("superadmin123", alias="TELEGRAM_SUPERADMIN_SECRET")
+    telegram_webapp_url: Optional[str] = Field(None, alias="TELEGRAM_WEBAPP_URL")
+
     
     # PostHog Analytics
     posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
     posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
+    prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
+    loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
 
     model_config = SettingsConfigDict(
         env_file=".env",

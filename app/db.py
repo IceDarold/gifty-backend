@@ -78,6 +78,16 @@ async def get_db() -> AsyncSession:
         yield session
 
 
+import redis.asyncio as redis
+
+# Redis setup
+redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+
+async def get_redis():
+    """Returns a redis client connection."""
+    return redis_client
+
+
 @asynccontextmanager
 async def get_session_context() -> AsyncSession:
     async with SessionLocal() as session:
