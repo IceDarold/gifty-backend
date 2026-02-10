@@ -51,7 +51,7 @@ Immediately dispatches a parsing task to RabbitMQ, bypassing the schedule.
 *   **Method**: `POST`
 *   - `strategy` (optional): Strategy override (`discovery` or `deep`).
 
-### 4. Enable/Disable (`/{id}/toggle`)
+### 6. Enable/Disable (`/{id}/toggle`)
 Activates or deactivates the automatic scheduled execution of a parser.
 
 *   **URL**: `/internal/sources/{source_id}/toggle`
