@@ -1,11 +1,17 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Body
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 from typing import List, Optional
 
-from app.db import get_db
+from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
 from app.schemas_v2 import ScoringTask, ScoringBatchSubmit
 from app.config import get_settings
+
+from app.config import get_settings
+from app.utils.telegram_auth import verify_telegram_init_data
+from app.repositories.parsing import ParsingRepository
+from app.repositories.telegram import TelegramRepository
 
 router = APIRouter(prefix="/internal", tags=["internal"])
 settings = get_settings()
@@ -22,10 +28,6 @@ async def get_scoring_tasks(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
-    """
-    Возвращает список товаров, которые еще не были оценены LLM моделями.
-    Используется внешним воркером для формирования очереди на анализ.
-    """
     repo = PostgresCatalogRepository(db)
     products = await repo.get_products_without_llm_score(limit=limit)
     return [
@@ -47,10 +49,6 @@ async def submit_scoring_results(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
-    """
-    Принимает результаты анализа от LLM воркера.
-    Обновляет оценки, обоснования и векторные представления товаров в БД.
-    """
     repo = PostgresCatalogRepository(db)
     scores = [res.model_dump() for res in batch.results]
     count = await repo.save_llm_scores(scores)
@@ -59,43 +57,34 @@ async def submit_scoring_results(
 
 from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate
 from app.services.ingestion import IngestionService
-from app.repositories.parsing import ParsingRepository
 
-@router.get("/sources", response_model=List[ParsingSourceSchema], summary="Получить список источников парсинга")
-async def get_parsing_sources(
+@router.get("/monitoring", summary="Агрегированный мониторинг по сайтам")
+async def get_sites_monitoring(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
+    return await repo.get_sites_monitoring()
+
+@router.get("/stats", summary="Статистика парсинга за 24ч")
+async def get_parsing_stats(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
+    return await repo.get_24h_stats()
+
+@router.get("/sources", response_model=List[ParsingSourceSchema], summary="Получить список источников парсинга")
+async def get_parsing_sources(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
     sources = await repo.get_all_sources()
-    
-    # We want to show aggregate status for hubs in the list view too
-    # but we need to do it efficiently.
-    # First, collect all statuses per site_key
-    site_statuses = {}
-    for s in sources:
-        if s.site_key not in site_statuses:
-            site_statuses[s.site_key] = []
-        site_statuses[s.site_key].append(s.status)
-        
-    results = []
-    for s in sources:
-        source_data = {c.name: getattr(s, c.name) for c in s.__table__.columns}
-        source_data["status"] = s.status
-        
-        # If it's a hub, use aggregate status
-        if s.type == "hub":
-            statuses = site_statuses.get(s.site_key, [])
-            if "running" in statuses:
-                source_data["status"] = "running"
-            elif "error" in statuses:
-                 source_data["status"] = "error"
-            elif "broken" in statuses:
-                 source_data["status"] = "broken"
-                 
-        results.append(source_data)
-        
-    return results
+    # Still keep full list for now, but in future this should be paginated
+    return sources
 
 @router.post("/sources", response_model=ParsingSourceSchema, summary="Создать или обновить источник парсинга")
 async def upsert_parsing_source(
@@ -110,9 +99,10 @@ async def upsert_parsing_source(
 async def ingest_batch(
     request: IngestBatchRequest,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token)
 ):
-    service = IngestionService(db)
+    service = IngestionService(db, redis=redis)
     
     p_count = 0
     if request.items:
@@ -139,6 +129,15 @@ async def ingest_batch(
         "items_ingested": p_count, 
         "categories_ingested": c_count
     }
+
+@router.get("/workers", summary="Получить список активных воркеров")
+async def get_active_workers(
+    db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db, redis=redis)
+    return await repo.get_active_workers()
 
 from app.schemas.parsing import ParsingErrorReport
 from app.services.notifications import get_notification_service
@@ -206,9 +205,9 @@ async def force_run_parser(
         if source.config:
              cfg = dict(source.config)
              if source.config.get("last_stats"):
-                  last_stats = dict(source.config["last_stats"])
-                  last_stats["status"] = "queued_manual"
-                  cfg["last_stats"] = last_stats
+                 last_stats = dict(source.config["last_stats"])
+                 last_stats["status"] = "queued_manual"
+                 cfg["last_stats"] = last_stats
              source.config = cfg
              
         await db.commit()
@@ -268,6 +267,15 @@ async def get_parsing_source_details(
     if not source:
         raise HTTPException(status_code=404, detail="Source not found")
     
+    # Needs to match ParsingSourceSchema
+    # Pydantic is smart enough to map attributes, but we need to inject the extra fields
+    # Using jsonable_encoder or just dict conversion might be safer if we want to combine
+    # But since we return the OBJECT and Pydantic validates it... we can assign attributes dynamically 
+    # IF they are not in the ORM model. But Pydantic 'from_attributes=True' will try to read from ORM.
+    # ORM model doesn't have these fields.
+    # So we should construct the Schema object manually.
+    
+    
     # If it's a hub, aggregate stats and history for the whole site
     if source.type == "hub":
         total_items = await repo.get_total_products_count(source.site_key)
@@ -290,13 +298,29 @@ async def get_parsing_source_details(
         next_sync = min([s.next_sync_at for s in site_sources] or [source.next_sync_at])
     else:
         # It's a specific category/list
+        # Total items specific to this category url
+        # We assume gift_id is constructed as "site_key:product_url"
+        # And product_url usually contains the category part or we can just count by what was scraped?
+        # Actually parsing_runs has items_scraped, but total active items in DB?
+        # We don't have a direct link from Product to Source ID. We only have gift_id.
+        # But we know the source URL. GroupPrice products have /products/ ID. 
+        # The relationship is weak.
+        # However, for GroupPrice, we can try to filter by "category" field in Product table if we saved it?
+        # We saved "category" in Product. Let's use that if possible.
+        # But `upsert_products` saves `category` field.
+        # Let's try to count by matching category name from source config?
+        # Or just use the source URL as a filter if gift_id contains it? No.
+        
+        # Let's count by category name if available, otherwise 0 for now until we have better link.
+        # config['discovery_name'] might match Product.category
         cat_name = source.config.get("discovery_name")
         if cat_name:
-             total_items = await repo.get_total_category_products_count(source.site_key, cat_name)
+             total_items = await repo.get_category_products_count(source.site_key, cat_name)
         else:
              total_items = 0
 
         status = source.status
+        # Use daily aggregation for this source too, as requested
         history_raw = await repo.get_source_daily_history(source_id)
         history_dicts = [
             {
@@ -308,6 +332,9 @@ async def get_parsing_source_details(
             for h in history_raw
         ]
         
+        # Last run new should be from the latest non-aggregated run for accuracy? 
+        # Or just use the execution history.
+        # Let's use the raw detailed history for "last run" value to be precise about the last execution
         detailed_history = await repo.get_source_history(source_id, limit=1)
         last_run_new = detailed_history[0].items_new if detailed_history else 0
         
@@ -368,7 +395,6 @@ async def sync_spiders_endpoint(
     
     return {"status": "ok", "new_spiders": new_spiders}
 
-# New Backlog endpoints
 @router.get("/sources/backlog", response_model=List[ParsingSourceSchema], summary="Получить список обнаруженных источников (бэклог)")
 async def get_discovery_backlog(
     limit: int = 50,
@@ -397,8 +423,8 @@ async def get_backlog_stats(
     count = await repo.count_discovered_today()
     return {"discovered_today": count}
 
-
 from app.schemas_v2 import CategoryMappingTask, CategoryBatchSubmit
+from app.repositories.parsing import ParsingRepository
 
 @router.get("/categories/tasks", response_model=List[CategoryMappingTask], summary="Получить категории для маппинга")
 async def get_category_tasks(
@@ -429,7 +455,6 @@ class SubscriberUpdate(BaseModel):
     name: Optional[str] = None
     slug: Optional[str] = None
 
-
 def _hash_invite_password(password: str) -> str:
     secret = settings.secret_key or "change-me-in-production"
     raw = f"{secret}:{password}".encode("utf-8")
@@ -449,7 +474,6 @@ class InviteClaim(BaseModel):
     password: str
     chat_id: int
     name: Optional[str] = None
-
 @router.get("/telegram/subscribers", summary="Получить список всех подписчиков")
 async def list_telegram_subscribers(
     db: AsyncSession = Depends(get_db),
@@ -470,7 +494,6 @@ async def get_telegram_subscriber(
         raise HTTPException(status_code=404, detail="Subscriber not found")
     return sub
 
-
 @router.get("/telegram/subscribers/by-username/{username}")
 async def get_telegram_subscriber_by_username(
     username: str,
@@ -483,7 +506,6 @@ async def get_telegram_subscriber_by_username(
     if not sub:
         raise HTTPException(status_code=404, detail="Subscriber not found")
     return sub
-
 @router.post("/telegram/subscribers")
 async def create_telegram_subscriber(
     data: SubscriberUpdate,
@@ -493,7 +515,6 @@ async def create_telegram_subscriber(
     repo = TelegramRepository(db)
     sub = await repo.create_subscriber(data.chat_id, data.name, data.slug)
     return sub
-
 
 @router.post("/telegram/invites")
 async def create_telegram_invite(
@@ -539,7 +560,6 @@ async def claim_telegram_invite(
     if not sub:
         raise HTTPException(status_code=404, detail="Invite not found or password invalid")
     return sub
-
 @router.post("/telegram/subscribers/{chat_id}/role")
 async def set_subscriber_role(
     chat_id: int,
@@ -608,3 +628,61 @@ async def set_telegram_language(
     repo = TelegramRepository(db)
     success = await repo.set_language(chat_id, language)
     return {"status": "ok" if success else "error"}
+@router.post("/webapp/auth", summary="Авторизация через Telegram WebApp")
+async def webapp_auth(
+    init_data: str = Body(..., embed=True),
+    db: AsyncSession = Depends(get_db),
+):
+    import logging
+    logger = logging.getLogger("webapp_auth")
+    logger.info(f"Webapp auth attempt. Init data length: {len(init_data)}")
+    
+    if not settings.telegram_bot_token:
+        logger.error("Bot token not configured")
+        raise HTTPException(status_code=500, detail="Bot token not configured")
+        
+    # Dev bypass
+    if settings.env == "dev" and init_data == "dev_user_1821014162":
+        logger.info("Using DEV BYPASS authentication for user 1821014162")
+        user_id = 1821014162
+    else:
+        if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
+            logger.warning("Invalid init data verification failed")
+            raise HTTPException(status_code=403, detail="Invalid init data")
+            
+        from urllib.parse import parse_qsl
+        import json
+        
+        params = dict(parse_qsl(init_data))
+        user_data = json.loads(params.get("user", "{}"))
+        user_id = int(user_data.get("id", 0))
+    
+    logger.info(f"User ID from init_data: {user_id}")
+    
+    if not user_id:
+        logger.warning("User ID not found in init data")
+        raise HTTPException(status_code=400, detail="User ID not found in init data")
+        
+    repo = TelegramRepository(db)
+    subscriber = await repo.get_subscriber(user_id)
+    
+    if not subscriber:
+        logger.warning(f"Subscriber not found for {user_id}")
+        
+    if subscriber:
+        logger.info(f"Subscriber found: {subscriber.chat_id}, Role: {subscriber.role}")
+
+    if not subscriber or subscriber.role not in ["admin", "superadmin"]:
+        logger.warning(f"Access denied for {user_id}. Role: {subscriber.role if subscriber else 'None'}")
+        raise HTTPException(status_code=403, detail="Access denied")
+        
+    logger.info(f"Auth successful for {user_id}")
+    return {
+        "status": "ok",
+        "user": {
+            "id": subscriber.chat_id,
+            "name": subscriber.name,
+            "role": subscriber.role,
+            "permissions": subscriber.permissions
+        }
+    }

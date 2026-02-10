@@ -79,13 +79,20 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - Home: index.md
   - Onboarding:
-      - Developer Onboarding: guides/onboarding.md
-      - Telegram Bot Guide: guides/telegram_bot.md
+      - Quick Start: guides/onboarding.md
+      - Local Setup: guides/local_setup.md
+      - Telegram Bot: guides/telegram_bot.md
       - GitHub Workflow: guides/github_workflow.md
+      - Testing: guides/testing.md
       - Database Guide: guides/database_work.md
       - Roadmap & Milestones: guides/roadmap.md
   - Overview: architecture/overview.md
@@ -94,16 +101,13 @@ nav:
       - Guide (How to add parser): guides/parsing.md
   - Recommendation Engine:
       - The Philosophy (GUTG): architecture/grand_unified_theory.md
-      - Architecture:
-          - Overview: architecture/recommendations.md
-          - Product Analytics: architecture/product_analytics.md
+      - Overview: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
-  - Analytics Dashboard:
-      - Quick Start: guides/analytics_api_quickstart.md
-      - Frontend Integration Guide: guides/analytics_frontend_integration.md
+  - Analytics & Monitoring:
+      - Dashboard Guide: guides/analytics_api_quickstart.md
   - Engineering & DevOps:
-      - Development Workflow: guides/development.md
+      - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
       - Overview: api/index.md
