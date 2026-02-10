@@ -22,7 +22,6 @@ class TelegramRepository:
         stmt = select(TelegramSubscriber).where(TelegramSubscriber.id == sub_id)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
-
     async def create_subscriber(self, chat_id: int, name: Optional[str] = None, slug: Optional[str] = None) -> TelegramSubscriber:
         subscriber = TelegramSubscriber(
             chat_id=chat_id,
@@ -80,7 +79,6 @@ class TelegramRepository:
             sub.name = name
         await self.session.commit()
         return sub
-
     async def subscribe_topic(self, chat_id: int, topic: str) -> bool:
         sub = await self.get_subscriber(chat_id)
         if not sub:

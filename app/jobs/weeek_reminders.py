@@ -6,6 +6,7 @@ from sqlalchemy import select
 from app.models import WeeekAccount
 from app.services.weeek import WeeekClient
 from app.services.notifications import get_notification_service
+
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -27,7 +28,6 @@ def _build_projects_workspace_map(projects):
             continue
         mapping[pid] = _extract_workspace_id(proj)
     return mapping
-
 async def run_weeek_reminders():
     """
     Check for Weeek reminders and send notifications.
