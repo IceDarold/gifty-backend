@@ -477,7 +477,7 @@ async def set_subscriber_permissions(
 @router.post("/telegram/subscribers/{chat_id}/subscribe")
 async def subscribe_telegram_topic(
     chat_id: int,
-    topic: str,
+    topic: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
@@ -488,7 +488,7 @@ async def subscribe_telegram_topic(
 @router.post("/telegram/subscribers/{chat_id}/unsubscribe")
 async def unsubscribe_telegram_topic(
     chat_id: int,
-    topic: str,
+    topic: str = Body(..., embed=True),
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
