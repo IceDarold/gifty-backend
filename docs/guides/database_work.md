@@ -60,8 +60,8 @@ alembic upgrade head
 alembic downgrade -1
 ```
 
-> [!TIP]
-> Тестируйте миграции на локальной БД (`alembic upgrade head`) перед тем, как открывать Pull Request.
+!!! tip
+    Тестируйте миграции на локальной БД (`alembic upgrade head`) перед тем, как открывать Pull Request.
 
 ## Практики запроса данных
 

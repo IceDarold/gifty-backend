@@ -114,4 +114,5 @@ nav:
       - Services: api/services.md
       - Repositories: api/repositories.md
       - Analytics: api/analytics.md
+      - Internal: api/internal.md
       - Integrations (Weeek): weeek_api_reference.md
