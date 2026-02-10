@@ -34,10 +34,8 @@ async def run_parsing_scheduler():
             success = publish_parsing_task(task)
             
             if success:
-                # Update next_sync_at to prevent re-scheduling immediately
-                # In a real app, this should be more robust
-                # (e.g. status='queued')
-                await repo.update_source_stats(source.id, {"status": "queued"})
+                # Update status and next_sync_at to prevent re-scheduling
+                await repo.set_queued(source.id)
             else:
                 logger.error(f"Failed to queue task for source {source.id}")
 

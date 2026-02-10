@@ -21,10 +21,11 @@ theme:
         icon: material/brightness-4
         name: Switch to light mode
   features:
-    - navigation.tabs
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tabs
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - search.share
@@ -32,6 +33,7 @@ theme:
     - content.code.annotate
 
 extra_javascript:
+  - javascripts/weeek_static_data.js
   - javascripts/weeek.js
 
 extra_css:
@@ -63,6 +65,9 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -77,21 +82,34 @@ markdown_extensions:
 
 nav:
   - Home: index.md
-  - Architecture:
-      - Overview: architecture/overview.md
-      - Parsing:
-          - Architecture: architecture/parsing.md
-          - System: architecture/parsing_system.md
-          - Plan: architecture/parsing_plan.md
-      - Recommendation:
-          - General: architecture/recommendations.md
-          - Gift Query Rules: architecture/gift_query_rules.md
-          - Intelligence API: architecture/intelligence.md
+  - Onboarding:
+      - Developer Onboarding: guides/onboarding.md
+      - Telegram Bot Guide: guides/telegram_bot.md
+      - GitHub Workflow: guides/github_workflow.md
+      - Database Guide: guides/database_work.md
+      - Roadmap & Milestones: guides/roadmap.md
+  - Overview: architecture/overview.md
+  - Parsing System:
+      - Architecture: architecture/parsing.md
+      - Guide (How to add parser): guides/parsing.md
+  - Recommendation Engine:
+      - The Philosophy (GUTG): architecture/grand_unified_theory.md
+      - Architecture:
+          - Overview: architecture/recommendations.md
+          - Product Analytics: architecture/product_analytics.md
+      - Gift Query Rules: architecture/gift_query_rules.md
+      - Intelligence API: architecture/intelligence.md
+  - Analytics Dashboard:
+      - Quick Start: guides/analytics_api_quickstart.md
+      - Frontend Integration Guide: guides/analytics_frontend_integration.md
+  - Engineering & DevOps:
+      - Development Workflow: guides/development.md
+      - Deployment & CI/CD: guides/deployment.md
   - API Reference:
+      - Overview: api/index.md
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
+      - Analytics: api/analytics.md
+      - Internal: api/internal.md
       - Integrations (Weeek): weeek_api_reference.md
-  - Guides:
-      - Development: guides/development.md
-      - Deployment: guides/deployment.md

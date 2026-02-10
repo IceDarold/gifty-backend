@@ -16,18 +16,27 @@ document.addEventListener("DOMContentLoaded", function () {
             `;
 
             // Use absolute URL to point to the backend API on port 8000
-            let url = "http://localhost:8000/api/v1/integrations/weeek/tasks";
-            const params = new URLSearchParams();
-            if (tags) params.append("tags", tags);
-            if (tagNames) params.append("tagNames", tagNames);
-            if (projectId) params.append("projectId", projectId);
+            let data;
 
-            if (params.toString()) {
-                url += "?" + params.toString();
+            // Check if static data is available (for GH Pages / Static builds)
+            if (window.WEEEK_STATIC_DATA) {
+                // console.log("Using static Weeek data");
+                data = filterStaticData(window.WEEEK_STATIC_DATA, tags, tagNames, projectId);
+            } else {
+                // Fallback to local development API
+                let url = "http://localhost:8000/api/v1/integrations/weeek/tasks";
+                const params = new URLSearchParams();
+                if (tags) params.append("tags", tags);
+                if (tagNames) params.append("tagNames", tagNames);
+                if (projectId) params.append("projectId", projectId);
+
+                if (params.toString()) {
+                    url += "?" + params.toString();
+                }
+
+                const response = await fetch(url);
+                data = await response.json();
             }
-
-            const response = await fetch(url);
-            const data = await response.json();
 
             if (data.success && data.tasks) {
                 console.log("Weeek data loaded:", data);
@@ -402,4 +411,50 @@ function closeWeeekModal() {
         overlay.innerHTML = '';
     }
     document.body.style.overflow = '';
+}
+
+function filterStaticData(data, tagsStr, tagNamesStr, projectIdStr) {
+    let tasks = data.tasks || [];
+
+    // 1. Filter by Project
+    if (projectIdStr) {
+        tasks = tasks.filter(t => String(t.projectId) === String(projectIdStr));
+    }
+
+    // 2. Filter by Tags
+    const requiredTagIds = new Set();
+
+    if (tagsStr) {
+        tagsStr.split(',').forEach(s => {
+            const id = parseInt(s.trim());
+            if (!isNaN(id)) requiredTagIds.add(id);
+        });
+    }
+
+    if (tagNamesStr && data.tags) {
+        const names = tagNamesStr.split(',').map(s => s.trim().toLowerCase());
+        data.tags.forEach(tag => {
+            if (names.includes(tag.title.toLowerCase())) {
+                requiredTagIds.add(tag.id);
+            }
+        });
+    }
+
+    if (requiredTagIds.size > 0) {
+        tasks = tasks.filter(t => {
+            if (!t.tags) return false;
+            // Check intersection (ANY match)
+            return t.tags.some(tid => requiredTagIds.has(tid));
+        });
+    }
+
+    // Return structure matching API response
+    return {
+        success: true,
+        tasks: tasks,
+        hasMore: false,
+        workspaceId: data.workspaceId,
+        members: data.members,
+        columns: data.columns
+    };
 }
