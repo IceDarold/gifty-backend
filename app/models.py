@@ -23,6 +23,10 @@ class TimestampMixin:
 
 
 class User(TimestampMixin, Base):
+    """
+    Модель пользователя системы Gifty.
+    Хранит базовую информацию о пользователе и связи с OAuth аккаунтами.
+    """
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -36,6 +40,10 @@ class User(TimestampMixin, Base):
 
 
 class OAuthAccount(TimestampMixin, Base):
+    """
+    Связь пользователя с внешними провайдерами авторизации (Google, Yandex, VK).
+    Хранит токены и идентификаторы провайдеров.
+    """
     __tablename__ = "oauth_accounts"
     __table_args__ = (
         UniqueConstraint("provider", "provider_user_id", name="uq_oauth_provider_user"),
@@ -56,6 +64,10 @@ class OAuthAccount(TimestampMixin, Base):
 
 
 class Product(TimestampMixin, Base):
+    """
+    Основная модель товара в каталоге.
+    Содержит метаданные товара, информацию о мерчанте и результаты оценки LLM.
+    """
     __tablename__ = "products"
 
     gift_id: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -82,6 +94,10 @@ class Product(TimestampMixin, Base):
 
 
 class ProductEmbedding(TimestampMixin, Base):
+    """
+    Векторные представления товаров для семантического поиска.
+    Использует pgvector для хранения эмбеддингов.
+    """
     __tablename__ = "product_embeddings"
 
     gift_id: Mapped[str] = mapped_column(Text, ForeignKey("products.gift_id", ondelete="CASCADE"), primary_key=True)
@@ -94,6 +110,10 @@ class ProductEmbedding(TimestampMixin, Base):
 
 
 class ParsingSource(TimestampMixin, Base):
+    """
+    Реестр источников для парсинга (магазинов и категорий).
+    Управляет расписанием и стратегией сбора данных.
+    """
     __tablename__ = "parsing_sources"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
@@ -106,13 +126,113 @@ class ParsingSource(TimestampMixin, Base):
     last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
     config: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
 
 
+class ParsingRun(TimestampMixin, Base):
+    """
+    История запусков парсеров.
+    Хранит статистику по количеству спаршенных и новых товаров.
+    """
+    __tablename__ = "parsing_runs"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    source_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("parsing_sources.id", ondelete="CASCADE"), index=True)
+    status: Mapped[str] = mapped_column(String, nullable=False) # processing, completed, error
+    items_scraped: Mapped[int] = mapped_column(sa.Integer, default=0)
+    items_new: Mapped[int] = mapped_column(sa.Integer, default=0)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    duration_seconds: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
+
+
 class CategoryMap(TimestampMixin, Base):
+    """
+    Маппинг категорий внешних магазинов во внутренние категории Gifty.
+    Используется для нормализации каталога.
+    """
     __tablename__ = "category_maps"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     external_name: Mapped[str] = mapped_column(String, nullable=False, unique=True)
     internal_category_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
     is_verified: Mapped[bool] = mapped_column(sa.Boolean, server_default="false")
+
+
+class TeamMember(TimestampMixin, Base):
+    __tablename__ = "team_members"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    slug: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    role: Mapped[str] = mapped_column(String, nullable=False)
+    bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    photo_public_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    sort_order: Mapped[int] = mapped_column(sa.Integer, server_default="0", index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+
+
+class InvestorContact(TimestampMixin, Base):
+    __tablename__ = "investor_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class TelegramSubscriber(TimestampMixin, Base):
+    """
+    Подписчики и администраторы Telegram бота.
+    Управляет ролями, правами доступа и подписками на уведомления.
+    """
+    __tablename__ = "telegram_subscribers"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    chat_id: Mapped[Optional[int]] = mapped_column(sa.BigInteger, unique=True, nullable=True, index=True)
+    slug: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # TG Username or similar
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    invite_password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mentor_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer, ForeignKey("telegram_subscribers.id", ondelete="SET NULL"), nullable=True
+    )
+    subscriptions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+    language: Mapped[str] = mapped_column(String, server_default="ru", nullable=False)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    role: Mapped[str] = mapped_column(String, server_default="user", nullable=False) # user, admin, superadmin
+    permissions: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+
+class WeeekAccount(TimestampMixin, Base):
+    """
+    Связь аккаунта Telegram с сервисом Weeek.
+    Хранит токены доступа и настройки для управления задачами.
+    """
+    __tablename__ = "weeek_accounts"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    telegram_chat_id: Mapped[int] = mapped_column(sa.BigInteger, ForeignKey("telegram_subscribers.chat_id"), unique=True, index=True)
+    
+    # Weeek credentials
+    weeek_api_token: Mapped[str] = mapped_column(String, nullable=False)  # Encrypted!
+    weeek_user_id: Mapped[str] = mapped_column(String, nullable=True)    # ID пользователя в Weeek
+    weeek_workspace_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    
+    # Personal project setup
+    personal_project_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)  # Проект "Gifty" у юзера
+    personal_board_id: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)    # Основная доска
+    
+    # Preferences
+    reminder_time: Mapped[str] = mapped_column(String, server_default="09:00")  # Время напоминаний
+    timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
+    
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+
