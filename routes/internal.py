@@ -3,7 +3,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from typing import List, Optional
 
-from app.db import get_db, get_redis
+from app.db import get_db
+from app.redis_client import get_redis
 from app.repositories.catalog import PostgresCatalogRepository
 from app.schemas_v2 import ScoringTask, ScoringBatchSubmit
 from app.config import get_settings
