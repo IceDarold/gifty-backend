@@ -91,7 +91,6 @@ nav:
       - Quick Start: guides/onboarding.md
       - Tech Stack & Concepts: guides/tech_stack.md
       - Local Setup: guides/local_setup.md
-      - Telegram Bot: guides/telegram_bot.md
       - GitHub Workflow: guides/github_workflow.md
       - Testing: guides/testing.md
       - Database Guide: guides/database_work.md
@@ -109,11 +108,16 @@ nav:
       - Intelligence API: architecture/intelligence.md
   - Analytics & Monitoring:
       - Dashboard Guide: guides/analytics_api_quickstart.md
+      - Telegram Bot:
+          - User Guide: guides/telegram_bot.md
+          - Internals: architecture/telegram_bot_internals.md
+          - Development Guide: guides/telegram_bot_dev.md
   - Engineering & DevOps:
       - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
       - Overview: api/index.md
+      - Playground: api/playground.md
       - Auth: api/auth.md
       - Public: api/public.md
       - Models: api/models.md
@@ -121,4 +125,4 @@ nav:
       - Repositories: api/repositories.md
       - Analytics: api/analytics.md
       - Internal: api/internal.md
-      - Integrations (Weeek): api/weeek.md
+      - Weeek: api/weeek.md
