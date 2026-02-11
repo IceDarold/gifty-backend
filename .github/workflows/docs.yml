@@ -4,10 +4,6 @@ on:
   push:
     branches:
       - documentation
-    paths:
-      - 'docs/**'
-      - 'mkdocs.yml'
-      - '.github/workflows/docs.yml'
   pull_request:
     branches:
       - documentation
