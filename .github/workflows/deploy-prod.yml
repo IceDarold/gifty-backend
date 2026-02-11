@@ -46,8 +46,10 @@ jobs:
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
           source: ".,!.git,!.venv,!.pytest_cache,!.idea,!.vscode,!.ipynb_checkpoints,!.DS_Store,!site,!__pycache__,!**/*.pyc,!**/*.pyo"
-          target: "/app/gifty-backend"
+          target: "/opt/giftiai-api/gifty-backend"
           rm: false
+          timeout: 120s
+          debug: true
 
       - name: Execute deployment script
         uses: appleboy/ssh-action@v1.0.3
@@ -56,9 +58,12 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
+          command_timeout: 60m
           envs: PROD_ENV
           script: |
-            cd /app/gifty-backend
-            echo "${{ secrets.PROD_ENV_FILE }}" > .env
+            cd /opt/giftiai-api/gifty-backend
+            if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
+              printf "%s" "${{ secrets.PROD_ENV_FILE }}" > .env
+            fi
             chmod +x scripts/deploy.sh
             ./scripts/deploy.sh

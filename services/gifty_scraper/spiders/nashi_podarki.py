@@ -28,15 +28,10 @@ class NashiPodarkiSpider(GiftyBaseSpider):
                 found_urls.add(url)
                 yield CategoryItem(
                     name=name.strip() if name else None,
-                    title=f"[Category] {name.strip()}" if name else None,
-                    price=None,
                     url=url,
                     parent_url=response.url,
                     site_key=self.site_key
                 )
-                
-                # Follow to parse products
-                yield response.follow(url, self.parse_catalog)
 
     def parse_catalog(self, response):
         """
@@ -79,7 +74,7 @@ class NashiPodarkiSpider(GiftyBaseSpider):
             )
 
         # Pagination
-        if self.strategy == "deep":
+        if self.strategy in ["deep", "discovery"]:
             next_page = response.css("div.nums a.next::attr(href)").get()
             if next_page:
                 yield response.follow(next_page, self.parse_catalog)
