@@ -101,6 +101,8 @@ nav:
       - Guide (How to add parser): guides/parsing.md
   - Recommendation Engine:
       - The Philosophy (GUTG): architecture/grand_unified_theory.md
+      - Architecture (Semantic Bridge): architecture/recommendation_engine.md
+      - Quiz System (Input): architecture/quiz_system.md
       - Overview: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
