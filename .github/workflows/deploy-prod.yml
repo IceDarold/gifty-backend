@@ -27,7 +27,8 @@ jobs:
       - name: Run Pytest
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          REDIS_URL: "fakeredis://"
+          REDIS_URL: "redis://localhost:6379"
+          TESTING: "true"
         run: |
           pytest --verbose
 
