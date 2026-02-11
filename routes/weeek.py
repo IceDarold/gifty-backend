@@ -33,46 +33,6 @@ class CreateTaskRequest(BaseModel):
     board_id: Optional[int] = None
     due_date: Optional[str] = None
 
-# Helpers
-def _extract_workspace_id(obj: Dict[str, Any]) -> Optional[int]:
-    if not obj:
-        return None
-    ws_id = obj.get("workspaceId") or obj.get("workspace_id")
-    if ws_id is not None:
-        return ws_id
-    workspace = obj.get("workspace") or {}
-    return workspace.get("id")
-
-def _build_projects_workspace_map(projects: List[Dict[str, Any]]) -> Dict[int, Optional[int]]:
-    mapping: Dict[int, Optional[int]] = {}
-    for proj in projects or []:
-        pid = proj.get("id")
-        if pid is None:
-            continue
-        mapping[pid] = _extract_workspace_id(proj)
-    return mapping
-
-def _filter_tasks_by_workspace(
-    tasks: List[Dict[str, Any]],
-    workspace_id: Optional[int],
-    projects_workspace_map: Dict[int, Optional[int]]
-) -> List[Dict[str, Any]]:
-    if not workspace_id:
-        return tasks
-    filtered: List[Dict[str, Any]] = []
-    for task in tasks:
-        task_ws = _extract_workspace_id(task)
-        if task_ws is not None:
-            if str(task_ws) == str(workspace_id):
-                filtered.append(task)
-            continue
-        project_id = task.get("projectId")
-        if project_id is None:
-            continue
-        if str(projects_workspace_map.get(project_id)) == str(workspace_id):
-            filtered.append(task)
-    return filtered
-
 # Helper
 async def get_weeek_account(db: AsyncSession, telegram_chat_id: int) -> WeeekAccount:
     result = await db.execute(select(WeeekAccount).where(WeeekAccount.telegram_chat_id == telegram_chat_id))
@@ -121,52 +81,7 @@ async def connect_weeek_account(
     else:
         workspace_id = None
 
-    # 3. Check or Create Project 'Gifty 🎁' (Personal Workspace)
-    projects_resp = await temp_client.get_projects()
-    projects = projects_resp.get("projects", [])
-    
-    gifty_project = next((p for p in projects if "Gifty" in p["name"]), None)
-    
-    created_new = False
-    if not gifty_project:
-        proj_resp = await temp_client.create_project({"name": "Gifty 🎁"})
-        if proj_resp.get("success"):
-            gifty_project = proj_resp.get("project")
-            created_new = True
-            
-    personal_project_id = None
-    personal_board_id = None
-
-    if gifty_project:
-        personal_project_id = gifty_project["id"]
-        if created_new:
-            # Create "Onboarding" board
-            board_resp = await temp_client.create_board({"name": "Onboarding", "projectId": personal_project_id})
-            if board_resp.get("success"):
-                board = board_resp.get("board")
-                personal_board_id = board["id"]
-                
-                # Create Column "To Do"
-                col_resp = await temp_client.create_board_column({"name": "To Do", "boardId": personal_board_id})
-                if col_resp.get("success"):
-                    # Create Task
-                    col_id = col_resp["boardColumn"]["id"]
-                    await temp_client.create_task({
-                        "title": "Welcome to Gifty! 🎁", 
-                        "description": "This is your personal workspace. Manage your tasks here!",
-                        "projectId": personal_project_id,
-                        "boardId": personal_board_id,
-                        "boardColumnId": col_id,
-                        "type": "action"
-                    })
-            
-            # Create other boards
-            await temp_client.create_board({"name": "Weekly Goals 🎯", "projectId": personal_project_id})
-            await temp_client.create_board({"name": "Ideas 💡", "projectId": personal_project_id})
-
-    # For now, let's just save the account and handling project creation logic can be refined 
-    # if we add create_project to client.
-    
+    # 3. Save Account
     stmt = select(WeeekAccount).where(WeeekAccount.telegram_chat_id == req.telegram_chat_id)
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
@@ -246,11 +161,16 @@ async def get_tasks(
         is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
                   (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
                   
-        if type != "workspace":
-            is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
-                      (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
-            if not is_mine:
-                continue
+        if type == "workspace":
+             # Return all tasks, skip user filter
+             filtered.append(t)
+             continue
+             
+        is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
+                  (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
+                  
+        if not is_mine:
+             continue
              
         # Date filtering
         # ... logic ...

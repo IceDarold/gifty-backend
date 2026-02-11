@@ -45,7 +45,7 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
-          source: ".,!.git,!.venv,!.pytest_cache,!.idea,!.vscode,!.ipynb_checkpoints,!.DS_Store,!site,!__pycache__,!**/*.pyc,!**/*.pyo"
+          source: "app,alembic,deploy,integrations,routes,scripts,services,requirements.txt,docker-compose.yml,Dockerfile,alembic.ini,README.md,make_migrations.sh"
           target: "/opt/giftiai-api/gifty-backend"
           rm: false
           timeout: 120s
@@ -62,8 +62,6 @@ jobs:
           envs: PROD_ENV
           script: |
             cd /opt/giftiai-api/gifty-backend
-            if [ -n "${{ secrets.PROD_ENV_FILE }}" ]; then
-              printf "%s" "${{ secrets.PROD_ENV_FILE }}" > .env
-            fi
+            echo "${{ secrets.PROD_ENV_FILE }}" > .env
             chmod +x scripts/deploy.sh
             ./scripts/deploy.sh

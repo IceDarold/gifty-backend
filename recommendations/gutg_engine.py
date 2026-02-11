@@ -10,7 +10,7 @@ from recommendations.models import QuizAnswers, GiftingGoal, EffortLevel, Sessio
 
 logger = logging.getLogger(__name__)
 
-# --- GUTG Core Definitions (Unchanged) ---
+# --- GUTG Core Definitions ---
 
 class GiftingGap(str, Enum):
     MIRROR = "the_mirror"        # I see who you are
@@ -32,20 +32,19 @@ class GapSubtype(str, Enum):
     STARTER = "starter"
     ACCELERATOR = "accelerator"
     # Anchor
-    TIME_CAPSULE = "time_capsule" # High effort usually
+    TIME_CAPSULE = "time_capsule" 
     RITUAL_BUILDER = "ritual_builder"
     # Permission
     QUIET_PREMIUM = "quiet_premium"
     SENSORY_TREAT = "sensory_treat"
     STATUS_QUIET_REWARD = "status_quiet_reward" 
-    # (Leaving some out for brevity, but full list should be here)
 
 class UserProfile(BaseModel):
     # The probabilistic profile
     scores: Dict[GiftingGap, float] = Field(default_factory=dict)
     subtype_scores: Dict[GapSubtype, float] = Field(default_factory=dict)
     
-    # Meta-constraints (stored for the engine to use later)
+    # Meta-constraints
     required_effort: EffortLevel = EffortLevel.LOW
     deadline_days: Optional[int] = None
     
@@ -62,8 +61,8 @@ class GiftIdea(BaseModel):
     subtypes: List[GapSubtype] = []
     
     # Meta-tags for filtering
-    min_effort: EffortLevel = EffortLevel.LOW # "How hard is it to execute this idea?"
-    is_custom: bool = False # Requires customization?
+    min_effort: EffortLevel = EffortLevel.LOW 
+    is_custom: bool = False 
     
     search_queries: List[str]
     why_it_fits: str
@@ -72,7 +71,7 @@ class GiftIdea(BaseModel):
 
 class GUTGEngine:
     def __init__(self):
-        # Mock Idea Library with Effort Tags
+        # Mock Idea Library
         self.idea_library = [
             GiftIdea(
                 id="diy_scrapbook",
@@ -80,7 +79,7 @@ class GUTGEngine:
                 description="A collection of your shared moments.",
                 primary_gap=GiftingGap.ANCHOR,
                 subtypes=[GapSubtype.TIME_CAPSULE],
-                min_effort=EffortLevel.HIGH, # Requires work!
+                min_effort=EffortLevel.HIGH,
                 is_custom=True,
                 search_queries=["scrapbook kit", "photo album adhesive", "gel pens"],
                 why_it_fits="Perfect for preserving your unique history."
@@ -91,7 +90,7 @@ class GUTGEngine:
                 description="Status symbol for their desk.",
                 primary_gap=GiftingGap.PERMISSION,
                 subtypes=[GapSubtype.STATUS_QUIET_REWARD],
-                min_effort=EffortLevel.NO_EFFORT, # Buy and give
+                min_effort=EffortLevel.NO_EFFORT,
                 search_queries=["parker pen", "montblanc pen"],
                 why_it_fits="A subtle nod to their professional success."
             ),
@@ -118,39 +117,31 @@ class GUTGEngine:
             deadline_days=quiz.deadline_days
         )
         
-        # 1. Base Logic from Interests/Vibe (The "What")
-        # ... (Same NLP logic as before) ...
+        # 1. Base Logic from Interests/Vibe
         vibe = (quiz.vibe or "").lower()
         if 'cozy' in vibe:
             self._boost(profile, GiftingGap.OPTIMIZER, 0.4)
             self._boost_sub(profile, GapSubtype.COMFORT_REGULATOR, 0.5)
         
-        # 2. Intent Logic (The "Why") - This is NEW
-        
-        # GOAL: IMPRESS -> Boost Mirror (Show I know you) and Permission (Status)
+        # 2. Intent Logic
         if quiz.gifting_goal == GiftingGoal.IMPRESS:
             self._boost(profile, GiftingGap.MIRROR, 0.3)
             self._boost(profile, GiftingGap.PERMISSION, 0.2)
             self._boost_sub(profile, GapSubtype.STATUS_QUIET_REWARD, 0.4)
             
-        # GOAL: CARE -> Boost Optimizer (Comfort) and Anchor (Protection)
         elif quiz.gifting_goal == GiftingGoal.CARE:
             self._boost(profile, GiftingGap.OPTIMIZER, 0.3)
             self._boost(profile, GiftingGap.ANCHOR, 0.2)
             self._boost_sub(profile, GapSubtype.COMFORT_REGULATOR, 0.4)
             
-        # GOAL: PROTOCOL -> Boost Permission (Safe visuals), penalize risky Mirror
         elif quiz.gifting_goal == GiftingGoal.PROTOCOL:
-            self._boost(profile, GiftingGap.PERMISSION, 0.4) # Safe aesthetic gifts
-            # Penalize personal stuff
+            self._boost(profile, GiftingGap.PERMISSION, 0.4) 
             if GiftingGap.MIRROR in profile.scores:
                 profile.scores[GiftingGap.MIRROR] *= 0.5 
                 
-        # 3. Relationship Logic (The "Who")
+        # 3. Relationship Logic
         if quiz.relationship == RecipientRelation.COLLEAGUE:
-            # Safe bets only
             self._boost(profile, GiftingGap.OPTIMIZER, 0.3)
-            # Kill Anchor (too intimate)
             profile.scores[GiftingGap.ANCHOR] = 0.0
             
         elif quiz.relationship in [RecipientRelation.PARTNER, RecipientRelation.BEST_FRIEND]:
@@ -165,21 +156,16 @@ class GUTGEngine:
         scored_ideas = []
         
         for idea in self.idea_library:
-            # --- FILTER 1: Effort ---
-            # If user wants LOW effort, hide HIGH effort ideas
             if self._is_effort_too_high(user_effort=profile.required_effort, idea_effort=idea.min_effort):
                 continue
             
-            # --- SCORING ---
             score = 0.0
             score += profile.scores.get(idea.primary_gap, 0.0) * 1.0
-            
             for st in idea.subtypes:
                 score += profile.subtype_scores.get(st, 0.0) * 0.5
             
             scored_ideas.append((score, idea))
         
-        # Sort and return
         scored_ideas.sort(key=lambda x: x[0], reverse=True)
         return [x[1] for x in scored_ideas[:limit]]
 
@@ -190,11 +176,10 @@ class GUTGEngine:
         profile.subtype_scores[sub] = min(1.0, profile.subtype_scores.get(sub, 0.0) + amount)
 
     def _is_effort_too_high(self, user_effort: EffortLevel, idea_effort: EffortLevel) -> bool:
-        # Simple hierarchy: NO_EFFORT < LOW < MEDIUM < HIGH
         levels = {
             EffortLevel.NO_EFFORT: 0,
             EffortLevel.LOW: 1,
             EffortLevel.MEDIUM: 2,
             EffortLevel.HIGH: 3
         }
-        return levels[idea_effort] > levels[user_effort]
+        return levels[idea_effort] > levels.get(user_effort, 1)
