@@ -46,7 +46,7 @@
     - `hp` (string, optional): Honeypot (оставить пустым).
 
 ### 2. Заявка партнера (`/partner-contact`)
-Триггерит уведомление в Telegram по топику `partners`. На текущий момент только уведомляет команду, не сохраняя в БД.
+Триггерит уведомление в Telegram по топику `partners` и сохраняет данные в БД.
 
 *   **URL**: `/api/v1/public/partner-contact`
 *   **Метод**: `POST`

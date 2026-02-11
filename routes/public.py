@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
 from app.db import get_db
-from app.models import TeamMember, InvestorContact
+from app.models import TeamMember, InvestorContact, PartnerContact
 from app.schemas.public import (
     TeamMemberSchema, 
     InvestorContactCreate, 
@@ -112,15 +112,29 @@ async def create_investor_contact(
 async def create_partner_contact(
     request: Request,
     data: PartnerContactCreate,
+    db: AsyncSession = Depends(get_db),
     notifications: NotificationService = Depends(get_notification_service)
 ):
     """
-    Partner contact form skeleton.
+    Partner contact form. Now saves to DB and notifies.
     """
     if data.hp:
         return {"ok": True}
     
-    # For now, we only notify. We can add DB storage later if needed.
+    # 1. Save to DB
+    contact = PartnerContact(
+        name=data.name,
+        company=data.company,
+        email=data.email,
+        website_url=str(data.website) if data.website else None,
+        message=data.message,
+        ip=request.client.host if request.client else None,
+        user_agent=request.headers.get("user-agent")
+    )
+    db.add(contact)
+    await db.commit()
+    
+    # 2. Notify
     message = (
         f"🤝 *New Partner Lead*\n"
         f"Name: {data.name}\n"
@@ -129,7 +143,7 @@ async def create_partner_contact(
         f"Website: {data.website or 'N/A'}\n"
         f"Message: {data.message}"
     )
-    await notifications.notify(topic="partners", message=message, data=data.dict())
+    await notifications.notify(topic="partners", message=message, data=data.model_dump())
     return {"ok": True}
 
 
@@ -146,5 +160,5 @@ async def newsletter_subscribe(
         return {"ok": True}
     
     message = f"📧 *New Newsletter Subscription*: {data.email}"
-    await notifications.notify(topic="newsletter", message=message, data=data.dict())
+    await notifications.notify(topic="newsletter", message=message, data=data.model_dump())
     return {"ok": True}
