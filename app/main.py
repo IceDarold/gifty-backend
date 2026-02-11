@@ -10,12 +10,9 @@ from routes.recommendations import router as recommendations_router
 from routes.internal import router as internal_router
 from routes.analytics import router as analytics_router
 from routes.public import router as public_router
-from routes.recipients import router as recipients_router
 from app.routes.integrations import router as integrations_router
-from app.routes.workers import router as workers_router
 from routes.weeek import router as weeek_router
 from app.config import get_settings
-from app.core.logic_config import logic_config
 from app.redis_client import init_redis
 from app.utils.errors import install_exception_handlers
 from app.services.embeddings import EmbeddingService
@@ -30,13 +27,13 @@ async def lifespan(app: FastAPI):
     app.state.redis = await init_redis()
     
     # Initialize Embedding Service (stub)
-    app.state.embedding_service = EmbeddingService(model_name=logic_config.llm.model_embedding)
+    app.state.embedding_service = EmbeddingService(model_name=settings.embedding_model)
     # No heavy loading here
     
     try:
         yield
     finally:
-        await app.state.redis.aclose()
+        await app.state.redis.close()
 
 
 from scalar_fastapi import get_scalar_api_reference
@@ -84,11 +81,9 @@ origins = [
     "https://dev.giftyai.ru",
     "https://doc.giftyai.ru",
     "https://aistudio.google.com",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
     "http://localhost:5173",
     "http://localhost:8000",
-    "http://localhost:8001"
+    "http://localhost:8001",
 ]
 
 app.add_middleware(
@@ -103,11 +98,9 @@ app.add_middleware(
 install_exception_handlers(app)
 app.include_router(auth_router)
 app.include_router(recommendations_router)
-app.include_router(recipients_router)
 app.include_router(internal_router)
 app.include_router(analytics_router)
 app.include_router(integrations_router)
-app.include_router(workers_router)
 app.include_router(public_router)
 app.include_router(weeek_router)
 
