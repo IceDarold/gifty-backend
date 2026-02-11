@@ -89,6 +89,7 @@ nav:
   - Home: index.md
   - Onboarding:
       - Quick Start: guides/onboarding.md
+      - Tech Stack & Concepts: guides/tech_stack.md
       - Local Setup: guides/local_setup.md
       - Telegram Bot: guides/telegram_bot.md
       - GitHub Workflow: guides/github_workflow.md
@@ -113,9 +114,11 @@ nav:
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
       - Overview: api/index.md
+      - Auth: api/auth.md
+      - Public: api/public.md
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
       - Analytics: api/analytics.md
       - Internal: api/internal.md
-      - Integrations (Weeek): weeek_api_reference.md
+      - Integrations (Weeek): api/weeek.md
