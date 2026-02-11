@@ -78,8 +78,11 @@ origins = [
     frontend_origin,
     "https://giftyai.ru",
     "https://analytics.giftyai.ru",
+    "https://dev.giftyai.ru",
+    "https://doc.giftyai.ru",
     "https://aistudio.google.com",
     "http://localhost:5173",
+    "http://localhost:8000",
     "http://localhost:8001",
 ]
 
