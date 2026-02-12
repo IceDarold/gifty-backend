@@ -102,7 +102,7 @@ async def create_investor_contact(
         f"LinkedIn: {html.escape(str(data.linkedin) or 'N/A')}"
     )
     # We await it here. In a high-load scenario, we could use BackgroundTasks.
-    await notifications.notify(topic="investors", message=message, data=data)
+    await notifications.notify(topic="investors", message=message, data=data.model_dump())
     
     logger.info(f"New investor contact saved and notified: {data.email}")
     return {"ok": True}
