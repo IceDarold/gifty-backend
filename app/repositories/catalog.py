@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, Sequence
 
 import sqlalchemy as sa
 from sqlalchemy import and_, func, select, update

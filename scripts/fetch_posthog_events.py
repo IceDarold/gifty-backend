@@ -56,7 +56,7 @@ def main():
         with open("posthog_events.json", "w") as f:
             json.dump(events, f, indent=2)
         
-        print(f"\n💾 Full data saved to: posthog_events.json")
+        print("\n💾 Full data saved to: posthog_events.json")
         
     except httpx.HTTPStatusError as e:
         print(f"❌ API Error: {e.response.status_code}")

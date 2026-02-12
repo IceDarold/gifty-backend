@@ -4,7 +4,6 @@ Revision ID: c1d2e3f4a5b6
 Revises: a1b2c3d4e5f6, e5895b01411f
 Create Date: 2026-02-09
 """
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "c1d2e3f4a5b6"

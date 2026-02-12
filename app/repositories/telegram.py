@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import Optional, List, Sequence
-from sqlalchemy import select, update, and_, delete
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models import TelegramSubscriber
 

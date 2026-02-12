@@ -1,4 +1,3 @@
-import scrapy
 import re
 from gifty_scraper.base_spider import GiftyBaseSpider
 

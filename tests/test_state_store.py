@@ -1,5 +1,4 @@
 import asyncio
-import pytest
 from fakeredis.aioredis import FakeRedis
 
 from app.auth import state_store

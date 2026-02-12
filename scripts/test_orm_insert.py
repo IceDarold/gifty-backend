@@ -11,7 +11,6 @@ sys.path.append(str(project_root))
 from app.db import get_session_context
 from app.models import Product, ProductEmbedding
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy import select
 
 async def main():
     print("Testing ORM insert...")

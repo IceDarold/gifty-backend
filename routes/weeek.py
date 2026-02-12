@@ -1,13 +1,13 @@
-from datetime import datetime, date
-from typing import Optional, List, Dict, Any
+from datetime import date
+from typing import Optional, Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Header, Body
+from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
-from pydantic import BaseModel, Field
+from sqlalchemy import select
+from pydantic import BaseModel
 
 from app.db import get_db
-from app.models import WeeekAccount, TelegramSubscriber
+from app.models import WeeekAccount
 from app.config import get_settings
 from app.services.weeek import WeeekClient
 from routes.internal import verify_internal_token

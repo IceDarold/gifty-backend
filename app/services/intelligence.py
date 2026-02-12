@@ -1,6 +1,6 @@
 import httpx
 import logging
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)

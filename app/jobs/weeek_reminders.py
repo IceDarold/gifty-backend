@@ -1,6 +1,6 @@
 
 import logging
-from datetime import datetime, timedelta, date, time
+from datetime import datetime, timedelta, date
 from app.db import get_session_context
 from sqlalchemy import select
 from app.models import WeeekAccount

@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends, Request, Header
-from typing import Dict, Any, List
+from typing import Dict, Any
 import httpx
-from datetime import datetime, timedelta
+from datetime import datetime
 from app.config import get_settings, Settings
 from app.redis_client import get_redis
 from redis.asyncio import Redis

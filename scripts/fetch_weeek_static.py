@@ -3,7 +3,7 @@ import asyncio
 import httpx
 import json
 import logging
-from typing import List, Dict, Any, Optional
+from typing import Dict
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)

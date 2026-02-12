@@ -8,7 +8,6 @@ project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
 from app.jobs.embeddings import process_embeddings_job
-from app.config import get_settings
 
 # Configure logging
 logging.basicConfig(

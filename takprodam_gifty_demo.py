@@ -1,11 +1,9 @@
 import os
 import time
-import hmac
 import json
-import hashlib
 import sqlite3
 from dataclasses import dataclass
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
 import requests
 from fastapi import FastAPI, HTTPException, Request

@@ -156,7 +156,7 @@ class MVideoSpider(GiftyBaseSpider):
             products_ids = body.get('products', [])
             
             if not products_ids:
-                 self.logger.info(f"No product IDs in response.")
+                 self.logger.info("No product IDs in response.")
                  return
 
             self.logger.info(f"Fetched {len(products_ids)} IDs from API. Fetching details...")

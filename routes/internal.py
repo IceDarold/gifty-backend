@@ -8,7 +8,6 @@ from app.repositories.catalog import PostgresCatalogRepository
 from app.schemas_v2 import ScoringTask, ScoringBatchSubmit
 from app.config import get_settings
 
-from app.config import get_settings
 from app.utils.telegram_auth import verify_telegram_init_data
 from app.repositories.parsing import ParsingRepository
 from app.repositories.telegram import TelegramRepository
@@ -424,7 +423,6 @@ async def get_backlog_stats(
     return {"discovered_today": count}
 
 from app.schemas_v2 import CategoryMappingTask, CategoryBatchSubmit
-from app.repositories.parsing import ParsingRepository
 
 @router.get("/categories/tasks", response_model=List[CategoryMappingTask], summary="Получить категории для маппинга")
 async def get_category_tasks(
@@ -446,7 +444,6 @@ async def submit_category_mappings(
     count = await repo.update_category_mappings([r.model_dump() for r in batch.results])
     return {"status": "ok", "updated": count}
 
-from app.repositories.telegram import TelegramRepository
 from pydantic import BaseModel
 import hashlib
 

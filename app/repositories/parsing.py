@@ -285,7 +285,7 @@ class ParsingRepository:
         return result.scalars().all()
 
     async def get_total_products_count(self, site_key: str) -> int:
-        from app.models import Product, ParsingSource, ParsingRun
+        from app.models import Product
         # Approximate count based on gift_id prefix
         stmt = select(func.count()).select_from(Product).where(Product.gift_id.like(f"{site_key}:%"))
         result = await self.session.execute(stmt)

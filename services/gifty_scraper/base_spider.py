@@ -1,5 +1,5 @@
 import scrapy
-from gifty_scraper.items import ProductItem, CategoryItem
+from gifty_scraper.items import ProductItem
 
 class GiftyBaseSpider(scrapy.Spider):
     """

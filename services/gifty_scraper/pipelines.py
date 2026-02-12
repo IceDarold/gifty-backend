@@ -2,10 +2,8 @@ from itemadapter import ItemAdapter
 import logging
 import httpx
 import os
-import asyncio
-from typing import List
 from gifty_scraper.metrics import scraped_items_total, ingestion_batches_total, ingestion_items_total
-from gifty_scraper.items import ProductItem, CategoryItem
+from gifty_scraper.items import ProductItem
 
 class IngestionPipeline:
     def __init__(self):

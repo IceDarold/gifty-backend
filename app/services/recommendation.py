@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Optional
+from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.schemas_v2 import RecommendationRequest, RecommendationResponse, GiftDTO
 from app.repositories.catalog import PostgresCatalogRepository

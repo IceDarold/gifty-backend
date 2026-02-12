@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import Depends, Request
+from fastapi import Request
 from redis.asyncio import Redis, from_url
 
 from app.config import get_settings

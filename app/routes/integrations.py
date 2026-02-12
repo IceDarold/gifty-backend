@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, Depends
+from fastapi import APIRouter, Query
 from typing import List, Optional
 from app.services.weeek import WeeekClient
 

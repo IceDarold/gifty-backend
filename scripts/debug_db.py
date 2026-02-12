@@ -6,11 +6,9 @@ from pathlib import Path
 project_root = Path(__file__).resolve().parent.parent
 sys.path.append(str(project_root))
 
-from sqlalchemy import text, MetaData, Table, Column, Integer
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine
 from sqlalchemy.engine import make_url
-from pgvector.sqlalchemy import Vector
-from pgvector.asyncpg import register_vector
 from app.config import get_settings
 
 async def main():

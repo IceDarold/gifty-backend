@@ -1,7 +1,5 @@
 import logging
-from typing import List
 from app.db import get_session_context
-from app.repositories.parsing import ParsingRepository
 from app.models import CategoryMap
 from sqlalchemy import select
 

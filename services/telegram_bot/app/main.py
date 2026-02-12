@@ -55,7 +55,7 @@ client = TelegramInternalClient(
 )
 weeek_client = WeeekClient()
 
-async def smart_edit(message: Message, text: str = None, reply_markup = None, photo_url: str = None, parse_mode: str = "Markdown"):
+async def smart_edit(message: Message, text: str | None = None, reply_markup = None, photo_url: str | None = None, parse_mode: str = "Markdown"):
     """
     Smartly edits a message or sends a new one if media type changes.
     Prevents 'there is no text in the message to edit' errors.
@@ -89,10 +89,10 @@ async def smart_edit(message: Message, text: str = None, reply_markup = None, ph
         else:
             await message.answer(text, parse_mode=parse_mode, reply_markup=reply_markup)
 
-def get_lang(user_data: dict) -> str:
+def get_lang(user_data: dict | None) -> str:
     return user_data.get("language", "ru") if user_data else "ru"
 
-def has_permission(user_data: dict, permission: str) -> bool:
+def has_permission(user_data: dict | None, permission: str) -> bool:
     if not user_data:
         return False
     if user_data.get("role") == "superadmin":
@@ -107,7 +107,7 @@ def t(key: str, lang: str, **kwargs):
         return text.format(**kwargs)
     return text
 
-def get_main_keyboard(lang: str, sub: dict = None):
+def get_main_keyboard(lang: str, sub: dict | None = None):
     keyboard = []
     
     # Row 1: Stats & Health
@@ -312,7 +312,10 @@ async def cmd_become_superadmin(message: Message, command: CommandObject):
 @dp.message(Command("users"))
 async def cmd_users(message: Message):
     sub = await client.get_subscriber(message.chat.id)
-    if not sub or sub.get("role") != "superadmin":
+    if sub is None:
+        await message.answer(t("superadmin_only", "ru"))
+        return
+    if sub.get("role") != "superadmin":
         lang = get_lang(sub)
         await message.answer(t("superadmin_only", lang))
         return
@@ -355,7 +358,7 @@ async def _show_perms_list(callback_query: CallbackQuery, user_id: int, lang: st
     
     text = t("perms_list_title", lang, name=user.get("name") or user.get("slug") or user.get("chat_id"))
     if is_super:
-        text += f"\n\n👑 *Inherited from Superadmin*"
+        text += "\n\n👑 *Inherited from Superadmin*"
         
     rows = []
     for p in AVAILABLE_PERMS:
@@ -1029,10 +1032,12 @@ async def process_spider_action(callback_query: CallbackQuery, state: FSMContext
             await callback_query.answer("No history available", show_alert=True)
             return
             
-        history = source["history"]
+        history_list = list(source.get("history") or [])
         # Prepare data for graph
-        dates = [h["date"][:10] for h in history][::-1]
-        counts = [h["items_new"] for h in history][::-1]
+        dates = [h["date"][:10] for h in history_list]
+        dates.reverse()
+        counts = [h["items_new"] for h in history_list]
+        counts.reverse()
         
         # Simple QuickChart URL
         chart_config = {
@@ -1466,7 +1471,8 @@ async def cmd_tasks(message: Message):
     # routes/weeek.py: type="all" filters by userId. So 'tasks' are MY tasks.
     
     # Count overdue
-    today_iso = __import__("datetime").date.today().isoformat()
+    from datetime import date
+    today_iso = date.today().isoformat()
     overdue_count = sum(1 for t in tasks if t.get("date") and t.get("date") < today_iso and not t.get("isCompleted"))
     active_count = sum(1 for t in tasks if not t.get("isCompleted"))
     
@@ -1511,7 +1517,8 @@ async def process_tasks_callback(callback_query: CallbackQuery, state: FSMContex
             tasks = tasks_resp.get("tasks", []) if tasks_resp else []
             
             my_count = len(tasks)
-            today_iso = __import__("datetime").date.today().isoformat()
+            from datetime import date
+            today_iso = date.today().isoformat()
             overdue_count = sum(1 for t in tasks if t.get("date") and t.get("date") < today_iso and not t.get("isCompleted"))
             active_count = sum(1 for t in tasks if not t.get("isCompleted"))
             

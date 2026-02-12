@@ -1,0 +1,903 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/hats/thumbnails/SH020-1_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Black Mink Fur Ushanka Hat",
+    "price": "499.99",
+    "product_url": "https://russianlegacy.com/black-mink-fur-ushanka-hat",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10009"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Black Mink Fur Ushanka Hat"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/eggs/GG00805.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Easter Decorative Egg",
+    "price": "19.99",
+    "product_url": "https://russianlegacy.com/easter-decorative-egg",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10614"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Easter Decorative Egg"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/hats/SH030.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Karakul Shepherd Hat",
+    "price": "229.99",
+    "product_url": "https://russianlegacy.com/karakul-shepherd-hat",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10071"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Karakul Shepherd Hat"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/clocks_n_watches/thumbnails/w51224_thumbnail.png",
+    "merchant": "Russian Legacy",
+    "name": "Modern Vostok Women's Watch",
+    "price": "179.99",
+    "product_url": "https://russianlegacy.com/modern-vostok-womens-watch",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10090"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Modern Vostok Women's Watch"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/scarves/thumbnails/P10788-10a_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Oriental Woolen Scarf",
+    "price": "79.99",
+    "product_url": "https://russianlegacy.com/oriental-woolen-scarf",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10153"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Oriental Woolen Scarf"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/eggs/F2211.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Royal Blue Faberge Style Egg",
+    "price": "59.99",
+    "product_url": "https://russianlegacy.com/royal-blue-faberge-style-egg",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9999"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Royal Blue Faberge Style Egg"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C20008_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Mountains 2024 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/mountains-2024-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9466"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Mountains 2024 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C20002_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Kronstadt 2024 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/kronstadt-2024-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9471"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Kronstadt 2024 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22637_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Northern Venice 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/northern-venice-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9478"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Northern Venice 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbs/GG21104.jpg",
+    "merchant": "Russian Legacy",
+    "name": "St Petersburg in Winter 2023 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/st-petersburg-in-winter-2023-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9920"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Petersburg in Winter 2023 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08010_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Oceans 2024 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/oceans-2024-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9923"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Oceans 2024 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08019_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Tsars 2026 Wall Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/russian-tsars-2026-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10121"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Tsars 2026 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21027_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Golden Ring 2026 Russian Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/golden-ring-2026-russian-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10130"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Golden Ring 2026 Russian Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22037_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Moscow Views 2026 Wall Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/moscow-views-2026-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10131"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Moscow Views 2026 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08005_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Nature's Colors 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/natures-colors-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10134"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Nature's Colors 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21046_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Icons 2026 Orthodox Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/russian-icons-2026-orthodox-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10158"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Icons 2026 Orthodox Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21043_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Holy Russia 2026 Wall Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/holy-russia-2026-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10159"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Holy Russia 2026 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08018_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Flower Bouquets 2025 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/flower-bouquets-2025-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10160"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Flower Bouquets 2025 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/hats/thumbnails/SH467_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Beaver Fur & Karakul Boyarka Hat",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/beaver-fur-karakul-boyarka-hat",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10744"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Beaver Fur & Karakul Boyarka Hat"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/bottle_holders/B150.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Native American Bottle Holder",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/native-american-bottle-holder",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "9506"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Native American Bottle Holder"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/soviet_collection/badges/B1020.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Cars 100 Soviet Lapel Pins",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/cars-100-soviet-lapel-pins",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10363"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Cars 100 Soviet Lapel Pins"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/thumbs/bottle_holders/B999.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Beatles Bottle Case",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/beatles-bottle-case",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10671"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Beatles Bottle Case"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/hats/thumbnails/SH468_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Black Mink Fur & Karakul Boyarka Hat",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/black-mink-fur-karakul-boyarka-hat",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10743"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Black Mink Fur & Karakul Boyarka Hat"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21023_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Orthodox Icons 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/orthodox-icons-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10161"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Orthodox Icons 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22449_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Hermitage Masterpieces 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/hermitage-masterpieces-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10162"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Hermitage Masterpieces 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22449_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "State Russian Museum 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/state-russian-museum-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10163"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "State Russian Museum 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21062_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Saint Petersburg 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/saint-petersburg-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10164"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Saint Petersburg 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21052_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Impressionists 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/impressionists-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10165"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Impressionists 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08209_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Moscow 2024 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/moscow-2024-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10167"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Moscow 2024 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22263_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "White Nights 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/white-nights-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10168"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "White Nights 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21101_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Pushkin's Fairy Tales 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/pushkins-fairy-tales-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10169"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Pushkin's Fairy Tales 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21024_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Communist Propaganda 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/communist-propaganda-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10170"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Communist Propaganda 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21044_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Wonders 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/russian-wonders-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10171"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Wonders 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21687_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Tea Drinking 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/russian-tea-drinking-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10352"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Tea Drinking 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C20003_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Miraculous Icons 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/miraculous-icons-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10355"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Miraculous Icons 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C20009_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Mountain Landscapes 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/mountain-landscapes-2024-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10433"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Mountain Landscapes 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22450_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "St Petersburg & Its Environs 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/st-petersburg-environs-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10436"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Petersburg & Its Environs 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21115_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Ivan Aivazovsky 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/ivan-aivazovsky-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10438"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Ivan Aivazovsky 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22233_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Van Gogh 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/van-gogh-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10441"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Van Gogh 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C20013_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "St Pete in Watercolors 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/st-pete-in-watercolors-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10449"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Pete in Watercolors 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21995_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Avant-Garde 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/russian-avant-garde-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10455"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Avant-Garde 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21999_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Moscow in Watercolors 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/moscow-in-watercolors-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10459"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Moscow in Watercolors 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C09102_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Famous Soviets 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/famous-soviets-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10470"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Famous Soviets 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C07202_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Food 2025 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/russian-food-2025-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10471"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Food 2025 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21049_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Soviet Propaganda 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/soviet-propaganda-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10472"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Soviet Propaganda 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21098_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "St Petersburg 2025 Wall Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/st-petersburg-2025-wall-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10473"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Petersburg 2025 Wall Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21025_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "St Petersburg by Night 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/st-petersburg-by-night-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10632"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Petersburg by Night 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG21087_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Nature 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/russian-nature-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10697"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Nature 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22453_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Russian Orthodox 2025 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/russian-orthodox-2025-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10720"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Russian Orthodox 2025 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22007_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "St Pete from Above 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/st-pete-from-above-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10721"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Pete from Above 2026 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C70003_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "St Petersburg Views 2023 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/st-petersburg-views-2023-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10728"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "St Petersburg Views 2023 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/GG22195_thumbnail.jpg",
+    "merchant": "Russian Legacy",
+    "name": "Claude Monet 2024 Calendar",
+    "price": "0.00",
+    "product_url": "https://russianlegacy.com/claude-monet-2024-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10730"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "Claude Monet 2024 Calendar"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://russianlegacy.com/assets/images/calendars/thumbnails/C08003_thumbnail.jpeg",
+    "merchant": "Russian Legacy",
+    "name": "World's Greatest Cities 2026 Calendar",
+    "price": "39.99",
+    "product_url": "https://russianlegacy.com/worlds-greatest-cities-2026-calendar",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "catalog_id": "10738"
+    },
+    "site_key": "russianlegacy",
+    "source_id": null,
+    "title": "World's Greatest Cities 2026 Calendar"
+}
+]

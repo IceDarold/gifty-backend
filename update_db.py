@@ -1,7 +1,6 @@
 import asyncio
 from app.db import engine, Base
 # Import models so they are registered in Base.metadata
-import app.models 
 
 async def init():
     print("Creating tables...")

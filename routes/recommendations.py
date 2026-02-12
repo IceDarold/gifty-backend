@@ -1,8 +1,8 @@
 import uuid
 import logging
-from typing import Any, Optional
+from typing import Optional
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request
+from fastapi import APIRouter, Depends, status, Request
 from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession

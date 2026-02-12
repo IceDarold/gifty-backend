@@ -1,7 +1,6 @@
 import logging
-import re
 from typing import List, Optional, Set
-from datetime import datetime, timedelta
+from datetime import datetime
 from urllib.parse import urlparse, urlunparse, parse_qsl, urlencode
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.repositories.catalog import PostgresCatalogRepository

@@ -3,13 +3,13 @@ import logging
 from typing import Optional, List
 
 class TelegramInternalClient:
-    def __init__(self, api_base: str, token: str, analytics_token: str = None):
+    def __init__(self, api_base: str, token: str, analytics_token: str | None = None):
         self.api_base = api_base.rstrip("/")
         self.headers = {"X-Internal-Token": token}
         self.analytics_headers = {"X-Analytics-Token": analytics_token} if analytics_token else {}
         self.logger = logging.getLogger("TelegramBot")
 
-    async def get_subscriber(self, chat_id: int):
+    async def get_subscriber(self, chat_id: int) -> dict | None:
         url = f"{self.api_base}/internal/telegram/subscribers/{chat_id}"
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, headers=self.headers)
@@ -17,14 +17,14 @@ class TelegramInternalClient:
                 return resp.json()
             return None
 
-    async def get_subscriber_by_username(self, username: str):
+    async def get_subscriber_by_username(self, username: str) -> dict | None:
         url = f"{self.api_base}/internal/telegram/subscribers/by-username/{username}"
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, headers=self.headers)
             if resp.status_code == 200:
                 return resp.json()
             return None
-    async def create_subscriber(self, chat_id: int, name: str = None, slug: str = None):
+    async def create_subscriber(self, chat_id: int, name: str | None = None, slug: str | None = None) -> dict | None:
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
             resp = await client.post(
@@ -38,9 +38,9 @@ class TelegramInternalClient:
         self,
         username: str,
         password: str,
-        name: str = None,
-        mentor_id: Optional[int] = None,
-        permissions: Optional[List[str]] = None,
+        name: str | None = None,
+        mentor_id: int | None = None,
+        permissions: list[str] | None = None,
     ):
         url = f"{self.api_base}/internal/telegram/invites"
         payload = {
@@ -54,13 +54,13 @@ class TelegramInternalClient:
             resp = await client.post(url, json=payload, headers=self.headers)
             return resp.json() if resp.status_code == 200 else None
 
-    async def claim_invite(self, username: str, password: str, chat_id: int, name: str = None):
+    async def claim_invite(self, username: str, password: str, chat_id: int, name: str | None = None) -> dict | None:
         url = f"{self.api_base}/internal/telegram/invites/claim"
         payload = {"username": username, "password": password, "chat_id": chat_id, "name": name}
         async with httpx.AsyncClient() as client:
             resp = await client.post(url, json=payload, headers=self.headers)
             return resp.json() if resp.status_code == 200 else None
-    async def get_all_subscribers(self):
+    async def get_all_subscribers(self) -> list[dict]:
         url = f"{self.api_base}/internal/telegram/subscribers"
         async with httpx.AsyncClient() as client:
             resp = await client.get(url, headers=self.headers)
@@ -158,7 +158,7 @@ class TelegramInternalClient:
             resp = await client.post(url, params={"is_active": is_active}, headers=self.headers)
             return resp.status_code == 200
 
-    async def force_run_source(self, source_id: int, strategy: str = None):
+    async def force_run_source(self, source_id: int, strategy: str | None = None):
         url = f"{self.api_base}/internal/sources/{source_id}/force-run"
         params = {"strategy": strategy} if strategy else {}
         async with httpx.AsyncClient() as client:
@@ -200,7 +200,7 @@ class TelegramInternalClient:
                 self.logger.error(f"Weeek connect exception: {e}")
                 return None
 
-    async def get_tasks(self, chat_id: int, type: str = "all", project_id: int = None):
+    async def get_tasks(self, chat_id: int, type: str = "all", project_id: int | None = None):
         url = f"{self.api_base}/internal/weeek/tasks"
         params = {"telegram_chat_id": chat_id, "type": type}
         if project_id:
@@ -210,7 +210,7 @@ class TelegramInternalClient:
             resp = await client.get(url, params=params, headers=self.headers)
             return resp.json() if resp.status_code == 200 else None
 
-    async def create_task(self, chat_id: int, title: str, description: str = None, due_date: str = None):
+    async def create_task(self, chat_id: int, title: str, description: str | None = None, due_date: str | None = None):
         url = f"{self.api_base}/internal/weeek/tasks"
         data = {
             "telegram_chat_id": chat_id,
