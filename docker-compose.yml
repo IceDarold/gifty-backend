@@ -40,6 +40,9 @@ services:
     command: [ "redis-server", "--save", "", "--appendonly", "no" ]
     volumes:
       - redisdata:/data
+    ports:
+      - "127.0.0.1:6379:6379"
+
     healthcheck:
       test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
@@ -72,6 +75,9 @@ services:
     env_file: .env
     environment:
       CORE_API_URL: http://api:8000/internal/ingest-batch
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+
     depends_on:
       rabbitmq:
         condition: service_healthy
@@ -134,6 +140,9 @@ services:
       - .:/app
     environment:
       API_BASE: "http://api:8000"
+      REDIS_URL: redis://redis:6379/0
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672/
+
     depends_on:
       - postgres
       - redis

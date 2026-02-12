@@ -180,13 +180,24 @@ async def get_analytics_stats(
             if results_shown > 0:
                 gift_ctr = round((gift_clicked / results_shown) * 100, 2)
         
-        return {
+        res = {
             "dau": dau,
             "quiz_completion_rate": completion_rate,
             "gift_ctr": gift_ctr,
             "total_sessions": quiz_started,
             "last_updated": datetime.utcnow().isoformat() + "Z"
         }
+
+        # Mock data for dev if no real data
+        if settings.env == "dev" and res["dau"] == 0:
+             res.update({
+                 "dau": 42,
+                 "quiz_completion_rate": 68.5,
+                 "gift_ctr": 12.4,
+                 "total_sessions": 156
+             })
+        return res
+
         
     except Exception:
         # Return graceful fallback
@@ -257,12 +268,23 @@ async def get_analytics_trends(
         if results and len(results) > 0:
             quiz_starts = [int(v) for v in results[0].get("data", [])]
         
-        return {
+        res = {
             "dates": dates,
             "dau_trend": dau_values,
             "quiz_starts": quiz_starts,
             "last_updated": datetime.utcnow().isoformat() + "Z"
         }
+        
+        # Mock data for dev
+        if settings.env == "dev" and not res["dates"]:
+            now = datetime.utcnow()
+            res["dates"] = [(now - timedelta(days=i)).strftime("%Y-%m-%d") for i in range(days-1, -1, -1)]
+            import random
+            res["dau_trend"] = [random.randint(30, 60) for _ in range(days)]
+            res["quiz_starts"] = [random.randint(10, 30) for _ in range(days)]
+            
+        return res
+
         
     except Exception:
         return {

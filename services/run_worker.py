@@ -11,6 +11,10 @@ import socket
 import signal
 from datetime import datetime
 from prometheus_client import start_http_server, Counter, Gauge
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 # Configure logging
 logging.basicConfig(
@@ -46,12 +50,20 @@ class ScraperWorker:
         """Discovers available Scrapy spiders."""
         cwd = "/app" if os.path.exists("/app/scrapy.cfg") else "services" if os.path.exists("services/scrapy.cfg") else "."
         try:
+            # Native fix: use python -m scrapy if direct command fails
+            cmd = ["scrapy", "list"]
+            if os.name != 'nt': # Check if scrapy is in PATH, if not use python -m
+                import shutil
+                if not shutil.which("scrapy"):
+                    cmd = ["python3", "-m", "scrapy", "list"]
+            
             result = subprocess.run(
-                ["scrapy", "list"],
+                cmd,
                 cwd=cwd,
                 capture_output=True,
                 text=True
             )
+
             if result.returncode == 0:
                 return [s.strip() for s in result.stdout.split('\n') if s.strip()]
         except Exception as e:
@@ -125,7 +137,7 @@ class ScraperWorker:
 
             cwd = "/app" if os.path.exists("/app/scrapy.cfg") else "services" if os.path.exists("services/scrapy.cfg") else "."
             cmd = [
-                "scrapy", "crawl", site_key,
+                "python3", "-m", "scrapy", "crawl", site_key,
                 "-a", f"url={url}",
                 "-a", f"strategy={strategy}",
                 "-a", f"source_id={source_id}"
@@ -138,6 +150,7 @@ class ScraperWorker:
                     stderr=asyncio.subprocess.PIPE,
                     cwd=cwd
                 )
+
                 self.active_processes[source_id] = process
 
                 # Real-time log capture (last N lines)
@@ -222,8 +235,15 @@ class ScraperWorker:
             )
 
         # 1. Start metrics server
-        start_http_server(METRICS_PORT)
-        logger.info(f"Metrics server started on port {METRICS_PORT}")
+        try:
+            start_http_server(METRICS_PORT)
+            logger.info(f"Metrics server started on port {METRICS_PORT}")
+        except OSError as e:
+            if e.errno == 48:
+                logger.warning(f"Metrics port {METRICS_PORT} already in use. Continuing without metrics.")
+            else:
+                raise
+
 
         # 2. Setup Redis and initial spiders sync
         self.redis_client = redis.from_url(REDIS_URL, decode_responses=True)
