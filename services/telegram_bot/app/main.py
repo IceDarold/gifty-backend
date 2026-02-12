@@ -3,7 +3,7 @@ import json
 import logging
 import re
 import aio_pika
-from aiogram import Bot, Dispatcher, types, F
+from aiogram import Bot, Dispatcher, types, F, Router
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
@@ -47,7 +47,7 @@ logger = logging.getLogger("TelegramBot")
 
 settings = get_settings()
 bot = Bot(token=settings.telegram_bot_token)
-dp = Dispatcher()
+dp = Router()
 client = TelegramInternalClient(
     settings.api_base, 
     settings.internal_api_token, 
@@ -1393,8 +1393,11 @@ async def main():
         logger.error(f"Failed to set bot commands: {e}")
     
     # Run both bot polling and RabbitMQ consumer concurrently
+    dispatcher = Dispatcher()
+    dispatcher.include_router(dp)
+    
     await asyncio.gather(
-        dp.start_polling(bot),
+        dispatcher.start_polling(bot),
         consume_notifications()
     )
 
