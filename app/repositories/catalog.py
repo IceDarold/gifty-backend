@@ -170,24 +170,64 @@ class PostgresCatalogRepository(CatalogRepository):
             logger.error(f"Failed to upsert embeddings. Batch size: {len(embeddings)}. Error: {type(e).__name__}: {e}")
             raise e
 
-    async def search_similar_products(self, embedding: list[float], limit: int = 10, min_similarity: float = 0.0, is_active_only: bool = True) -> list[Product]:
+    async def search_similar_products(
+        self, 
+        embedding: list[float], 
+        limit: int = 10, 
+        min_similarity: float = 0.0, 
+        is_active_only: bool = True,
+        max_price: Optional[int] = None,
+        max_delivery_days: Optional[int] = None,
+        model_name: Optional[str] = None
+    ) -> list[Product]:
         # Perform vector search using cosine distance (operator <=>)
-        # Note: pgvector's cosine_distance returns distance (0..2), where 0 is identical.
-        # Similarity = 1 - distance.
-        # However, for sorting, smaller distance = higher similarity.
+        from app.config import get_settings
+        target_model = model_name or get_settings().embedding_model
         
         stmt = (
             select(Product)
-            .join(ProductEmbedding, Product.gift_id == ProductEmbedding.gift_id)
+            .join(ProductEmbedding, and_(
+                Product.gift_id == ProductEmbedding.gift_id,
+                ProductEmbedding.model_name == target_model
+            ))
         )
         
         if is_active_only:
             stmt = stmt.where(Product.is_active.is_(True))
             
-        stmt = stmt.order_by(ProductEmbedding.embedding.cosine_distance(embedding)).limit(limit)
+        if max_price:
+            stmt = stmt.where(Product.price <= max_price)
+            
+        if max_delivery_days:
+            stmt = stmt.where(Product.delivery_days <= max_delivery_days)
+            
+        distance_col = ProductEmbedding.embedding.cosine_distance(embedding)
         
-        result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        if min_similarity > 0:
+            # cosine_similarity = 1 - cosine_distance
+            stmt = stmt.where(1 - distance_col >= min_similarity)
+            
+        stmt = stmt.order_by(distance_col).limit(limit)
+        try:
+            result = await self.session.execute(stmt)
+            return list(result.scalars().all())
+        except Exception as e:
+            logger.error(f"CatalogRepository.search_similar_products failed: {e}")
+            from app.services.notifications import get_notification_service
+            notifier = get_notification_service()
+            # Send alert
+            if notifier:
+                await notifier.notify(
+                    topic="db_error",
+                    message="Vector search failed in CatalogRepository",
+                    data={"error": str(e)}
+                )
+            
+            from app.config import get_settings
+            if get_settings().env == "dev":
+                logger.warning("DB search failed, returning empty list (dev mode)")
+                return []
+            raise e
 
     async def get_products_without_llm_score(self, limit: int = 100) -> list[Product]:
         """
@@ -212,26 +252,31 @@ class PostgresCatalogRepository(CatalogRepository):
         """
         Update product rows with LLM scores and reasoning.
         scores list should contain dicts: {'gift_id': str, 'llm_gift_score': float, 'llm_gift_reasoning': str, ...}
+        Uses batch update (UPSERT) for efficiency.
         """
         if not scores:
             return 0
             
-        # We can't use insert().on_conflict_do_update easily for multiple primary keys update if we only want to update.
-        # But since gift_id is PK, we can use it.
-        # Using a bulk update approach or a temporary table might be faster for large batches,
-        # but for small scoring batches, we can use a simpler loop or a compiled statement.
+        # Add timestamp to all items
+        now = datetime.now()
+        for s in scores:
+            s["llm_scored_at"] = now
+
+        # Use PostgreSQL specific insert with update on conflict
+        from sqlalchemy.dialects.postgresql import insert
+        stmt = insert(Product).values(scores)
         
-        count = 0
-        for score_data in scores:
-            gift_id = score_data.pop("gift_id")
-            score_data["llm_scored_at"] = func.now()
-            
-            stmt = (
-                update(Product)
-                .where(Product.gift_id == gift_id)
-                .values(**score_data)
-            )
-            await self.session.execute(stmt)
-            count += 1
-            
-        return count
+        # Define update map (include all passed fields except gift_id)
+        update_dict = {
+            c.name: c
+            for c in stmt.excluded
+            if c.name not in ["gift_id", "created_at"]
+        }
+        
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[Product.gift_id],
+            set_=update_dict
+        )
+        
+        result = await self.session.execute(stmt)
+        return result.rowcount

@@ -1,101 +1,130 @@
-import uuid
-import logging
-from typing import Any, Optional
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Optional
+from pydantic import BaseModel
 
-from fastapi import APIRouter, Depends, status, HTTPException, Request
-from redis.asyncio import Redis
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-from starlette import status
-
-from app.auth import session_store
-from app.config import get_settings
-from app.db import get_db
-from app.models import User
-from app.redis_client import get_redis
-from app.schemas_v2 import RecommendationRequest, RecommendationResponse
+from recommendations.models import QuizAnswers, RecommendationSession
+from app.services.dialogue_manager import DialogueManager
+from app.services.anthropic_service import AnthropicService
 from app.services.recommendation import RecommendationService
-from repositories.recommendations import (
-    create_quiz_run,
-    log_event,
-)
+from app.db import get_db
+from app.services.session_storage import get_session_storage
+from app.services.embeddings import get_embedding_service
 
-settings = get_settings()
-logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/recommendations", tags=["recommendations"])
 
-router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
+async def get_dialogue_manager(
+    db_session = Depends(get_db)
+):
+    anthropic = AnthropicService()
+    emb = get_embedding_service()
+    rec = RecommendationService(db_session, emb)
+    storage = get_session_storage()
+    return DialogueManager(anthropic, rec, storage, db=db_session)
 
-async def get_optional_user(
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    redis: Redis = Depends(get_redis),
-) -> Optional[User]:
-    session_id = request.cookies.get(settings.session_cookie_name)
-    if not session_id:
-        return None
-    session_data = await session_store.get_session(redis, session_id)
-    if not session_data:
-        return None
+class InteractionRequest(BaseModel):
+    session_id: str
+    action: str
+    value: Optional[str] = None
+    metadata: dict = {}
+
+@router.post("/init", response_model=RecommendationSession)
+async def init_discovery(
+    quiz: QuizAnswers,
+    user_id: Optional[str] = None,
+    manager: DialogueManager = Depends(get_dialogue_manager)
+):
+    """Start the discovery dialogue."""
+    import uuid as uuid_lib
+    user_uuid = None
+    if user_id:
+        try:
+            user_uuid = uuid_lib.UUID(user_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail=f"Invalid user_id format: {user_id}")
+            
     try:
-        user_id = uuid.UUID(session_data.get("user_id"))
-    except Exception:
-        return None
+        session = await manager.init_session(quiz, user_id=user_uuid)
+        return session
+    except Exception as e:
+        logger.exception("Failed to initialize discovery session")
+        raise HTTPException(status_code=500, detail="Internal server error during discovery initialization")
 
-    result = await db.execute(select(User).where(User.id == user_id))
-    return result.scalar_one_or_none()
+@router.post("/interact", response_model=RecommendationSession)
+async def interact(
+    req: InteractionRequest,
+    manager: DialogueManager = Depends(get_dialogue_manager)
+):
+    """Unified interaction endpoint for dialogue steps and feedback."""
+    try:
+        session = await manager.interact(
+            session_id=req.session_id,
+            action=req.action,
+            value=req.value,
+            metadata=req.metadata
+        )
+        return session
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.exception(f"Interaction failed for session {req.session_id}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
+@router.get("/hypothesis/{hypothesis_id}/products")
+async def get_hypothesis_products(
+    hypothesis_id: str,
+    manager: DialogueManager = Depends(get_dialogue_manager)
+):
+    """Fetch specific products for a hypothesis ID."""
+    import uuid as uuid_lib
+    try:
+        h_uuid = uuid_lib.UUID(hypothesis_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid hypothesis_id format: {hypothesis_id}")
 
-def get_anon_id(request: Request) -> Optional[str]:
-    return request.cookies.get("anon_id") or request.headers.get("X-Anon-Id")
+    try:
+        # 1. Get hypothesis from DB
+        db_h = await manager.recipient_service.get_hypothesis(h_uuid)
+        if not db_h:
+            raise HTTPException(status_code=404, detail="Hypothesis not found")
+        
+        # 2. Get recipient/user budget context if possible (optional)
+        max_price = None
+        # ... logic for budget ...
 
+        # 3. Generate products using recommendation service
+        products = await manager.recommendation_service.find_recommendations(
+            search_queries=db_h.search_queries or [db_h.title],
+            hypothesis_title=db_h.title,
+            hypothesis_description=db_h.description,
+            max_price=max_price
+        )
+        
+        return products
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.exception(f"Failed to fetch products for hypothesis {hypothesis_id}")
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-@router.post(
-    "/generate",
-    response_model=RecommendationResponse,
-    status_code=status.HTTP_200_OK,
-    summary="Сгенерировать подборку подарков",
-)
-async def generate_recommendations(
-    payload: RecommendationRequest,
-    request: Request,
-    db: AsyncSession = Depends(get_db),
-    user: Optional[User] = Depends(get_optional_user),
-    anon_id: Optional[str] = Depends(get_anon_id),
-) -> RecommendationResponse:
-    """
-    Основной алгоритм подбора подарков.
-    
-    **Что происходит внутри:**
-    1. Ответы пользователя сохраняются в базе (`QuizRun`).
-    2. Если пользователь авторизован, анкета сохраняется в его профиле.
-    3. Выполняется запрос к сервису эмбеддингов для векторизации интересов.
-    4. Поиск по базе через `pgvector` с учетом переданных ограничений (цена, пол, категории).
-    5. Возвращается структурированный ответ с "Hero" подарком и списком альтернатив.
-    """
-    # 1. Create Quiz Run
-    quiz_run = await create_quiz_run(
-        db,
-        user_id=user.id if user else None,
-        anon_id=anon_id,
-        answers_json=payload.model_dump(),
-    )
+@router.post("/hypothesis/{hypothesis_id}/react")
+async def react_to_hypothesis(
+    hypothesis_id: str,
+    reaction: str, # like, dislike, shortlist
+    manager: DialogueManager = Depends(get_dialogue_manager)
+):
+    """Record user reaction to a hypothesis."""
+    import uuid as uuid_lib
+    try:
+        h_uuid = uuid_lib.UUID(hypothesis_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail=f"Invalid hypothesis_id format: {hypothesis_id}")
 
-    # 2. Log event
-    await log_event(
-        db,
-        "quiz_submitted",
-        user_id=user.id if user else None,
-        anon_id=anon_id,
-        quiz_run_id=quiz_run.id,
-        payload=payload.model_dump(),
-    )
-
-    # 3. Use RecommendationService
-    embedding_service = request.app.state.embedding_service
-    service = RecommendationService(db, embedding_service)
-    response = await service.generate_recommendations(payload)
-    
-    # Update quiz_run_id in response
-    response.quiz_run_id = str(quiz_run.id)
-
-    return response
+    try:
+        db_h = await manager.recipient_service.update_hypothesis_reaction(h_uuid, reaction)
+        if not db_h:
+            raise HTTPException(status_code=404, detail="Hypothesis not found")
+        
+        return {"status": "success", "hypothesis_id": str(db_h.id), "reaction": db_h.user_reaction}
+    except Exception as e:
+        logger.exception(f"Failed to record reaction for hypothesis {hypothesis_id}")
+        raise HTTPException(status_code=500, detail="Internal server error")
