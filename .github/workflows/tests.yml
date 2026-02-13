@@ -27,6 +27,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-mock pyyaml httpx
 
+      - name: Check Alembic heads
+        run: |
+          HEAD_COUNT=$(alembic heads | grep -c "(head)")
+          if [ "$HEAD_COUNT" -gt 1 ]; then
+            echo "ERROR: Multiple Alembic heads detected! This will break deployments."
+            alembic heads
+            exit 1
+          fi
+          if [ "$HEAD_COUNT" -eq 0 ]; then
+             echo "Warning: No Alembic heads detected. Check if migrations exist."
+          fi
+
       - name: Run Pytest
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
