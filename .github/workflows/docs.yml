@@ -40,7 +40,13 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install mkdocs-material mkdocs-static-i18n mkdocstrings[python] mkdocs-mermaid2-plugin
+          if [ -f requirements-docs.txt ]; then pip install -r requirements-docs.txt; fi
+
+      - name: Fetch Weeek Data
+        env:
+          WEEEK_API_TOKEN: ${{ secrets.WEEEK_API_TOKEN }}
+          WEEEK_WORKSPACE_ID: ${{ vars.WEEEK_WORKSPACE_ID }}
+        run: python scripts/fetch_weeek_static.py
 
       - name: Build documentation
         run: mkdocs build --strict
