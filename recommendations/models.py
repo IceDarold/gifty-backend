@@ -150,30 +150,6 @@ class RecipientResponse(BaseModel):
     id: str
     name: Optional[str] = None
 
-class RecommendationSession(BaseModel):
-    session_id: str
-    recipient: RecipientResponse
-    
-    # Internal State (Excluded from API response, but saved in Redis)
-    full_recipient: RecipientProfile = Field(exclude=True)
-    topics: List[str] = Field(default_factory=list, exclude=True)
-    language: Language = Field(default=Language.RU, exclude=True)
-    
-    # Parallel tracks (The main content)
-    tracks: List[TopicTrack] = Field(default_factory=list)
-    # Interaction Tracking
-    liked_hypotheses: List[str] = Field(default_factory=list)
-    ignored_hypotheses: List[str] = Field(default_factory=list)
-    # Discovery Helpers
-    topic_hints: List[Dict[str, str]] = Field(default_factory=list)
-    
-    # Navigation & State
-    selected_topic_id: Optional[str] = None
-    selected_hypothesis_id: Optional[str] = None
-    
-    # Fallback for questions (if not part of a specific track or for general session questions)
-    current_probe: Optional[DialogueStep] = None
-
 class RecipientProfile(BaseModel):
     """
     Internal model for storing full recipient context in Redis/Cache.
@@ -197,3 +173,28 @@ class RecipientProfile(BaseModel):
     budget: Optional[int] = None
     deadline_days: Optional[int] = None
     language: Language = Language.RU
+
+
+class RecommendationSession(BaseModel):
+    session_id: str
+    recipient: RecipientResponse
+    
+    # Internal State (Excluded from API response, but saved in Redis)
+    full_recipient: RecipientProfile = Field(exclude=True)
+    topics: List[str] = Field(default_factory=list, exclude=True)
+    language: Language = Field(default=Language.RU, exclude=True)
+    
+    # Parallel tracks (The main content)
+    tracks: List[TopicTrack] = Field(default_factory=list)
+    # Interaction Tracking
+    liked_hypotheses: List[str] = Field(default_factory=list)
+    ignored_hypotheses: List[str] = Field(default_factory=list)
+    # Discovery Helpers
+    topic_hints: List[Dict[str, str]] = Field(default_factory=list)
+    
+    # Navigation & State
+    selected_topic_id: Optional[str] = None
+    selected_hypothesis_id: Optional[str] = None
+    
+    # Fallback for questions (if not part of a specific track or for general session questions)
+    current_probe: Optional[DialogueStep] = None
