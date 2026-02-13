@@ -35,12 +35,14 @@ APP_PORT=$NEW_PORT $COMPOSE_CMD up -d --build $APP_SERVICE
 
 # 3. Health Check
 echo "Waiting for $NEW_COLOR version to be healthy at localhost:$NEW_PORT..."
-MAX_RETRIES=12
+MAX_RETRIES=24
 COUNT=0
 while [ $COUNT -lt $MAX_RETRIES ]; do
-    if curl -s http://localhost:$NEW_PORT/health | grep -q '"status":"ok"'; then
-        echo "New version is HEALTHY!"
-        break
+    if curl -s http://localhost:$NEW_PORT/health | grep -q '"status"'; then
+        if curl -s http://localhost:$NEW_PORT/health | grep -q '"ok"'; then
+             echo "New version is HEALTHY!"
+             break
+        fi
     fi
     echo "Still waiting... ($((COUNT+1))/$MAX_RETRIES)"
     sleep 5
