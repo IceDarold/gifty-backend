@@ -120,6 +120,7 @@ This endpoint handles ANY button click in the UI.
 | :--- | :--- | :--- | :--- |
 | **Answer Probe** | `answer_probe` | Selected option text | Submits answer to AI question. |
 | **Select Topic** | `select_track` | `topic_id` | Highlights a specific topic track. |
+| **Load More Ideas** | `load_more_hypotheses`| `topic_id` | Appends 3-4 new gift hypotheses to the track. |
 | **Suggest Topics**| `suggest_topics`| (empty) | Force AI to generate new `topic_hints`. |
 | **Manual Refine** | `refine_topic` | `topic_id` | Triggers a clarification probe for topic. |
 
