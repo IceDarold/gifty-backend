@@ -1,0 +1,74 @@
+[
+    {
+        "id": "case_1_tired_runner",
+        "name": "Уставший бегун (Optimizer/Permission focus)",
+        "quiz": {
+            "recipient_age": 32,
+            "relationship": "partner",
+            "gifting_goal": "care",
+            "effort_level": "medium",
+            "vibe": "tired, constantly working, but loves morning runs",
+            "interests": [
+                "running",
+                "coffee"
+            ],
+            "interests_description": "Runs marathons but lately complains about leg pain and lack of sleep.",
+            "language": "ru"
+        },
+        "topic": "Running"
+    },
+    {
+        "id": "case_2_aspiring_chef",
+        "name": "Начинающий повар (Catalyst focus)",
+        "quiz": {
+            "recipient_age": 25,
+            "relationship": "friend",
+            "gifting_goal": "growth",
+            "effort_level": "low",
+            "vibe": "enthusiastic, curious, wants to host dinner parties",
+            "interests": [
+                "cooking",
+                "interior design"
+            ],
+            "interests_description": "Just moved to a new apartment, lacks basic high-quality kitchen tools but watches Gordon Ramsay all day.",
+            "language": "ru"
+        },
+        "topic": "Cooking"
+    },
+    {
+        "id": "case_3_music_collector",
+        "name": "Меломан-эстет (Mirror/Anchor focus)",
+        "quiz": {
+            "recipient_age": 45,
+            "relationship": "best_friend",
+            "gifting_goal": "impress",
+            "effort_level": "high",
+            "vibe": "refined taste, nostalgic, loves high-end hardware",
+            "interests": [
+                "vinyl",
+                "jazz"
+            ],
+            "interests_description": "Has a massive collection of records. We used to spend hours in record stores in the 90s.",
+            "language": "ru"
+        },
+        "topic": "Vinyl"
+    },
+    {
+        "id": "case_4_en_gardener",
+        "name": "English Gardener (International Test)",
+        "quiz": {
+            "recipient_age": 60,
+            "relationship": "relative",
+            "gifting_goal": "growth",
+            "effort_level": "medium",
+            "vibe": "peaceful, outdoor enthusiast, retired",
+            "interests": [
+                "gardening",
+                "birds"
+            ],
+            "interests_description": "Loves their garden but finds it physically taxing lately. Interested in birdwatching.",
+            "language": "en"
+        },
+        "topic": "Gardening"
+    }
+]
