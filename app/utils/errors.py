@@ -120,4 +120,21 @@ def install_exception_handlers(app: FastAPI) -> None:
         except Exception as ph_err:
             logger.error("Failed to capture error to PostHog: %s", ph_err)
 
+        # 3. Send Notification alert
+        try:
+            from app.services.notifications import get_notification_service
+            notifier = get_notification_service()
+            await notifier.notify(
+                topic="system_error",
+                message=f"CRITICAL: Unhandled exception in {request.url.path}",
+                data={
+                    "path": str(request.url.path),
+                    "method": request.method,
+                    "error": f"{type(exc).__name__}: {str(exc)}",
+                    "status": "500"
+                }
+            )
+        except Exception as notify_err:
+            logger.error("Failed to send system error notification: %s", notify_err)
+
         return error_response("internal_error", "Unexpected error", status.HTTP_500_INTERNAL_SERVER_ERROR)
