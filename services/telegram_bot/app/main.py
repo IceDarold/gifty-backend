@@ -1,16 +1,31 @@
 import asyncio
 import json
 import logging
+import re
 import aio_pika
 from aiogram import Bot, Dispatcher, types, F
 from aiogram.filters import Command, CommandObject
 from aiogram.types import (
     Message, ReplyKeyboardMarkup, KeyboardButton, 
-    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, URLInputFile
+    InlineKeyboardMarkup, InlineKeyboardButton, CallbackQuery, URLInputFile,
+    WebAppInfo
 )
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.exceptions import TelegramBadRequest
+# Fix for Python 3.9 event loop issue
+try:
+    import uvloop
+    asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())
+except ImportError:
+    pass
+
+# Ensure event loop exists for Python 3.9 + aiogram Loc
+try:
+    asyncio.get_event_loop()
+except RuntimeError:
+    asyncio.set_event_loop(asyncio.new_event_loop())
+
 from datetime import datetime
 
 class EditSpider(StatesGroup):
@@ -26,6 +41,13 @@ class ConnectWeeek(StatesGroup):
 class RescheduleTask(StatesGroup):
     waiting_for_date = State()
     waiting_for_reason = State()
+
+class AddUser(StatesGroup):
+    waiting_for_username = State()
+    waiting_for_password = State()
+    waiting_for_name = State()
+    waiting_for_mentor = State()
+    waiting_for_permissions = State()
 from services.telegram_bot.app.strings import STRINGS
 
 from app.config import get_settings
@@ -99,93 +121,17 @@ def t(key: str, lang: str, **kwargs):
     return text
 
 def get_main_keyboard(lang: str, sub: dict = None):
-    keyboard = []
+    if not settings.telegram_webapp_url:
+        return ReplyKeyboardMarkup(keyboard=[[KeyboardButton(text="⚠️ WebApp URL Missing")]], resize_keyboard=True)
     
-    # Row 1: Stats & Health
-    row1 = []
-    if has_permission(sub, "stats:view"):
-        row1.append(KeyboardButton(text=t("btn_stats", lang)))
-    if has_permission(sub, "system:health"):
-        row1.append(KeyboardButton(text=t("btn_health", lang)))
-    if row1:
-        keyboard.append(row1)
-        
-    # Row 2: Scraping & Subs & Tasks
-    row2 = []
-    if has_permission(sub, "parsing:manage"):
-        row2.append(KeyboardButton(text=t("btn_scraping", lang)))
-    
-    
-    if has_permission(sub, "tasks:manage"):
-        row2.append(KeyboardButton(text=t("btn_tasks", lang)))
-    else:
-        # Show Connect button only if NOT connected (i.e. no permission)
-        row2.append(KeyboardButton(text=t("weeek_connect_btn", lang)))
-        
-    row2.append(KeyboardButton(text=t("btn_subs", lang)))
-    keyboard.append(row2)
-    
-    # Row 3: Admin tools
-    row3 = [KeyboardButton(text=t("btn_help", lang)), KeyboardButton(text=t("lang_btn", lang))]
-    if sub and sub.get("role") == "superadmin":
-        row3.insert(0, KeyboardButton(text=t("btn_users", lang)))
-    keyboard.append(row3)
-    
-    return ReplyKeyboardMarkup(keyboard=keyboard, resize_keyboard=True)
+    return ReplyKeyboardMarkup(
+        keyboard=[
+            [KeyboardButton(text="🚀 Open Dashboard", web_app=WebAppInfo(url=settings.telegram_webapp_url))]
+        ],
+        resize_keyboard=True
+    )
 
-def get_stats_panel(lang: str):
-    inline_kb = [
-        [InlineKeyboardButton(text=t("stats_btn_summary", lang), callback_data="stats:summary")],
-        [InlineKeyboardButton(text="📊 DAU (7d)", callback_data="stats:dau"),
-         InlineKeyboardButton(text="📈 MAU (12m)", callback_data="stats:mau")],
-        [InlineKeyboardButton(text=t("stats_btn_technical", lang), callback_data="stats:tech")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=inline_kb)
-
-def get_lang_keyboard():
-    inline_kb = [
-        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:ru"),
-         InlineKeyboardButton(text="🇺🇸 English", callback_data="lang:en")]
-    ]
-    return InlineKeyboardMarkup(inline_keyboard=inline_kb)
-
-TOPICS = {
-    "investors": "Investors",
-    "partners": "Partners",
-    "newsletter": "Newsletter",
-    "system": "Monitoring",
-    "scraping": "Scraping Status"
-}
-
-def get_subscription_keyboard(current_subs: list, lang: str):
-    rows = []
-    # Grid: 2 topics per row
-    topic_keys = list(TOPICS.keys())
-    for i in range(0, len(topic_keys), 2):
-        row = []
-        for j in range(2):
-            if i + j < len(topic_keys):
-                topic = topic_keys[i + j]
-                label = TOPICS[topic]
-                is_subbed = topic in current_subs
-                status = "✅" if is_subbed else "❌"
-                callback = f"sub_toggle:{topic}"
-                row.append(InlineKeyboardButton(text=f"{status} {label}", callback_data=callback))
-        rows.append(row)
-    
-    # Master toggles
-    is_all = "all" in current_subs
-    rows.append([
-        InlineKeyboardButton(text=f"{'✅' if is_all else '❌'} 📢 Global Notifications (All)", callback_data="sub_toggle:all")
-    ])
-    
-    # Quick actions
-    rows.append([
-        InlineKeyboardButton(text="🔔 Subscribe All", callback_data="sub_action:all_on"),
-        InlineKeyboardButton(text="🔕 Unsubscribe All", callback_data="sub_action:all_off")
-    ])
-    
-    return InlineKeyboardMarkup(inline_keyboard=rows)
+# ... (omitted helper functions, keeping existing code structure valid if needed, but here replacing get_main_keyboard is key) ...
 
 # --- Bot Handlers ---
 
@@ -200,6 +146,23 @@ async def cmd_start(message: Message, command: CommandObject):
             return
 
         if command.args != settings.telegram_admin_secret:
+            username = (message.from_user.username or "").strip()
+            if not username:
+                await message.answer(t("invite_need_username", "ru"))
+                return
+            claimed = await client.claim_invite(
+                username=username,
+                password=command.args,
+                chat_id=message.chat.id,
+                name=message.from_user.full_name
+            )
+            if claimed:
+                lang = get_lang(claimed)
+                await message.answer(
+                    "✅ Access Granted!\nClick the button below to open the Dashboard.",
+                    reply_markup=get_main_keyboard(lang, claimed)
+                )
+                return
             await message.answer(t("invalid_secret", "ru"))
             return
 
@@ -210,8 +173,10 @@ async def cmd_start(message: Message, command: CommandObject):
         )
         if subscriber:
             lang = get_lang(subscriber)
-            await message.answer(t("welcome_new", lang), reply_markup=get_main_keyboard(lang, subscriber))
-            await message.answer(t("onboarding", lang), parse_mode="Markdown")
+            await message.answer(
+                "👋 Welcome Admin!\nClick below to manage scrapers and view stats.", 
+                reply_markup=get_main_keyboard(lang, subscriber)
+            )
             
             # Notify existing admins about new registration
             reg_msg = (
@@ -220,7 +185,6 @@ async def cmd_start(message: Message, command: CommandObject):
                 f"Username: @{message.from_user.username or 'N/A'}\n"
                 f"Chat ID: `{message.chat.id}`"
             )
-            # Find people subscribed to 'system' or just all
             system_subs = await client.get_topic_subscribers("system")
             for admin_sub in system_subs:
                 if admin_sub["chat_id"] != message.chat.id:
@@ -230,7 +194,11 @@ async def cmd_start(message: Message, command: CommandObject):
         else:
             await message.answer("❌ Error during registration.")
     else:
-        await message.answer(t("welcome_back", lang), reply_markup=get_main_keyboard(lang, subscriber))
+        # Already registered
+        await message.answer(
+            "👋 Welcome back!\nOpen the Dashboard to continue.", 
+            reply_markup=get_main_keyboard(lang, subscriber)
+        )
 
 @dp.message(Command("become_superadmin"))
 async def cmd_become_superadmin(message: Message, command: CommandObject):
@@ -262,6 +230,7 @@ async def cmd_users(message: Message):
         rows.append([
             InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
         ])
+    rows.append([InlineKeyboardButton(text=t("btn_add_user", lang), callback_data="user:add")])
     
     markup = InlineKeyboardMarkup(inline_keyboard=rows)
     await message.answer(t("users_title", lang), reply_markup=markup)
@@ -327,7 +296,7 @@ async def _show_perm_view(callback_query: CallbackQuery, user_id: int, perm_key:
     await callback_query.message.edit_text(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=rows), parse_mode="Markdown")
 
 @dp.callback_query(F.data.startswith("user:"))
-async def handle_user_actions(callback_query: CallbackQuery):
+async def handle_user_actions(callback_query: CallbackQuery, state: FSMContext):
     admin_sub = await client.get_subscriber(callback_query.message.chat.id)
     if not admin_sub or admin_sub.get("role") != "superadmin":
         await callback_query.answer(t("superadmin_only", get_lang(admin_sub)), show_alert=True)
@@ -343,6 +312,11 @@ async def handle_user_actions(callback_query: CallbackQuery):
 
     if action == "details":
         await _show_user_details(callback_query, int(parts[2]), lang)
+    elif action == "add":
+        await state.clear()
+        await state.set_state(AddUser.waiting_for_username)
+        await callback_query.message.answer(t("add_user_username", lang))
+        await callback_query.answer()
 
     elif action == "perms_list":
         await _show_perms_list(callback_query, int(parts[2]), lang)
@@ -398,8 +372,127 @@ async def handle_user_actions(callback_query: CallbackQuery):
             rows.append([
                 InlineKeyboardButton(text=f"{role_label} {u.get('name') or u.get('slug') or u.get('chat_id')}", callback_data=f"user:details:{u.get('chat_id')}")
             ])
+        rows.append([InlineKeyboardButton(text=t("btn_add_user", lang), callback_data="user:add")])
         await callback_query.message.edit_text(t("users_title", lang), reply_markup=InlineKeyboardMarkup(inline_keyboard=rows))
+        await callback_query.answer()@dp.message(AddUser.waiting_for_username)
+async def process_add_user_username(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    username = message.text.strip().lstrip("@").lower()
+    if not re.match(r"^[a-z0-9_]{3,32}$", username):
+        await message.answer(t("add_user_username_invalid", lang))
+        return
+    await state.update_data(username=username)
+    await state.set_state(AddUser.waiting_for_password)
+    await message.answer(t("add_user_password", lang))
+
+@dp.message(AddUser.waiting_for_password)
+async def process_add_user_password(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    password = message.text.strip()
+    if len(password) < 4:
+        await message.answer(t("add_user_password_invalid", lang))
+        return
+    await state.update_data(password=password)
+    await state.set_state(AddUser.waiting_for_name)
+    await message.answer(t("add_user_name", lang))
+
+@dp.message(AddUser.waiting_for_name)
+async def process_add_user_name(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    name = message.text.strip()
+    if len(name) < 2:
+        await message.answer(t("add_user_name_invalid", lang))
+        return
+    await state.update_data(name=name)
+    await state.set_state(AddUser.waiting_for_mentor)
+    await message.answer(t("add_user_mentor", lang))
+
+@dp.message(AddUser.waiting_for_mentor)
+async def process_add_user_mentor(message: Message, state: FSMContext):
+    sub = await client.get_subscriber(message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await message.answer(t("superadmin_only", lang))
+        await state.clear()
+        return
+    raw = message.text.strip()
+    if raw in {"-", "skip", "пропуск", "нет"}:
+        await state.update_data(mentor_id=None, permissions=[])
+        await state.set_state(AddUser.waiting_for_permissions)
+        await message.answer(t("add_user_permissions", lang), reply_markup=get_permissions_keyboard([], lang))
+        return
+    username = raw.lstrip("@").lower()
+    if not re.match(r"^[a-z0-9_]{3,32}$", username):
+        await message.answer(t("add_user_mentor_invalid", lang))
+        return
+    mentor = await client.get_subscriber_by_username(username)
+    if not mentor:
+        await message.answer(t("add_user_mentor_not_found", lang))
+        return
+    await state.update_data(mentor_id=mentor.get("id"), permissions=[])
+    await state.set_state(AddUser.waiting_for_permissions)
+    await message.answer(t("add_user_permissions", lang), reply_markup=get_permissions_keyboard([], lang))
+
+@dp.callback_query(AddUser.waiting_for_permissions, F.data.startswith("invite_perm:"))
+async def process_invite_permissions(callback_query: CallbackQuery, state: FSMContext):
+    sub = await client.get_subscriber(callback_query.message.chat.id)
+    lang = get_lang(sub)
+    if not sub or sub.get("role") != "superadmin":
+        await callback_query.answer(t("superadmin_only", lang), show_alert=True)
+        await state.clear()
+        return
+    data = await state.get_data()
+    selected = list(data.get("permissions", []))
+    action = callback_query.data.split(":")[1]
+    if action == "toggle":
+        perm = callback_query.data.split(":")[2]
+        if perm in selected:
+            selected.remove(perm)
+        else:
+            selected.append(perm)
+        await state.update_data(permissions=selected)
+        await callback_query.message.edit_reply_markup(reply_markup=get_permissions_keyboard(selected, lang))
         await callback_query.answer()
+        return
+    if action == "cancel":
+        await state.clear()
+        await callback_query.message.answer(t("add_user_cancelled", lang))
+        await callback_query.answer()
+        return
+    if action == "save":
+        data = await state.get_data()
+        created = await client.create_invite(
+            username=data.get("username"),
+            password=data.get("password"),
+            name=data.get("name"),
+            mentor_id=data.get("mentor_id"),
+            permissions=data.get("permissions", []),
+        )
+        await state.clear()
+        if created:
+            await callback_query.message.answer(
+                t("add_user_done", lang, username=data.get("username"), password=data.get("password")),
+                parse_mode="Markdown"
+            )
+        else:
+            await callback_query.message.answer(t("add_user_error", lang))
+        await callback_query.answer()
+
 
 @dp.message(F.text.in_(["📊 Stats", "📊 Статистика"]))
 @dp.message(Command("stats"))
@@ -525,61 +618,71 @@ async def cmd_scraping(message: Message):
         await message.answer(t("no_permission", lang))
         return
 
-    mon = await client.get_scraping_monitoring()
-    sources = await client.get_sources()
+    monitoring = await client.get_monitoring()
+    stats = await client.get_internal_stats()
+    workers = await client.get_active_workers()
 
-    if not mon or not sources:
-        await message.answer("❌ Error fetching data")
+    if monitoring is None:
+        await message.answer("❌ Error fetching monitoring data")
         return
 
+    # Aggregate stats from monitoring
+    active_count = sum(1 for m in monitoring if m.get("status") != "broken")
+    broken_count = sum(1 for m in monitoring if m.get("status") == "broken")
+    
     text = (
         f"{t('scraping_title', lang)}\n\n"
-        f"✅ *{t('scraping_active', lang)}:* {mon.get('active_sources', 0)}\n"
-        f"🧩 *{t('scraping_unmapped', lang)}:* {mon.get('unmapped_categories', 0)}\n"
-        f"📦 *{t('scraping_items', lang)}:* {mon.get('items_scraped_24h', 0)}\n\n"
-        f"*👇 Connected Spiders:*"
+        f"✅ *{t('scraping_active', lang)}:* {active_count}\n"
+        f"📦 *{t('scraping_items', lang)}:* {stats.get('scraped_24h', 0)}\n\n"
     )
     
-    # Group by site_key and pick the best representative
-    site_groups = {}
+    # 1. Workers Section
+    if workers:
+        text += f"{t('scraping_workers_title', lang, count=len(workers))}\n"
+        for w in workers:
+            hostname = w.get("hostname", "unknown")
+            ram = w.get("ram_usage_pct", 0)
+            tasks = w.get("concurrent_tasks", 0)
+            status_emoji = "🟢" if ram < 80 else "🟡" if ram < 90 else "🔴"
+            text += f"{status_emoji} <code>{hostname}</code>: Load {tasks} | RAM {ram}%\n"
+        text += "\n"
+    
+    # To get source IDs for buttons, we still need a list of sources, 
+    # but we only filter for the main representatives (hubs).
+    sources = await client.get_sources()
+    site_hubs = {s['site_key']: s['id'] for s in sources if s.get('type') == 'hub'}
+    # fallback to first source for site if no hub
     for s in sources:
-        key = s.get("site_key")
-        stype = s.get("type", "list")
-        
-        if key not in site_groups:
-            site_groups[key] = s
-        else:
-            current_best = site_groups[key].get("type", "list")
-            if stype == "hub":
-                site_groups[key] = s
-            elif stype == "sitemap" and current_best == "list":
-                site_groups[key] = s
-    
-    sorted_sites = sorted(site_groups.values(), key=lambda x: x.get("site_key"))
+        if s['site_key'] not in site_hubs:
+            site_hubs[s['site_key']] = s['id']
 
-    text = (
-        f"{t('scraping_title', lang)}\n\n"
-        f"✅ *{t('scraping_active', lang)}:* {mon.get('active_sources', 0)}\n"
-        f"🧩 *{t('scraping_unmapped', lang)}:* {mon.get('unmapped_categories', 0)}\n"
-        f"📦 *{t('scraping_items', lang)}:* {mon.get('items_scraped_24h', 0)}\n\n"
-        f"*👇 Sites Connected ({len(sorted_sites)}):*"
-    )
-    
     buttons = []
-    for s in sorted_sites:
-        key = s.get("site_key")
-        is_active = s.get("is_active")
-        status = s.get("status", "waiting")
+    # Sort monitoring by site_key
+    monitoring = sorted(monitoring, key=lambda x: x.get("site_key"))
+    
+    current_row = []
+    for m in monitoring:
+        key = m.get("site_key")
+        status = m.get("status", "waiting")
+        s_id = site_hubs.get(key)
         
-        status_icon = "🟢" if is_active else "🔴"
-        if status == "running": 
-            status_icon = "🔄"
-        elif status == "broken" or s.get("config", {}).get("fix_required"):
-             status_icon = "🛠"
+        icon = "🟢"
+        if status == "running": icon = "🔄"
+        if status == "queued": icon = "⏳"
+        if status == "error": icon = "🟡"
+        if status == "broken": icon = "🔴"
              
-        buttons.append([InlineKeyboardButton(text=f"{status_icon} {key}", callback_data=f"spider:view:{s['id']}")])
+        current_row.append(InlineKeyboardButton(text=f"{icon} {key}", callback_data=f"spider:view:{s_id}"))
+        if len(current_row) == 2:
+            buttons.append(current_row)
+            current_row = []
+    if current_row:
+        buttons.append(current_row)
         
-    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="Markdown")
+    # Navigation row
+    buttons.append([InlineKeyboardButton(text="🧩 Map Categories", callback_data="spider:unmapped:0")])
+        
+    await message.answer(text, reply_markup=InlineKeyboardMarkup(inline_keyboard=buttons), parse_mode="HTML")
 
 async def _show_spider_view(callback_query: CallbackQuery, source_id: int, lang: str):
     source = await client.get_source_details(source_id)
@@ -1143,6 +1246,15 @@ async def consume_notifications():
                                 logger.error("Private notification missing target_chat_id")
                             continue
 
+                        # Noise reduction for scraper errors
+                        # If it's a 'scrapers' or 'scraping' notification, we want to ensure we catch important errors
+                        if topic in ["scrapers", "scraping"]:
+                            # Check for critical keywords (case-insensitive)
+                            is_critical = any(k in text.upper() for k in ["BROKEN", "NEED TO FIX", "ERROR"])
+                            if not is_critical:
+                                logger.info(f"Skipping noisy scraper notification: {text[:50]}...")
+                                continue
+
                         # Find all subscribers for this topic
                         subscribers = await client.get_topic_subscribers(topic)
                         logger.info(f"Found {len(subscribers)} potential subscribers for topic {topic}")
@@ -1333,7 +1445,6 @@ async def process_tasks_callback(callback_query: CallbackQuery, state: FSMContex
             reply_markup=InlineKeyboardMarkup(inline_keyboard=rows)
         )
         await callback_query.answer()
-        
     elif action == "reschedule":
         task_id = int(action_parts[2])
         await callback_query.message.answer(t("reschedule_prompt", lang))
@@ -1470,30 +1581,80 @@ async def process_reschedule_date(message: Message, state: FSMContext):
     await message.answer(t("reschedule_reason_prompt", lang))
     await state.set_state(RescheduleTask.waiting_for_reason)
 
-@dp.message(RescheduleTask.waiting_for_reason)
-async def process_reschedule_reason(message: Message, state: FSMContext):
+@dp.callback_query(lambda c: c.data.startswith("spider:config:"))
+async def handle_spider_config(callback_query: CallbackQuery):
+    source_id = int(callback_query.data.split(":")[2])
+    source = await client.get_source_details(source_id)
+    sub = await client.get_subscriber(callback_query.from_user.id)
+    lang = get_lang(sub)
+    
+    if not source:
+        await callback_query.answer("❌ Source not found")
+        return
+        
+    text = (
+        f"⚙️ *Configure: {source['site_key']}*\n"
+        f"URL: `{source['url']}`\n\n"
+        f"Current Interval: `{source['refresh_interval_hours']}h`\n"
+        f"Current Priority: `{source['priority']}`\n"
+        f"Params Strip: `{source.get('config', {}).get('strip_params', [])}`"
+    )
+    
+    btns = [
+        [
+            InlineKeyboardButton(text="⏰ Interval", callback_data=f"spider:edit:{source_id}:interval"),
+            InlineKeyboardButton(text="🔝 Priority", callback_data=f"spider:edit:{source_id}:priority")
+        ],
+        [InlineKeyboardButton(text="🔙 Back", callback_data=f"spider:view:{source_id}")]
+    ]
+    await smart_edit(callback_query.message, text=text, reply_markup=InlineKeyboardMarkup(inline_keyboard=btns))
+
+@dp.callback_query(lambda c: c.data.startswith("spider:edit:"))
+async def handle_spider_edit(callback_query: CallbackQuery, state: FSMContext):
+    data = callback_query.data.split(":")
+    source_id = int(data[2])
+    field = data[3]
+    
+    await state.update_data(source_id=source_id, field=field)
+    await state.set_state(SpiderConfigEdit.waiting_for_value)
+    
+    await callback_query.message.answer(f"Enter new value for *{field}* (current source ID: {source_id}):")
+    await callback_query.answer()
+
+class SpiderConfigEdit(StatesGroup):
+    waiting_for_value = State()
+
+@dp.message(SpiderConfigEdit.waiting_for_value)
+async def process_spider_config_value(message: Message, state: FSMContext):
+    data = await state.get_data()
+    source_id = data.get("source_id")
+    field = data.get("field")
+    value = message.text.strip()
+    
     sub = await client.get_subscriber(message.chat.id)
     lang = get_lang(sub)
-    reason = message.text.strip()
-    
-    data = await state.get_data()
-    task_id = data.get("task_id")
-    new_date = data.get("new_date")
-    
-    # client.reschedule_task signature: task_id, chat_id, ...
-    # Wait, check client.py signature from Step 3433:
-    # async def reschedule_task(self, chat_id: int, task_id: int, date: str, reason: str):
-    # It takes chat_id first!
-    resp = await client.reschedule_task(message.chat.id, task_id, new_date, reason)
-    
-    if resp and resp.get("status") == "ok":
-         await message.answer(t("reschedule_success", lang), reply_markup=get_main_keyboard(lang, sub))
+
+    update_payload = {}
+    if field == "interval":
+        try:
+            update_payload["refresh_interval_hours"] = int(value)
+        except ValueError:
+            await message.answer("❌ Please enter a valid number (hours).")
+            return
+    elif field == "priority":
+        try:
+            update_payload["priority"] = int(value)
+        except ValueError:
+            await message.answer("❌ Please enter a valid number (1-100).")
+            return
+
+    success = await client.update_source(source_id, update_payload)
+    if success:
+        await message.answer(f"✅ Successfully updated *{field}* to `{value}`.", 
+                             reply_markup=get_main_keyboard(lang, sub))
     else:
-         text = "❌ Error rescheduling task."
-         if isinstance(resp, dict) and resp.get("error"):
-             text += f" ({resp.get('error')})"
-         await message.answer(text, reply_markup=get_main_keyboard(lang, sub))
-         
+        await message.answer("❌ Failed to update configuration.", 
+                             reply_markup=get_main_keyboard(lang, sub))
     await state.clear()
 
 if __name__ == "__main__":

@@ -33,46 +33,6 @@ class CreateTaskRequest(BaseModel):
     board_id: Optional[int] = None
     due_date: Optional[str] = None
 
-# Helpers
-def _extract_workspace_id(obj: Dict[str, Any]) -> Optional[int]:
-    if not obj:
-        return None
-    ws_id = obj.get("workspaceId") or obj.get("workspace_id")
-    if ws_id is not None:
-        return ws_id
-    workspace = obj.get("workspace") or {}
-    return workspace.get("id")
-
-def _build_projects_workspace_map(projects: List[Dict[str, Any]]) -> Dict[int, Optional[int]]:
-    mapping: Dict[int, Optional[int]] = {}
-    for proj in projects or []:
-        pid = proj.get("id")
-        if pid is None:
-            continue
-        mapping[pid] = _extract_workspace_id(proj)
-    return mapping
-
-def _filter_tasks_by_workspace(
-    tasks: List[Dict[str, Any]],
-    workspace_id: Optional[int],
-    projects_workspace_map: Dict[int, Optional[int]]
-) -> List[Dict[str, Any]]:
-    if not workspace_id:
-        return tasks
-    filtered: List[Dict[str, Any]] = []
-    for task in tasks:
-        task_ws = _extract_workspace_id(task)
-        if task_ws is not None:
-            if str(task_ws) == str(workspace_id):
-                filtered.append(task)
-            continue
-        project_id = task.get("projectId")
-        if project_id is None:
-            continue
-        if str(projects_workspace_map.get(project_id)) == str(workspace_id):
-            filtered.append(task)
-    return filtered
-
 # Helper
 async def get_weeek_account(db: AsyncSession, telegram_chat_id: int) -> WeeekAccount:
     result = await db.execute(select(WeeekAccount).where(WeeekAccount.telegram_chat_id == telegram_chat_id))
@@ -90,6 +50,7 @@ async def connect_weeek_account(
     """
     Connects a Telegram user to Weeek.
     - Validates token
+    - Creates 'Gifty 🎁' project if missing
     - Saves account
     """
     # 1. Validate Token & Get User Info
@@ -104,22 +65,23 @@ async def connect_weeek_account(
     user_data = me.get("user", {})
     weeek_user_id = user_data.get("id")
     
-    # 2. Check access to corporate workspace
-    workspaces_resp = await temp_client.get_workspaces()
-    if not workspaces_resp.get("success"):
-        raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
-    workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
-    workspace_id = settings.weeek_workspace_id
-    has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
-    if not has_access:
-        raise HTTPException(
-            status_code=403,
-            detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
-        )
+    # 2. Check access to corporate workspace (optional)
+    workspace_id = getattr(settings, "weeek_workspace_id", None)
+    if workspace_id:
+        workspaces_resp = await temp_client.get_workspaces()
+        if not workspaces_resp.get("success"):
+            raise HTTPException(status_code=502, detail="Failed to validate Weeek workspace access")
+        workspaces = workspaces_resp.get("workspaces") or workspaces_resp.get("data") or []
+        has_access = any(str(w.get("id")) == str(workspace_id) for w in workspaces if isinstance(w, dict))
+        if not has_access:
+            raise HTTPException(
+                status_code=403,
+                detail="у вас нет доступа к корпоративному workspace в weeek. Попросите вашего ментора добавить вас."
+            )
+    else:
+        workspace_id = None
 
-    # For now, let's just save the account and handling project creation logic can be refined 
-    # if we add create_project to client.
-    
+    # 3. Save Account
     stmt = select(WeeekAccount).where(WeeekAccount.telegram_chat_id == req.telegram_chat_id)
     result = await db.execute(stmt)
     existing = result.scalar_one_or_none()
@@ -177,7 +139,6 @@ async def get_tasks(
         raise HTTPException(status_code=500, detail=resp.get("error"))
         
     tasks = resp.get("tasks", [])
-
     # Filter by corporate workspace (if possible)
     target_workspace_id = account.weeek_workspace_id or settings.weeek_workspace_id
     projects_workspace_map: Dict[int, Optional[int]] = {}
@@ -200,11 +161,16 @@ async def get_tasks(
         is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
                   (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
                   
-        if type != "workspace":
-            is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
-                      (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
-            if not is_mine:
-                continue
+        if type == "workspace":
+             # Return all tasks, skip user filter
+             filtered.append(t)
+             continue
+             
+        is_mine = str(t.get("userId")) == str(account.weeek_user_id) or \
+                  (t.get("userIds") and str(account.weeek_user_id) in map(str, t.get("userIds", [])))
+                  
+        if not is_mine:
+             continue
              
         # Date filtering
         # ... logic ...
@@ -277,3 +243,38 @@ async def complete_task_endpoint(
         raise HTTPException(status_code=500, detail="Failed to complete task")
         
     return {"status": "ok"}
+
+def _extract_workspace_id(obj):
+    if not obj:
+        return None
+    ws_id = obj.get("workspaceId") or obj.get("workspace_id")
+    if ws_id is not None:
+        return ws_id
+    workspace = obj.get("workspace") or {}
+    return workspace.get("id")
+
+def _build_projects_workspace_map(projects):
+    mapping = {}
+    for proj in projects or []:
+        pid = proj.get("id")
+        if pid is None:
+            continue
+        mapping[pid] = _extract_workspace_id(proj)
+    return mapping
+
+def _filter_tasks_by_workspace(tasks, target_workspace_id, projects_map):
+    if not target_workspace_id:
+        return tasks
+    filtered = []
+    for t in tasks:
+        task_ws = _extract_workspace_id(t)
+        if task_ws is not None:
+            if str(task_ws) == str(target_workspace_id):
+                filtered.append(t)
+            continue
+        project_id = t.get("projectId")
+        if project_id is None:
+            continue
+        if str(projects_map.get(project_id)) == str(target_workspace_id):
+            filtered.append(t)
+    return filtered

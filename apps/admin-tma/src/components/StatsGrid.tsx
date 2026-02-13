@@ -1,6 +1,7 @@
 "use client";
 
 import { Activity, Database, AlertCircle, ShoppingCart } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface StatItemProps {
     label: string;
@@ -32,33 +33,35 @@ interface StatsGridProps {
 }
 
 export function StatsGrid({ stats, health, scraping }: StatsGridProps) {
+    const { t } = useLanguage();
+
     return (
         <div className="grid grid-cols-2 gap-3 p-4">
             <StatItem
-                label="Active Spiders"
+                label={t('stats.active_spiders')}
                 value={scraping?.active_sources?.toString() || "0"}
-                subValue="Live sources"
+                subValue={t('stats.live_sources')}
                 icon={<Activity size={18} className="text-[#5288c1]" />}
                 color="bg-[#5288c1]"
             />
             <StatItem
-                label="Items Scraped"
+                label={t('stats.items_scraped')}
                 value={(scraping?.items_scraped_24h || 0).toLocaleString()}
-                subValue="In last 24h"
+                subValue={t('stats.in_last_24h')}
                 icon={<Database size={18} className="text-[#64b5ef]" />}
                 color="bg-[#64b5ef]"
             />
             <StatItem
-                label="Discovery Rate"
+                label={t('stats.discovery_rate')}
                 value={`${stats?.quiz_completion_rate || 0}%`}
-                subValue="Conversion"
+                subValue={t('stats.conversion')}
                 icon={<ShoppingCart size={18} className="text-[#2481cc]" />}
                 color="bg-[#2481cc]"
             />
             <StatItem
-                label="Latency"
+                label={t('stats.latency')}
                 value={`${health?.api_latency_ms || 0}ms`}
-                subValue="System speed"
+                subValue={t('stats.system_speed')}
                 icon={<AlertCircle size={18} className="text-[#ff3b30]" />}
                 color="bg-[var(--tg-theme-button-color)]"
             />

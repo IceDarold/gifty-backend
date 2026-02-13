@@ -23,6 +23,10 @@ class TimestampMixin:
 
 
 class User(TimestampMixin, Base):
+    """
+    Модель пользователя системы Gifty.
+    Хранит базовую информацию о пользователе и связи с OAuth аккаунтами.
+    """
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -36,6 +40,10 @@ class User(TimestampMixin, Base):
 
 
 class OAuthAccount(TimestampMixin, Base):
+    """
+    Связь пользователя с внешними провайдерами авторизации (Google, Yandex, VK).
+    Хранит токены и идентификаторы провайдеров.
+    """
     __tablename__ = "oauth_accounts"
     __table_args__ = (
         UniqueConstraint("provider", "provider_user_id", name="uq_oauth_provider_user"),
@@ -56,6 +64,10 @@ class OAuthAccount(TimestampMixin, Base):
 
 
 class Product(TimestampMixin, Base):
+    """
+    Основная модель товара в каталоге.
+    Содержит метаданные товара, информацию о мерчанте и результаты оценки LLM.
+    """
     __tablename__ = "products"
 
     gift_id: Mapped[str] = mapped_column(Text, primary_key=True)
@@ -82,6 +94,10 @@ class Product(TimestampMixin, Base):
 
 
 class ProductEmbedding(TimestampMixin, Base):
+    """
+    Векторные представления товаров для семантического поиска.
+    Использует pgvector для хранения эмбеддингов.
+    """
     __tablename__ = "product_embeddings"
 
     gift_id: Mapped[str] = mapped_column(Text, ForeignKey("products.gift_id", ondelete="CASCADE"), primary_key=True)
@@ -94,6 +110,10 @@ class ProductEmbedding(TimestampMixin, Base):
 
 
 class ParsingSource(TimestampMixin, Base):
+    """
+    Реестр источников для парсинга (магазинов и категорий).
+    Управляет расписанием и стратегией сбора данных.
+    """
     __tablename__ = "parsing_sources"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
@@ -111,6 +131,10 @@ class ParsingSource(TimestampMixin, Base):
 
 
 class ParsingRun(TimestampMixin, Base):
+    """
+    История запусков парсеров.
+    Хранит статистику по количеству спаршенных и новых товаров.
+    """
     __tablename__ = "parsing_runs"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
@@ -123,6 +147,10 @@ class ParsingRun(TimestampMixin, Base):
 
 
 class CategoryMap(TimestampMixin, Base):
+    """
+    Маппинг категорий внешних магазинов во внутренние категории Gifty.
+    Используется для нормализации каталога.
+    """
     __tablename__ = "category_maps"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
@@ -159,12 +187,20 @@ class InvestorContact(TimestampMixin, Base):
 
 
 class TelegramSubscriber(TimestampMixin, Base):
+    """
+    Подписчики и администраторы Telegram бота.
+    Управляет ролями, правами доступа и подписками на уведомления.
+    """
     __tablename__ = "telegram_subscribers"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
-    chat_id: Mapped[int] = mapped_column(sa.BigInteger, unique=True, nullable=False, index=True)
+    chat_id: Mapped[Optional[int]] = mapped_column(sa.BigInteger, unique=True, nullable=True, index=True)
     slug: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # TG Username or similar
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    invite_password_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    mentor_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer, ForeignKey("telegram_subscribers.id", ondelete="SET NULL"), nullable=True
+    )
     subscriptions: Mapped[list[str]] = mapped_column(
         sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
     )
@@ -176,6 +212,10 @@ class TelegramSubscriber(TimestampMixin, Base):
     )
 
 class WeeekAccount(TimestampMixin, Base):
+    """
+    Связь аккаунта Telegram с сервисом Weeek.
+    Хранит токены доступа и настройки для управления задачами.
+    """
     __tablename__ = "weeek_accounts"
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)

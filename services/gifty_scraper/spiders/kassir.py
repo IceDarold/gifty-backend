@@ -32,17 +32,13 @@ class KassirSpider(GiftyBaseSpider):
     }
 
     def start_requests(self):
-        # Use starting URL from kwargs or default to concerts
-        url = getattr(self, 'url', "https://msk.kassir.ru/bilety-na-koncert")
-        
-        urls = [url]
-        if not url and self.strategy == "discovery":
-             urls = ["https://msk.kassir.ru/"]
+        if not self.url:
+            self.url = "https://msk.kassir.ru/bilety-na-koncert"
+        # No-op
 
-        for u in urls:
-            yield scrapy.Request(
-                u,
-                callback=self.parse,
+        yield scrapy.Request(
+            self.url,
+            callback=self.parse,
                 meta={
                     "playwright": True,
                     "playwright_include_page": True,
@@ -72,11 +68,10 @@ class KassirSpider(GiftyBaseSpider):
             name = link.css('::text').get()
             if url and url not in seen and '/bilety-' in url:
                 seen.add(url)
-                yield CategoryItem(
+                yield self.create_category(
                     name=name.strip() if name else "Category",
                     url=url,
-                    parent_url=response.url,
-                    site_key=self.site_key
+                    parent_url=response.url
                 )
         
         # Fallback if discovery fails due to structure changes
@@ -88,11 +83,10 @@ class KassirSpider(GiftyBaseSpider):
             ]
             for path in fallbacks:
                 url = response.urljoin(path)
-                yield CategoryItem(
+                yield self.create_category(
                     name=path.replace("/bilety-", "").replace("-", " ").title(),
                     url=url,
-                    parent_url=response.url,
-                    site_key=self.site_key
+                    parent_url=response.url
                 )
 
     def parse_catalog(self, response):
@@ -168,18 +162,19 @@ class KassirSpider(GiftyBaseSpider):
             )
 
         # Pagination: "Load more" or numeric pages
-        next_page = response.css('a.pagination__next::attr(href)').get() or \
-                    response.xpath('//a[contains(@class, "next")]/@href').get()
-        
-        if next_page:
-            yield response.follow(
-                next_page, 
-                self.parse_catalog,
-                meta={
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_page_methods": [
-                        {"method": "wait_for_selector", "args": [".event-card", {"timeout": 10000}]},
-                    ],
-                }
-            )
+        if self.strategy == "deep":
+            next_page = response.css('a.pagination__next::attr(href)').get() or \
+                        response.xpath('//a[contains(@class, "next")]/@href').get()
+            
+            if next_page:
+                yield response.follow(
+                    next_page, 
+                    self.parse_catalog,
+                    meta={
+                        "playwright": True,
+                        "playwright_include_page": True,
+                        "playwright_page_methods": [
+                            {"method": "wait_for_selector", "args": [".event-card", {"timeout": 10000}]},
+                        ],
+                    }
+                )

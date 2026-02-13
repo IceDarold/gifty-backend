@@ -12,6 +12,8 @@ export const metadata: Metadata = {
 
 import { QueryProvider } from "@/components/QueryProvider";
 
+import { LanguageProvider } from "@/contexts/LanguageContext";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -22,9 +24,11 @@ export default function RootLayout({
       <body className={inter.className}>
         <QueryProvider>
           <TMAProvider>
-            <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
-              {children}
-            </div>
+            <LanguageProvider>
+              <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+                {children}
+              </div>
+            </LanguageProvider>
           </TMAProvider>
         </QueryProvider>
       </body>

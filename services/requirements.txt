@@ -7,3 +7,8 @@ beautifulsoup4
 python-dotenv
 prometheus_client
 scrapy-playwright
+psutil
+aio-pika
+redis
+
+

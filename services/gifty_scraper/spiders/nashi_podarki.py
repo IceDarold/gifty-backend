@@ -3,9 +3,10 @@ from gifty_scraper.items import CategoryItem
 
 
 class NashiPodarkiSpider(GiftyBaseSpider):
-    name = "nashipodarki"
+    name = "nashi_podarki"
     allowed_domains = ["nashipodarki.ru"]
-    site_key = "nashipodarki"
+    site_key = "nashi_podarki"
+
 
     def parse_discovery(self, response):
         """

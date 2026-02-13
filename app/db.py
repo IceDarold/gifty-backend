@@ -78,6 +78,26 @@ async def get_db() -> AsyncSession:
         yield session
 
 
+import redis.asyncio as redis
+import os
+
+# Redis setup
+if os.getenv("TESTING") == "true":
+    # Use fakeredis for testing
+    try:
+        from fakeredis import aioredis as fakeredis
+        redis_client = fakeredis.FakeRedis(decode_responses=True)
+    except ImportError:
+        # Fallback if fakeredis not available
+        redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+else:
+    redis_client = redis.from_url(settings.redis_url, decode_responses=True)
+
+async def get_redis():
+    """Returns a redis client connection."""
+    return redis_client
+
+
 @asynccontextmanager
 async def get_session_context() -> AsyncSession:
     async with SessionLocal() as session:
@@ -88,4 +108,3 @@ async def get_session_context() -> AsyncSession:
             raise
         finally:
             await session.close()
-

@@ -24,6 +24,8 @@ theme:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tabs
+    - navigation.indexes
     - search.suggest
     - search.highlight
     - search.share
@@ -63,6 +65,9 @@ plugins:
 markdown_extensions:
   - admonition
   - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
   - pymdownx.superfences:
       custom_fences:
         - name: mermaid
@@ -74,28 +79,50 @@ markdown_extensions:
   - pymdownx.snippets
   - pymdownx.tabbed:
       alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
 
 nav:
   - Home: index.md
+  - Onboarding:
+      - Quick Start: guides/onboarding.md
+      - Tech Stack & Concepts: guides/tech_stack.md
+      - Local Setup: guides/local_setup.md
+      - GitHub Workflow: guides/github_workflow.md
+      - Testing: guides/testing.md
+      - Database Guide: guides/database_work.md
+      - Roadmap & Milestones: guides/roadmap.md
   - Overview: architecture/overview.md
   - Parsing System:
       - Architecture: architecture/parsing.md
       - Guide (How to add parser): guides/parsing.md
   - Recommendation Engine:
       - The Philosophy (GUTG): architecture/grand_unified_theory.md
-      - Architecture:
-          - Overview: architecture/recommendations.md
-          - Product Analytics: architecture/product_analytics.md
+      - Architecture (Semantic Bridge): architecture/recommendation_engine.md
+      - Quiz System (Input): architecture/quiz_system.md
+      - Overview: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md
-  - Analytics Dashboard:
-      - Quick Start: guides/analytics_api_quickstart.md
-      - Frontend Integration Guide: guides/analytics_frontend_integration.md
+  - Analytics & Monitoring:
+      - Dashboard Guide: guides/analytics_api_quickstart.md
+      - Telegram Bot:
+          - User Guide: guides/telegram_bot.md
+          - Internals: architecture/telegram_bot_internals.md
+          - Development Guide: guides/telegram_bot_dev.md
   - Engineering & DevOps:
-      - Development Workflow: guides/development.md
+      - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
+      - Overview: api/index.md
+      - Playground: api/playground.md
+      - Auth: api/auth.md
+      - Public: api/public.md
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
-      - Integrations (Weeek): weeek_api_reference.md
+      - Analytics: api/analytics.md
+      - Internal: api/internal.md
+      - Weeek: api/weeek.md

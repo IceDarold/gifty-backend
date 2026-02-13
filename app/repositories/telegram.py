@@ -13,6 +13,15 @@ class TelegramRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
+    async def get_subscriber_by_slug(self, slug: str) -> Optional[TelegramSubscriber]:
+        stmt = select(TelegramSubscriber).where(TelegramSubscriber.slug == slug)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_subscriber_by_id(self, sub_id: int) -> Optional[TelegramSubscriber]:
+        stmt = select(TelegramSubscriber).where(TelegramSubscriber.id == sub_id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
     async def create_subscriber(self, chat_id: int, name: Optional[str] = None, slug: Optional[str] = None) -> TelegramSubscriber:
         subscriber = TelegramSubscriber(
             chat_id=chat_id,
@@ -25,6 +34,51 @@ class TelegramRepository:
         await self.session.commit()
         return subscriber
 
+    async def create_invite(
+        self,
+        slug: str,
+        name: Optional[str],
+        password_hash: str,
+        mentor_id: Optional[int] = None,
+        permissions: Optional[list[str]] = None,
+    ) -> TelegramSubscriber:
+        subscriber = TelegramSubscriber(
+            chat_id=None,
+            name=name,
+            slug=slug,
+            invite_password_hash=password_hash,
+            mentor_id=mentor_id,
+            subscriptions=[],
+            permissions=permissions or [],
+        )
+        self.session.add(subscriber)
+        await self.session.commit()
+        return subscriber
+
+    async def claim_invite(
+        self,
+        slug: str,
+        password_hash: str,
+        chat_id: int,
+        name: Optional[str] = None,
+    ) -> Optional[TelegramSubscriber]:
+        stmt = select(TelegramSubscriber).where(
+            and_(
+                TelegramSubscriber.slug == slug,
+                TelegramSubscriber.invite_password_hash == password_hash,
+                TelegramSubscriber.chat_id.is_(None),
+            )
+        )
+        result = await self.session.execute(stmt)
+        sub = result.scalar_one_or_none()
+        if not sub:
+            return None
+        sub.chat_id = chat_id
+        sub.invite_password_hash = None
+        if name and not sub.name:
+            sub.name = name
+        await self.session.commit()
+        return sub
     async def subscribe_topic(self, chat_id: int, topic: str) -> bool:
         sub = await self.get_subscriber(chat_id)
         if not sub:

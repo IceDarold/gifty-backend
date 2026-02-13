@@ -27,7 +27,8 @@ jobs:
       - name: Run Pytest
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          REDIS_URL: "fakeredis://"
+          REDIS_URL: "redis://localhost:6379"
+          TESTING: "true"
         run: |
           pytest --verbose
 
@@ -58,6 +59,7 @@ jobs:
           username: ${{ secrets.PROD_SSH_USER }}
           key: ${{ secrets.PROD_SSH_KEY }}
           port: ${{ secrets.PROD_SSH_PORT }}
+          command_timeout: 60m
           envs: PROD_ENV
           script: |
             cd /opt/giftiai-api/gifty-backend
