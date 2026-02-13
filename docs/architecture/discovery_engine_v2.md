@@ -14,7 +14,7 @@ graph TD
     subgraph Discovery Loop
     DM -->|Raw Quiz Data| AS[AnthropicService]
     AS -->|Psychological Diagnostic| Claude(Claude 3 Haiku)
-    Claude -->|GUTG Hypotheses| DM
+    Claude -->|Gift Hypotheses| DM
     
     DM -->|Search Queries| RS[RecommendationService]
     RS -->|Vector Search| DB[(PostgreSQL + pgvector)]
@@ -43,7 +43,7 @@ The central brain of the discovery flow. It manages:
 The bridge between our business logic and LLM capabilities.
 
 - **AI-Native Diagnostic**: Instead of hardcoded rules, it passes raw Quiz Data to Claude.
-- **Hypothesis Generation**: Uses the **Grand Unified Theory of Gifting (GUTG)** to craft specific psychological "Gaps" (Mirror, Anchor, Optimizer, etc.).
+- **Hypothesis Generation**: Uses the **Psychological Gifting Model** to craft specific psychological "Gaps" (Mirror, Anchor, Optimizer, etc.).
 - **Search Query Synthesis**: Generates 3-5 specific keywords for the vector search engine.
 
 ### `RecommendationService` (The Retriever)
@@ -72,5 +72,5 @@ Handles long-term storage and analytical data.
 
 - **Psychological Depth**: We don't just match keywords; we fulfill needs (e.g., "Permission to indulge").
 - **Low Latency**: Bulk LLM calls and parallel retrieval keep the experience snappy.
-- **Scalability**: New GIFTING Gaps or logic changes are implemented via prompt engineering, not complex code refactors.
+- **Scalability**: New gifting gaps or logic changes are implemented via prompt engineering, not complex code refactors.
 - **Learning**: Database persistence of user reactions allows us to build a dataset for training custom rankers.
