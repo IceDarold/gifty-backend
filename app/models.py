@@ -274,6 +274,19 @@ class InvestorContact(TimestampMixin, Base):
     source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
+class PartnerContact(TimestampMixin, Base):
+    __tablename__ = "partner_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    website_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 class TelegramSubscriber(TimestampMixin, Base):
     """
     Подписчики и администраторы Telegram бота.
