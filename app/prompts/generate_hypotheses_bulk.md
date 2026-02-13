@@ -21,7 +21,7 @@ TASK:
    - Step A: Determine if the topic is too broad (e.g., "Music", "Video Games", "Decor") to give meaningful, specific recommendations.
    - Step B: 
      - IF TOO BROAD: Set "is_wide": true. Provide 3-4 "branches" (sub-topics) and a polite "question" in {language} to help narrow it down.
-     - IF SPECIFIC: Set "is_wide": false. Generate 2-3 specific GUTG hypotheses (diverse across Mirror, Optimizer, Catalyst, Anchor, Permission).
+     - IF SPECIFIC: Set "is_wide": false. Generate 2-3 specific gift hypotheses (diverse across Mirror, Optimizer, Catalyst, Anchor, Permission).
 3. Ensure every specific hypothesis has search_queries, reasoning, and a primary_gap.
 
 Return ONLY a JSON object where keys are the input topics:
