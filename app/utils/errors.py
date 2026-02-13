@@ -6,20 +6,21 @@ from typing import Any, Optional
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from starlette import status
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorPayload(BaseModel):
+    model_config = ConfigDict(
+        populate_by_name=True,
+        json_encoders={Exception: str}
+    )
+
     code: str
     message: str
     fields: Optional[dict[str, Any]] = None
-
-    class Config:
-        populate_by_name = True
-        json_encoders = {Exception: str}
 
 
 class AppError(Exception):

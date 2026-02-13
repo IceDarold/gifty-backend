@@ -30,7 +30,9 @@ jobs:
       - name: Run Pytest
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          REDIS_URL: "fakeredis://"
+          REDIS_URL: "redis://localhost:6379/0"
+          TESTING: "true"
+          ANTHROPIC_API_KEY: "sk-ant-mock-key"
         run: |
           # Pytest will automatically respect tests_config.yaml in the root
           pytest --verbose
