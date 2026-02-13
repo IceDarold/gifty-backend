@@ -15,7 +15,8 @@ async def check_sources():
         sources = result.scalars().all()
         print(f"Total sources found: {len(sources)}")
         for i, s in enumerate(sources):
-            print(f"{i+1}. {s.url} (ID: {s.id})")
+            print(f"{i+1}. {s.url} (ID: {s.id}, SiteKey: {s.site_key})")
+
 
 if __name__ == "__main__":
     asyncio.run(check_sources())

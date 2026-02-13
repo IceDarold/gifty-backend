@@ -83,8 +83,25 @@ async def get_parsing_sources(
 ):
     repo = ParsingRepository(db, redis=redis)
     sources = await repo.get_all_sources()
-    # Still keep full list for now, but in future this should be paginated
-    return sources
+    
+    # Calculate counts for each source
+    result = []
+    for source in sources:
+        # Convert ORM to Schema dict-like object
+        schema_data = ParsingSourceSchema.model_validate(source)
+        
+        # Populate total_items
+        if source.type == "hub":
+             schema_data.total_items = await repo.get_total_products_count(source.site_key)
+        else:
+             cat_name = source.config.get("discovery_name")
+             if cat_name:
+                 schema_data.total_items = await repo.get_total_category_products_count(source.site_key, cat_name)
+        
+        result.append(schema_data)
+        
+    return result
+
 
 @router.post("/sources", response_model=ParsingSourceSchema, summary="Создать или обновить источник парсинга")
 async def upsert_parsing_source(

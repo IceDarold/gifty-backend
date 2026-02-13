@@ -1247,12 +1247,13 @@ async def consume_notifications():
                             continue
 
                         # Noise reduction for scraper errors
-                        # If it's a 'scrapers' notification, we only alert if it explicitly mentions a broken state
-                        # or if we want to implement more complex logic here.
-                        # For now, let's just make sure we don't spam for every minor error if it's not 'broken'.
-                        if topic == "scrapers" and "Broken:" not in text and "Need to Fix" not in text:
-                            logger.info(f"Skipping noisy scraper notification: {text[:50]}...")
-                            continue
+                        # If it's a 'scrapers' or 'scraping' notification, we want to ensure we catch important errors
+                        if topic in ["scrapers", "scraping"]:
+                            # Check for critical keywords (case-insensitive)
+                            is_critical = any(k in text.upper() for k in ["BROKEN", "NEED TO FIX", "ERROR"])
+                            if not is_critical:
+                                logger.info(f"Skipping noisy scraper notification: {text[:50]}...")
+                                continue
 
                         # Find all subscribers for this topic
                         subscribers = await client.get_topic_subscribers(topic)

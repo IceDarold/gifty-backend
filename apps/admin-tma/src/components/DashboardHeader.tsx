@@ -2,9 +2,11 @@
 
 import { useTMA } from "@/components/TMAProvider";
 import { Bell, Settings, User } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 export function DashboardHeader() {
     const tma = useTMA();
+    const { t } = useLanguage();
 
     return (
         <header className="flex items-center justify-between p-4 sticky top-0 bg-[var(--tg-theme-bg-color)] z-10 border-b border-[var(--tg-theme-secondary-bg-color)]">
@@ -16,7 +18,7 @@ export function DashboardHeader() {
                     <h1 className="font-bold text-sm leading-tight">
                         {tma?.user?.first_name || "Admin"} {tma?.user?.last_name || ""}
                     </h1>
-                    <p className="text-xs text-[var(--tg-theme-hint-color)]">Superadmin Panel</p>
+                    <p className="text-xs text-[var(--tg-theme-hint-color)]">{t('common.superadmin_panel')}</p>
                 </div>
             </div>
             <div className="flex items-center gap-2">

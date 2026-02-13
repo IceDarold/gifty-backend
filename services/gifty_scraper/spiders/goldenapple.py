@@ -4,9 +4,10 @@ from gifty_scraper.base_spider import GiftyBaseSpider
 from gifty_scraper.items import CategoryItem
 
 class GoldAppleSpider(GiftyBaseSpider):
-    name = "goldapple"
+    name = "goldenapple"
     allowed_domains = ["goldapple.ru"]
-    site_key = "goldapple"
+    site_key = "goldenapple"
+
 
     category_selector = 'a[href^="/catalog/"]'
 

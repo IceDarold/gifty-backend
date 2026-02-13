@@ -24,6 +24,25 @@ class LetuSpider(GiftyBaseSpider):
         }
     }
 
+    def parse_discovery(self, response):
+        """
+        Parse hub pages to find category links.
+        """
+        links = response.css(self.category_selector)
+        seen = set()
+
+        for link in links:
+            url = response.urljoin(link.css("::attr(href)").get())
+            if not url or url in seen or url == response.url:
+                continue
+            seen.add(url)
+
+            name = link.css("::text").get() or link.css("span::text").get()
+            if name:
+                 name = name.strip()
+
+            yield self.create_category(url=url, name=name)
+
     def parse_catalog(self, response):
         """
         Parses the catalog page for Letu.ru using SSR-rendered content.
@@ -77,7 +96,7 @@ class LetuSpider(GiftyBaseSpider):
                 )
 
         # 2. Pagination
-        if self.strategy in ["deep", "discovery"]:
+        if self.strategy == "deep":
             # Googlebot version uses link rel="next"
             next_page = response.css('link[rel="next"]::attr(href)').get()
             
