@@ -4,18 +4,7 @@ from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
-class GiftDTO(BaseModel):
-    id: str = Field(..., description="Уникальный ID товара (например, site_key:url)")
-    title: str = Field(..., description="Название товара")
-    description: Optional[str] = Field(None, description="Описание товара")
-    price: Optional[float] = Field(None, description="Цена в рублях")
-    currency: Optional[str] = Field("RUB", description="Валюта")
-    image_url: Optional[str] = Field(None, description="Ссылка на фото")
-    product_url: str = Field(..., description="Прямая ссылка на магазин")
-    merchant: Optional[str] = Field(None, description="Продавец")
-    category: Optional[str] = Field(None, description="Внутренняя категория")
-
-    model_config = {"from_attributes": True}
+from recommendations.models import GiftDTO
 
 
 class Constraints(BaseModel):

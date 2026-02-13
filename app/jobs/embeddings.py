@@ -6,6 +6,7 @@ from typing import Optional
 from app.db import get_session_context
 from app.repositories.catalog import PostgresCatalogRepository
 from app.services.embeddings import EmbeddingService
+from app.core.logic_config import logic_config
 
 logger = logging.getLogger(__name__)
 
@@ -13,16 +14,17 @@ logger = logging.getLogger(__name__)
 async def process_embeddings_job(
     batch_size: int = 32,
     limit_total: Optional[int] = None,
-    model_name: str = "BAAI/bge-m3",
+    model_name: Optional[str] = None,
     model_version: str = "1.0",
 ) -> None:
     """
     Job to find products without embeddings (or outdated hash) and generate them.
     """
-    logger.info(f"Starting embeddings job. Model: {model_name} (v{model_version})")
+    actual_model = model_name or logic_config.model_embedding
+    logger.info(f"Starting embeddings job. Model: {actual_model} (v{model_version})")
     
     # Initialize service (loads model)
-    embedding_service = EmbeddingService(model_name=model_name)
+    embedding_service = EmbeddingService(model_name=actual_model)
     
     total_processed = 0
     
@@ -50,7 +52,7 @@ async def process_embeddings_job(
             
             # 3. Generate embeddings
             try:
-                vectors = embedding_service.embed_batch(texts)
+                vectors = await embedding_service.embed_batch_async(texts)
             except Exception as e:
                 logger.error(f"Failed to embed batch: {e}", exc_info=True)
                 break
@@ -60,7 +62,7 @@ async def process_embeddings_job(
             for product, vector in zip(products, vectors):
                 embeddings_data.append({
                     "gift_id": product.gift_id,
-                    "model_name": model_name,
+                    "model_name": actual_model,
                     "model_version": model_version,
                     "dim": len(vector),
                     "embedding": vector,
