@@ -103,6 +103,9 @@ nav:
       - The Philosophy (GUTG): architecture/grand_unified_theory.md
       - Architecture (Semantic Bridge): architecture/recommendation_engine.md
       - Quiz System (Input): architecture/quiz_system.md
+      - Discovery Algorithm (Dialogue): architecture/discovery_algorithm.md
+      - Multi-Track System (v2): architecture/multi_track_discovery.md
+      - Discovery Engine v2 (Deep Dive): architecture/discovery_engine_v2.md
       - Overview: architecture/recommendations.md
       - Gift Query Rules: architecture/gift_query_rules.md
       - Intelligence API: architecture/intelligence.md

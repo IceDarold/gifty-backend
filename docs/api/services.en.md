@@ -6,7 +6,7 @@ This section provides documentation for the application's key service layers.
     options:
       show_root_heading: true
 
-::: app.services.intelligence.IntelligenceService
+::: app.services.intelligence.IntelligenceAPIClient
     options:
       show_root_heading: true
       
