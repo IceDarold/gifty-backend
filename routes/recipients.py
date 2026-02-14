@@ -13,7 +13,7 @@ from app.models import Recipient, Interaction
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/recipients", tags=["recipients"])
+router = APIRouter(prefix="/api/v1/recipients", tags=["recipients"])
 
 
 # Schemas

@@ -22,7 +22,7 @@ logger = logging.getLogger("ScraperWorker")
 # Environment variables
 RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-INTERNAL_API_BASE_URL = os.getenv("CORE_API_URL", "http://api:8000/internal/ingest-batch").rsplit('/', 1)[0]
+INTERNAL_API_BASE_URL = os.getenv("CORE_API_URL", "http://api:8000/api/v1/internal/ingest-batch").rsplit('/', 1)[0]
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "default_internal_token")
 MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "4"))
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9410"))

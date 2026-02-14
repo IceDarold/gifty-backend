@@ -73,7 +73,7 @@ services:
       - "127.0.0.1:9410:9410"
     env_file: .env
     environment:
-      CORE_API_URL: http://api:8000/internal/ingest-batch
+      CORE_API_URL: http://api:8000/api/v1/internal/ingest-batch
     depends_on:
       rabbitmq:
         condition: service_healthy

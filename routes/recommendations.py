@@ -10,7 +10,7 @@ from app.db import get_db
 from app.services.session_storage import get_session_storage
 from app.services.embeddings import get_embedding_service
 
-router = APIRouter(prefix="/recommendations", tags=["recommendations"])
+router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 
 async def get_dialogue_manager(
     db_session = Depends(get_db)
