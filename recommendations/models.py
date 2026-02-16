@@ -154,16 +154,16 @@ class RecommendationSession(BaseModel):
     session_id: str
     recipient: RecipientResponse
     
-    # Internal State (Excluded from API response, but saved in Redis)
-    full_recipient: RecipientProfile = Field(exclude=True)
-    topics: List[str] = Field(default_factory=list, exclude=True)
-    language: Language = Field(default=Language.RU, exclude=True)
+    # Internal State (Excluded from API response by routes, but saved in persistence)
+    full_recipient: RecipientProfile
+    topics: List[str] = Field(default_factory=list)
+    language: Language = Field(default=Language.RU)
     
     # Parallel tracks (The main content)
     tracks: List[TopicTrack] = Field(default_factory=list)
     # Interaction Tracking
     liked_hypotheses: List[str] = Field(default_factory=list)
-    ignored_hypotheses: List[str] = Field(default_factory=list)
+    shortlisted_products: List[str] = Field(default_factory=list)
     # Discovery Helpers
     topic_hints: List[Dict[str, str]] = Field(default_factory=list)
     
