@@ -73,17 +73,19 @@ class PostgresCatalogRepository(CatalogRepository):
         stmt = stmt.on_conflict_do_update(
             index_elements=[Product.gift_id],
             set_=update_dict
-        ).returning(sa.literal_column("xmax"))
-        
-        result = await self.session.execute(stmt)
-        rows = result.scalars().all()
-        # In PostgreSQL, xmax is 0 for inserted rows, and non-zero for updated rows.
-        # But wait, scalars().all() might not work well with literal_column if not grouped.
-        # Let's use fetchall()
-        
-        # Correction: use result.all() 
-        inserted_count = sum(1 for xmax in rows if xmax == 0)
-        return inserted_count # Total NEW products added to DB
+        )
+
+        # RETURNING xmax is specific to PostgreSQL for counting inserts vs updates
+        if self.session.bind.dialect.name == "postgresql":
+            stmt = stmt.returning(sa.literal_column("xmax"))
+            result = await self.session.execute(stmt)
+            rows = result.scalars().all()
+            inserted_count = sum(1 for xmax in rows if xmax == 0)
+            return inserted_count
+        else:
+            # Fallback for SQLite/others: just return rowcount
+            result = await self.session.execute(stmt)
+            return result.rowcount
 
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
         """

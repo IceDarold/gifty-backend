@@ -1,5 +1,8 @@
 scrapy
 pika
+aio_pika
+redis
+psutil
 httpx
 pydantic
 pydantic-settings
