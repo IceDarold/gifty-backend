@@ -13,7 +13,7 @@ from app.utils.telegram_auth import verify_telegram_init_data
 from app.repositories.parsing import ParsingRepository
 from app.repositories.telegram import TelegramRepository
 
-router = APIRouter(prefix="/internal", tags=["internal"])
+router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 settings = get_settings()
 
 def verify_internal_token(x_internal_token: str = Header(...)):

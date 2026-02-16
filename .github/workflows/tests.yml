@@ -27,10 +27,34 @@ jobs:
           pip install -r requirements.txt
           pip install pytest pytest-asyncio pytest-mock pyyaml httpx
 
+      - name: Check Alembic heads
+        run: |
+          HEAD_COUNT=$(alembic heads | grep -c "(head)")
+          if [ "$HEAD_COUNT" -gt 1 ]; then
+            echo "ERROR: Multiple Alembic heads detected! This will break deployments."
+            alembic heads
+            exit 1
+          fi
+          if [ "$HEAD_COUNT" -eq 0 ]; then
+             echo "Warning: No Alembic heads detected. Check if migrations exist."
+          fi
+
+      - name: Smoke Test (Verify Imports)
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379/0"
+          TESTING: "true"
+          ANTHROPIC_API_KEY: "sk-ant-mock-key"
+        run: |
+          # Verify the application can at least be imported without crashing
+          python -c "from app.main import app; print('App imported successfully')"
+
       - name: Run Pytest
         env:
           DATABASE_URL: "sqlite+aiosqlite:///:memory:"
-          REDIS_URL: "fakeredis://"
+          REDIS_URL: "redis://localhost:6379/0"
+          TESTING: "true"
+          ANTHROPIC_API_KEY: "sk-ant-mock-key"
         run: |
           # Pytest will automatically respect tests_config.yaml in the root
           pytest --verbose

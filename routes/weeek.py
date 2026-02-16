@@ -12,7 +12,7 @@ from app.config import get_settings
 from app.services.weeek import WeeekClient
 from routes.internal import verify_internal_token
 
-router = APIRouter(prefix="/internal/weeek", tags=["internal-weeek"])
+router = APIRouter(prefix="/api/v1/internal/weeek", tags=["internal-weeek"])
 settings = get_settings()
 
 # Schemas

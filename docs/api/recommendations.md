@@ -71,6 +71,6 @@
 
 *   `title`: Заголовок (напр., «В поисках того самого звука»).
 *   `description`: Описание идеи для пользователя.
-*   `primary_gap`: Метка GUTG (`catalyst`, `optimizer` и т.д.).
+*   `primary_gap`: Метка стратегии (`catalyst`, `optimizer` и т.д.).
 *   `preview_products`: Список из 3-х товаров (`GiftDTO`) для наглядности.
 *   `search_queries`: Внутренние запросы, по которым найдены превью.
