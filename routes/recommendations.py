@@ -1,6 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Optional
 from pydantic import BaseModel
+import logging
+
+logger = logging.getLogger(__name__)
 
 from recommendations.models import QuizAnswers, RecommendationSession
 from app.services.dialogue_manager import DialogueManager
@@ -92,7 +95,7 @@ async def get_hypothesis_products(
         # ... logic for budget ...
 
         # 3. Generate products using recommendation service
-        products = await manager.recommendation_service.find_recommendations(
+        products = await manager.recommendation_service.get_deep_dive_products(
             search_queries=db_h.search_queries or [db_h.title],
             hypothesis_title=db_h.title,
             hypothesis_description=db_h.description,

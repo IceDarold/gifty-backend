@@ -7,4 +7,4 @@ test_groups:
   auth: true
   integrations: true
   security: true
-  ai_intelligence: false  # Expensive tests set to false by default
+  ai_intelligence: true  # Expensive tests set to false by default

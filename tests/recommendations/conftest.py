@@ -1,4 +1,5 @@
 import pytest
+import pytest_asyncio
 from unittest.mock import AsyncMock, MagicMock
 import uuid
 from typing import Dict, Any, List
@@ -59,3 +60,65 @@ def mock_session_storage():
 def mock_recipient_service():
     mock = AsyncMock()
     return mock
+
+# --- Added for E2E Tests ---
+
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.ext.compiler import compiles
+from sqlalchemy.dialects.postgresql import UUID, JSONB
+from pgvector.sqlalchemy import Vector
+from app.db import Base
+from app.models import User, Recipient, Interaction, Hypothesis
+
+@compiles(UUID, "sqlite")
+def _compile_uuid_sqlite(type_, compiler, **kw):
+    return "CHAR(36)"
+
+@compiles(JSONB, "sqlite")
+def _compile_jsonb_sqlite(type_, compiler, **kw):
+    return "TEXT"
+
+@compiles(Vector, "sqlite")
+def _compile_vector_sqlite(type_, compiler, **kw):
+    return "BLOB"
+
+@pytest_asyncio.fixture
+async def sqlite_db_session(tmp_path):
+    db_path = tmp_path / "e2e_test.sqlite"
+    engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", future=True)
+
+    async with engine.begin() as conn:
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[
+                User.__table__,
+                Recipient.__table__,
+                Interaction.__table__,
+                Hypothesis.__table__,
+            ],
+        )
+
+    session_factory = async_sessionmaker(engine, expire_on_commit=False, class_=AsyncSession)
+    async with session_factory() as session:
+        yield session
+    
+    await engine.dispose()
+
+@pytest.fixture
+def in_memory_session_storage():
+    import json
+    from recommendations.models import RecommendationSession
+    
+    class InMemorySessionStorage:
+        def __init__(self):
+            self._sessions = {}
+        async def save_session(self, session):
+            # Simulate Redis serialization
+            self._sessions[session.session_id] = session.model_dump_json()
+        async def get_session(self, session_id: str):
+            data = self._sessions.get(session_id)
+            if not data:
+                return None
+            return RecommendationSession.model_validate_json(data)
+            
+    return InMemorySessionStorage()
