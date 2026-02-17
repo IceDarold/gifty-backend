@@ -70,7 +70,12 @@ async def test_update_source_stats(postgres_session):
     assert source.status == "waiting"
     assert source.config["last_stats"] == stats
     # Check if next_sync_at pushed forward (roughly)
-    assert source.next_sync_at > datetime.datetime.now(datetime.timezone.utc)
+    # On SQLite, datetimes might be returned as naive UTC.
+    now = datetime.datetime.now(datetime.timezone.utc)
+    next_sync = source.next_sync_at
+    if next_sync.tzinfo is None:
+        now = now.replace(tzinfo=None)
+    assert next_sync > now
 
 @pytest.mark.asyncio
 async def test_category_mapping(postgres_session):

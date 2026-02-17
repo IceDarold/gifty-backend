@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import os
 import uuid
 import pytest
 from sqlalchemy import select
 
 from app.models import Product, ProductEmbedding
 from app.repositories.catalog import PostgresCatalogRepository
+
+pytestmark = pytest.mark.skipif(
+    os.getenv("DATABASE_URL", "").startswith("sqlite"),
+    reason="Catalog repository tests require PostgreSQL (on_conflict, pgvector)"
+)
 
 
 def _product(gift_id: str, title: str, is_active: bool = True):

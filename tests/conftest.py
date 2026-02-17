@@ -86,7 +86,6 @@ async def _wait_for_db(url: str, timeout: float = 30.0) -> None:
     if raw.drivername == "postgresql+asyncpg":
         raw = raw.set(drivername="postgresql")
     connect_url = raw.render_as_string(hide_password=False)
-    print(f"DEBUG: _wait_for_db connecting to: {connect_url}")
     start = time.time()
     last_exc: Optional[Exception] = None
     while time.time() - start < timeout:
@@ -95,7 +94,6 @@ async def _wait_for_db(url: str, timeout: float = 30.0) -> None:
             await conn.close()
             return
         except Exception as exc:
-            print(f"DEBUG: Connection attempt failed: {exc}") # Added
             last_exc = exc
             await asyncio.sleep(0.5)
     raise RuntimeError(f"Postgres did not become ready in time: {last_exc}")
@@ -138,7 +136,6 @@ def postgres_container():
     # Only run if we actually intend to use a local Postgres (not SQLite or other)
     db_url = os.getenv("DATABASE_URL")
     if db_url and "sqlite" in db_url:
-         print("DEBUG: Using SQLite, skipping postgres_container fixture")
          yield
          return
 
@@ -233,7 +230,6 @@ def _sanitize_url(raw: str):
 async def postgres_db_url(postgres_container) -> str:
     db_url = os.getenv("DATABASE_URL")
     if db_url and "sqlite" in db_url:
-        print(f"DEBUG: Using SQLite URL: {db_url}")
         yield db_url
         return
 
@@ -281,7 +277,8 @@ async def postgres_engine(postgres_db_url) -> AsyncIterator:
     engine = create_async_engine(postgres_db_url, future=True)
 
     async with engine.begin() as conn:
-        await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
+        if engine.dialect.name == "postgresql":
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector"))
         # Create ALL tables
         await conn.run_sync(Base.metadata.create_all)
 

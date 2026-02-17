@@ -104,9 +104,19 @@ class TelegramRepository:
         return True
 
     async def get_subscribers_for_topic(self, topic: str) -> Sequence[TelegramSubscriber]:
-        # Using JSONB contains filter
-        # @> '["topic"]'
+        # Using JSONB contains filter where possible, otherwise fallback for local tests (SQLite)
         from sqlalchemy import or_
+        
+        # Check dialect name via session bind
+        dialect = self.session.bind.dialect.name if self.session.bind else "postgresql"
+        
+        if dialect == "sqlite":
+             # SQLite fallback: filter in memory as contains() doesn't work for JSON arrays as elegantly
+             stmt = select(TelegramSubscriber).where(TelegramSubscriber.is_active == True)
+             result = await self.session.execute(stmt)
+             subs = result.scalars().all()
+             return [s for s in subs if topic in (s.subscriptions or []) or "all" in (s.subscriptions or [])]
+
         stmt = select(TelegramSubscriber).where(
             and_(
                 TelegramSubscriber.is_active == True,
