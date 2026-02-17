@@ -27,3 +27,5 @@ aiogram>=3.17.0
 aio-pika>=9.5.5
 email-validator>=2.0.0
 anthropic
+google-genai
+groq
