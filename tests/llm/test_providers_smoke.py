@@ -7,6 +7,7 @@ from app.core.logic_config import logic_config
 
 logger = logging.getLogger(__name__)
 
+@pytest.mark.ai_test
 @pytest.mark.asyncio
 async def test_llm_provider_smoke():
     """
@@ -33,6 +34,7 @@ async def test_llm_provider_smoke():
     except Exception as e:
         pytest.fail(f"LLM Provider {provider} failed: {e}")
 
+@pytest.mark.ai_test
 @pytest.mark.asyncio
 async def test_embedding_provider_smoke():
     """
