@@ -3,6 +3,7 @@ from anthropic import AsyncAnthropic
 import logging
 
 from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -11,6 +12,10 @@ class AnthropicClient(LLMClient):
     Adapter for Anthropic API.
     """
     def __init__(self, api_key: Optional[str] = None):
+        if not api_key:
+            settings = get_settings()
+            api_key = settings.anthropic_api_key
+            
         self.client = AsyncAnthropic(api_key=api_key)
 
     async def generate_text(

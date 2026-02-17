@@ -11,6 +11,8 @@ import sys
 import pytest
 import pytest_asyncio
 from anthropic import APIConnectionError
+import httpx
+
 from pathlib import Path as _Path
 
 ROOT = _Path(__file__).resolve().parents[2]
@@ -82,7 +84,7 @@ class TimedAIReasoningService:
             self._reporter.add_llm_call(name, duration, detail=detail)
             self._reporter.add_output(f"llm_raw:{name}", result)
             return result
-        except (APIConnectionError, HttpxConnectError, OSError) as exc:
+        except (APIConnectionError, httpx.ConnectError, OSError) as exc:
             duration = time.perf_counter() - start
             self._reporter.add_llm_call(name, duration, detail=f"connection error: {exc}")
             self._reporter.add_check(

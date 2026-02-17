@@ -21,6 +21,10 @@ class Settings(BaseSettings):
             # Running inside Docker, replace localhost with service name
             return self.database_url.replace("localhost", "postgres")
         return self.database_url
+
+    # LLM Provider Configuration
+    llm_provider: str = Field("anthropic", alias="LLM_PROVIDER")
+
     
     @property
     def redis_connection_url(self) -> str:
