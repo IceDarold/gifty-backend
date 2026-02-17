@@ -102,13 +102,15 @@ def postgres_container():
             "--rm",
             "-d",
             "--name",
-            name,
+            f"{name}-{port}",
             "-e",
             f"POSTGRES_USER={user}",
             "-e",
             f"POSTGRES_PASSWORD={password}",
             "-e",
             f"POSTGRES_DB={db}",
+            "-e",
+            "POSTGRES_HOST_AUTH_METHOD=trust",
             "-p",
             f"{port}:5432",
             "pgvector/pgvector:pg17",
@@ -120,7 +122,7 @@ def postgres_container():
 
     if os.getenv("DB_TEST_KEEP_CONTAINER") == "1":
         return
-    subprocess.run(["docker", "rm", "-f", name], check=False)
+    subprocess.run(["docker", "rm", "-f", f"{name}-{port}"], check=False)
 
 
 def _build_local_url() -> str | None:
@@ -182,7 +184,7 @@ async def postgres_db_url(postgres_container) -> str:
     await admin_engine.dispose()
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture
 async def postgres_engine(postgres_db_url) -> AsyncIterator:
     engine = create_async_engine(postgres_db_url, future=True)
 

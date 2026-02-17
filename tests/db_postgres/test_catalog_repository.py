@@ -14,7 +14,7 @@ def _product(gift_id: str, title: str, is_active: bool = True):
         "title": title,
         "product_url": f"https://example.com/{gift_id}",
         "is_active": is_active,
-        "content_hash": str(uuid.uuid4()),
+        "content_hash": f"hash-{gift_id}",
     }
 
 
@@ -25,7 +25,7 @@ def _embedding(gift_id: str, model_name: str, model_version: str):
         "model_version": model_version,
         "dim": 1024,
         "embedding": [0.01] * 1024,
-        "content_hash": str(uuid.uuid4()),
+        "content_hash": f"hash-{gift_id}",
     }
 
 

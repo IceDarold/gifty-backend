@@ -126,14 +126,19 @@ class PostgresCatalogRepository(CatalogRepository):
         
         stmt = (
             select(p)
-            .outerjoin(pe, p.gift_id == pe.gift_id)
+            .outerjoin(
+                pe,
+                and_(
+                    p.gift_id == pe.gift_id,
+                    pe.model_version == model_version
+                )
+            )
             .where(
                 and_(
                     p.is_active.is_(True),
                     or_(
                         pe.gift_id.is_(None),
-                        pe.content_hash != p.content_hash,
-                        pe.model_version != model_version
+                        pe.content_hash != p.content_hash
                     )
                 )
             )
@@ -161,7 +166,11 @@ class PostgresCatalogRepository(CatalogRepository):
         }
 
         stmt = stmt.on_conflict_do_update(
-            constraint="pk_product_embeddings", # Primary key constraint name
+            index_elements=[
+                ProductEmbedding.gift_id,
+                ProductEmbedding.model_name,
+                ProductEmbedding.model_version
+            ],
             set_=update_dict
         )
 
@@ -263,22 +272,27 @@ class PostgresCatalogRepository(CatalogRepository):
         now = datetime.now()
         for s in scores:
             s["llm_scored_at"] = now
+            s["b_gift_id"] = s["gift_id"]
 
-        # Use PostgreSQL specific insert with update on conflict
-        from sqlalchemy.dialects.postgresql import insert
-        stmt = insert(Product).values(scores)
+        # Use session.execute with bindparam for batch update
+        # This is more robust as it doesn't require all columns for INSERT
+        from sqlalchemy import bindparam
         
-        # Define update map (include all passed fields except gift_id)
-        update_dict = {
-            c.name: c
-            for c in stmt.excluded
-            if c.name not in ["gift_id", "created_at"]
-        }
-        
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[Product.gift_id],
-            set_=update_dict
+        stmt = (
+            sa.update(Product)
+            .where(Product.gift_id == bindparam("b_gift_id"))
+            .values(
+                llm_gift_score=bindparam("llm_gift_score"),
+                llm_gift_reasoning=bindparam("llm_gift_reasoning"),
+                llm_scored_at=bindparam("llm_scored_at"),
+                updated_at=func.now()
+            )
+            .execution_options(synchronize_session=None)
         )
         
-        result = await self.session.execute(stmt)
-        return result.rowcount
+        result = await self.session.execute(stmt, scores)
+        # For bulk updates, rowcount might not be directly available on IteratorResult
+        try:
+            return result.rowcount
+        except AttributeError:
+            return len(scores)
