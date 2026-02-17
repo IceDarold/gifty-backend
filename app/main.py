@@ -12,6 +12,7 @@ from routes.analytics import router as analytics_router
 from routes.public import router as public_router
 from routes.recipients import router as recipients_router
 from app.routes.integrations import router as integrations_router
+from app.routes.workers import router as workers_router
 from routes.weeek import router as weeek_router
 from app.config import get_settings
 from app.redis_client import init_redis
@@ -105,6 +106,7 @@ app.include_router(recipients_router)
 app.include_router(internal_router)
 app.include_router(analytics_router)
 app.include_router(integrations_router)
+app.include_router(workers_router)
 app.include_router(public_router)
 app.include_router(weeek_router)
 

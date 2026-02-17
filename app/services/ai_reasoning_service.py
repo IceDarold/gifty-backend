@@ -2,22 +2,28 @@ import json
 import logging
 import re
 from typing import List, Dict, Any, Optional
-from anthropic import AsyncAnthropic
 
 from recommendations.models import GiftingGap, Hypothesis, DialogueStep, Language, UserInteraction, RecipientProfile
 from app.prompts import registry
 from app.core.logic_config import logic_config
+from app.services.llm.factory import LLMFactory
+from app.services.llm.interface import Message
 
 logger = logging.getLogger(__name__)
 
-class AnthropicService:
+class AIReasoningService:
+    """
+    Service for AI-driven reasoning and logic, agnostic of the underlying LLM provider.
+    Replaces the provider-specific AnthropicService.
+    """
     def __init__(self, model: Optional[str] = None):
         # Use config if specific model not provided
         self.model_fast = logic_config.model_fast
         self.model_smart = logic_config.model_smart
         
         self.default_model = model or self.model_fast
-        self.client = AsyncAnthropic()
+        # Get the configured LLM client
+        self.llm_client = LLMFactory.get_client()
 
     async def normalize_topics(self, topics: List[str], language: str = "ru") -> List[str]:
         """Cleans and standardizes raw user input topics."""
@@ -28,13 +34,13 @@ class AnthropicService:
         clean_topics = [self._sanitize_input(t) for t in topics]
         prompt = template.format(topics=json.dumps(clean_topics, ensure_ascii=False), language=language)
         
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.default_model,
             max_tokens=1000,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        return await self._extract_json(response.content[0].text)
+        return await self._extract_json(response.content)
 
     async def classify_topic(self, topic: str, quiz_data: Dict[str, Any], language: str = "ru") -> Dict[str, Any]:
         """Determines if a topic is 'wide' and needs branching."""
@@ -45,13 +51,13 @@ class AnthropicService:
             language=language
         )
         
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.model_fast,
             max_tokens=600,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        return await self._extract_json(response.content[0].text)
+        return await self._extract_json(response.content)
 
     async def generate_hypotheses(
         self, 
@@ -72,13 +78,13 @@ class AnthropicService:
             shown_concepts=", ".join([self._sanitize_input(c) for c in shown_concepts]) if shown_concepts else "None"
         )
         
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.model_smart,
             max_tokens=1500,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        return await self._extract_json(response.content[0].text)
+        return await self._extract_json(response.content)
 
     async def generate_personalized_probe(self, context_type: str, quiz_data: Dict[str, Any], topic: Optional[str] = None, language: str = "ru") -> Dict[str, Any]:
         """Generates a high-quality follow-up question when more info is needed."""
@@ -90,13 +96,13 @@ class AnthropicService:
             quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2)
         )
 
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.model_fast,
             max_tokens=600,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        return await self._extract_json(response.content[0].text)
+        return await self._extract_json(response.content)
 
     async def generate_hypotheses_bulk(
         self, 
@@ -117,13 +123,13 @@ class AnthropicService:
             language=language
         )
         
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.model_smart,
             max_tokens=2500,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        return await self._extract_json(response.content[0].text)
+        return await self._extract_json(response.content)
 
     async def generate_topic_hints(self, quiz_data: Dict[str, Any], topics_explored: List[str], language: str = "ru") -> List[Dict[str, Any]]:
         """Generates 3-5 guiding questions to help user discover new topics."""
@@ -133,13 +139,13 @@ class AnthropicService:
             topics_explored=", ".join([self._sanitize_input(t) for t in topics_explored]) if topics_explored else "None"
         )
         
-        response = await self.client.messages.create(
+        response = await self.llm_client.generate_text(
             model=self.model_fast,
             max_tokens=800,
-            system=registry.get_prompt("system").format(language=language),
-            messages=[{"role": "user", "content": prompt}]
+            system_prompt=registry.get_prompt("system").format(language=language),
+            messages=[Message(role="user", content=prompt)]
         )
-        data = await self._extract_json(response.content[0].text)
+        data = await self._extract_json(response.content)
         return data.get("hints", [])
 
     async def _extract_json(self, text: str) -> Any:

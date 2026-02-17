@@ -336,3 +336,28 @@ class WeeekAccount(TimestampMixin, Base):
     timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
     
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+
+
+class ComputeTask(TimestampMixin, Base):
+    """
+    Queue for offline compute tasks (embeddings, reranking, etc.).
+    External workers (Kaggle, home clusters) poll this table via API.
+    """
+    __tablename__ = "compute_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # 'embedding', 'rerank'
+    priority: Mapped[str] = mapped_column(String, server_default="low", index=True)  # 'low', 'high'
+    status: Mapped[str] = mapped_column(String, server_default="pending", nullable=False, index=True)  # 'pending', 'processing', 'completed', 'failed'
+    
+    # Task data
+    payload: Mapped[dict] = mapped_column(sa.dialects.postgresql.JSONB, nullable=False)  # Input data (texts, queries, etc.)
+    result: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)  # Output data (vectors, scores, etc.)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Error message if failed
+    
+    # Worker tracking
+    worker_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # ID of worker that picked up the task
+    
+    # Timing
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)

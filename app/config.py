@@ -77,6 +77,9 @@ class Settings(BaseSettings):
     internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
     intelligence_api_base: str = Field("https://api.giftyai.ru", alias="INTELLIGENCE_API_BASE")
     intelligence_api_token: Optional[str] = Field(None, alias="INTELLIGENCE_API_TOKEN")
+    
+    # LLM Provider Configuration
+    llm_provider: str = Field("anthropic", alias="LLM_PROVIDER")
     weeek_api_token: Optional[str] = Field(None, alias="WEEEK_API_TOKEN")
     weeek_workspace_id: int = Field(911018, alias="WEEEK_WORKSPACE_ID")
     weeek_api_base: str = Field("https://api.weeek.net/public/v1", alias="WEEEK_API_BASE")
@@ -99,7 +102,14 @@ class Settings(BaseSettings):
     prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
     loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
 
+    # AI/ML Services
     anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
+    groq_api_key: Optional[str] = Field(None, alias="GROQ_API_KEY")
+    openrouter_api_key: Optional[str] = Field(None, alias="OPENROUTER_API_KEY")
+    together_api_key: Optional[str] = Field(None, alias="TOGETHER_API_KEY")
+    runpod_api_key: Optional[str] = Field(None, alias="RUNPOD_API_KEY")
+    runpod_endpoint_id: Optional[str] = Field(None, alias="RUNPOD_ENDPOINT_ID")
 
     model_config = SettingsConfigDict(
         env_file=".env",
