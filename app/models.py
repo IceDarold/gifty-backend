@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 
 import sqlalchemy as sa
 from sqlalchemy import Column, DateTime, ForeignKey, String, Text, UniqueConstraint, func
@@ -38,6 +38,11 @@ class User(TimestampMixin, Base):
         back_populates="user", cascade="all, delete-orphan"
     )
 
+    # New relationship
+    recipients: Mapped[list["Recipient"]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
 
 class OAuthAccount(TimestampMixin, Base):
     """
@@ -61,6 +66,89 @@ class OAuthAccount(TimestampMixin, Base):
     expires_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     user: Mapped[User] = relationship(back_populates="oauth_accounts")
+
+
+class Recipient(TimestampMixin, Base):
+    """
+    Профиль человека, которому ищут подарок (Мама, Друг, Коллега).
+    Связан с User (Giver).
+    """
+    __tablename__ = "recipients"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    
+    # Basic Info
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    relation: Mapped[Optional[str]] = mapped_column(String, nullable=True) # friend, partner, etc.
+    gender: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    age: Mapped[Optional[int]] = mapped_column(sa.Integer, nullable=True)
+    birth_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Preferences / Context
+    interests: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+    
+    user: Mapped[Optional[User]] = relationship(back_populates="recipients")
+    interactions: Mapped[list["Interaction"]] = relationship(
+        back_populates="recipient", cascade="all, delete-orphan"
+    )
+
+
+class Interaction(TimestampMixin, Base):
+    """
+    История взаимодействия пользователя с рекомендациями для конкретного Recipient.
+    """
+    __tablename__ = "interactions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    recipient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    session_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    
+    action_type: Mapped[str] = mapped_column(String, nullable=False) # like, dislike, view, purchase
+    target_type: Mapped[str] = mapped_column(String, nullable=False) # hypothesis, product
+    target_id: Mapped[str] = mapped_column(String, nullable=False)
+    
+    value: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # comment text or value
+    metadata_json: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+
+    recipient: Mapped[Recipient] = relationship(back_populates="interactions")
+
+class Hypothesis(TimestampMixin, Base):
+    """
+    Модель гипотезы (идеи подарка), сгенерированной ИИ.
+    Позволяет анализировать эффективность идей и собирать фидбэк.
+    """
+    __tablename__ = "hypotheses"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    recipient_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    
+    track_title: Mapped[str] = mapped_column(String, nullable=False) # Название топика (Кофе, Спорт)
+    title: Mapped[str] = mapped_column(String, nullable=False)       # Название гипотезы
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # Обоснование ИИ
+    search_queries: Mapped[list[str]] = mapped_column(
+        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+    )
+    
+    # Feedback tracking
+    user_reaction: Mapped[Optional[str]] = mapped_column(String, nullable=True) # like, dislike, shortlist
+    is_shown: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    
+    # AI Metadata
+    model_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    raw_response: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+
+    recipient: Mapped[Optional[Recipient]] = relationship()
 
 
 class Product(TimestampMixin, Base):
@@ -186,6 +274,19 @@ class InvestorContact(TimestampMixin, Base):
     source: Mapped[Optional[str]] = mapped_column(String, nullable=True)
 
 
+class PartnerContact(TimestampMixin, Base):
+    __tablename__ = "partner_contacts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    email: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    website_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    ip: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    user_agent: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+
 class TelegramSubscriber(TimestampMixin, Base):
     """
     Подписчики и администраторы Telegram бота.
@@ -235,4 +336,3 @@ class WeeekAccount(TimestampMixin, Base):
     timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
     
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
-

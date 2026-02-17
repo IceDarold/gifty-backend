@@ -21,7 +21,7 @@ async def verify_analytics_token(
 
 
 router = APIRouter(
-    prefix="/analytics", 
+    prefix="/api/v1/analytics", 
     tags=["Analytics"],
     dependencies=[Depends(verify_analytics_token)]
 )

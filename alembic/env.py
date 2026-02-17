@@ -26,7 +26,7 @@ settings = get_settings()
 from sqlalchemy.engine import make_url
 
 def _get_sync_url():
-    url_obj = make_url(settings.database_url)
+    url_obj = make_url(settings.db_url)
     if url_obj.drivername == "postgresql+asyncpg":
         url_obj = url_obj.set(drivername="postgresql")
     return url_obj

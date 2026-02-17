@@ -10,7 +10,7 @@ from gifty_scraper.items import ProductItem, CategoryItem
 class IngestionPipeline:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.api_url = os.getenv("CORE_API_URL", "http://api:8000/internal/ingest-batch")
+        self.api_url = os.getenv("CORE_API_URL", "http://api:8000/api/v1/internal/ingest-batch")
         self.token = os.getenv("INTERNAL_API_TOKEN", "default_internal_token")
         self.batch_size = int(os.getenv("SCRAPY_BATCH_SIZE", "50"))
         self.items_buffer = []

@@ -67,11 +67,18 @@ class ParsingRepository:
         new_names = [n for n in names if n not in existing]
         if new_names:
             # Bulk insert new ones
-            insert_stmt = insert(CategoryMap).values([
-                {"external_name": name, "internal_category_id": None}
-                for name in new_names
-            ]).on_conflict_do_nothing()
-            await self.session.execute(insert_stmt)
+            if self.session.bind.dialect.name == "postgresql":
+                from sqlalchemy.dialects.postgresql import insert as pg_insert
+                insert_stmt = pg_insert(CategoryMap).values([
+                    {"external_name": name, "internal_category_id": None}
+                    for name in new_names
+                ]).on_conflict_do_nothing()
+                await self.session.execute(insert_stmt)
+            else:
+                # SQLite fallback: manual loop or simple insert (ignoring conflicts if we already filtered)
+                for name in new_names:
+                    self.session.add(CategoryMap(external_name=name, internal_category_id=None))
+                await self.session.flush()
             
             # Fetch again to get all (including newly created)
             stmt = select(CategoryMap).where(CategoryMap.external_name.in_(names))

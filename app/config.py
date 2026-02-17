@@ -12,6 +12,31 @@ class Settings(BaseSettings):
     database_url: str = Field("postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@localhost:5432/giftyai", alias="DATABASE_URL")
     redis_url: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
     rabbitmq_url: str = Field("amqp://guest:guest@localhost:5672/", alias="RABBITMQ_URL")
+    
+    @property
+    def db_url(self) -> str:
+        """Get database URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            # Running inside Docker, replace localhost with service name
+            return self.database_url.replace("localhost", "postgres")
+        return self.database_url
+    
+    @property
+    def redis_connection_url(self) -> str:
+        """Get Redis URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            return self.redis_url.replace("localhost", "redis")
+        return self.redis_url
+    
+    @property
+    def rabbitmq_connection_url(self) -> str:
+        """Get RabbitMQ URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            return self.rabbitmq_url.replace("localhost", "rabbitmq")
+        return self.rabbitmq_url
 
     session_cookie_name: str = Field("gifty_session", alias="SESSION_COOKIE_NAME")
     session_ttl_seconds: int = Field(60 * 60 * 24 * 30, alias="SESSION_TTL_SECONDS")
@@ -46,7 +71,9 @@ class Settings(BaseSettings):
     takprodam_api_base: Optional[str] = Field(None, alias="TAKPRODAM_API_BASE")
     takprodam_api_token: Optional[str] = Field(None, alias="TAKPRODAM_API_TOKEN")
     takprodam_source_id: Optional[int] = Field(None, alias="TAKPRODAM_SOURCE_ID")
-    embedding_model: str = Field("BAAI/bge-m3", alias="EMBEDDING_MODEL")
+    embedding_model: str = Field("bge-m3", alias="EMBEDDING_MODEL")
+    anthropic_model_fast: str = Field("claude-3-haiku-20240307", alias="ANTHROPIC_MODEL_FAST")
+    anthropic_model_smart: str = Field("claude-3-5-sonnet-20240620", alias="ANTHROPIC_MODEL_SMART")
     internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
     intelligence_api_base: str = Field("https://api.giftyai.ru", alias="INTELLIGENCE_API_BASE")
     intelligence_api_token: Optional[str] = Field(None, alias="INTELLIGENCE_API_TOKEN")
@@ -71,6 +98,8 @@ class Settings(BaseSettings):
     posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
     prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
     loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
+
+    anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
 
     model_config = SettingsConfigDict(
         env_file=".env",

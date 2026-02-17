@@ -16,7 +16,7 @@ export const authWithTelegram = async () => {
         initData = "dev_user_1821014162";
     }
 
-    const response = await api.post('/internal/webapp/auth', { init_data: initData });
+    const response = await api.post('/api/v1/internal/webapp/auth', { init_data: initData });
     return response.data;
 };
 
