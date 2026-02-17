@@ -1,0 +1,21 @@
+# Gifty Business Logic Configuration
+
+# Recommendation Engine Settings
+recommendation:
+  budget_margin_fraction: 0.1
+  items_per_query: 4
+  max_queries_for_preview: 3
+  rerank_candidate_limit: 15
+
+# LLM Selection
+llm:
+  default_provider: "anthropic"  # Options: anthropic, gemini, groq, openrouter, together
+  model_fast: "claude-3-haiku-20240307"
+  model_smart: "claude-3-5-sonnet-20240620"
+  model_embedding: "bge-m3"
+  embedding_provider: "intelligence_api"
+
+# Feature Toggles
+features:
+  use_runpod_for_high_priority: true
+  enable_external_workers: true

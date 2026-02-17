@@ -2,6 +2,7 @@ from typing import Dict, Type
 import logging
 
 from app.config import get_settings
+from app.core.logic_config import logic_config
 from app.services.llm.interface import LLMClient
 from app.services.llm.anthropic_client import AnthropicClient
 from app.services.llm.gemini_client import GeminiClient
@@ -30,8 +31,7 @@ class LLMFactory:
         """
         Returns an instance of the configured LLM client.
         """
-        settings = get_settings()
-        provider = provider or getattr(settings, "llm_provider", "anthropic")
+        provider = provider or logic_config.llm.default_provider
         
         client_class = LLMFactory._clients.get(provider.lower())
         

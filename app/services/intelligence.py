@@ -24,6 +24,7 @@ class IntelligenceAPIClient:
         self.intelligence_api_token = settings.intelligence_api_token
         self.runpod_api_key = settings.runpod_api_key
         self.runpod_endpoint_id = settings.runpod_endpoint_id
+        self.together_api_key = settings.together_api_key
         self.timeout = 10.0
 
     async def get_embeddings(
@@ -53,19 +54,32 @@ class IntelligenceAPIClient:
             )
             return None
         
-        # Online execution (RunPod or Intelligence API)
+        # Online execution
         return await self._get_embeddings_online(texts)
 
     async def _get_embeddings_online(self, texts: List[str]) -> List[List[float]]:
-        """Execute embeddings via RunPod or Intelligence API."""
-        # Try RunPod first if configured
-        if self.runpod_api_key and self.runpod_endpoint_id:
-            try:
-                return await self._call_runpod_embeddings(texts)
-            except Exception as e:
-                logger.warning(f"RunPod embeddings failed, falling back to Intelligence API: {e}")
+        """Execute embeddings based on configured provider in logic_config."""
+        provider = logic_config.llm.embedding_provider
         
-        # Fallback to Intelligence API
+        if provider == "runpod":
+            if self.runpod_api_key and self.runpod_endpoint_id:
+                try:
+                    return await self._call_runpod_embeddings(texts)
+                except Exception as e:
+                    logger.warning(f"RunPod embeddings failed, falling back to Intelligence API: {e}")
+            else:
+                logger.warning("RunPod provider selected but credentials missing, falling back.")
+
+        if provider == "together":
+            if self.together_api_key:
+                try:
+                    return await self._call_together_embeddings(texts)
+                except Exception as e:
+                    logger.warning(f"Together AI embeddings failed, falling back to Intelligence API: {e}")
+            else:
+                logger.warning("Together provider selected but credentials missing, falling back.")
+
+        # Default fallback to Intelligence API
         return await self._call_intelligence_api_embeddings(texts)
 
     async def _call_runpod_embeddings(self, texts: List[str]) -> List[List[float]]:
@@ -85,8 +99,24 @@ class IntelligenceAPIClient:
             data = response.json()
             return data["output"]["embeddings"]
 
+    async def _call_together_embeddings(self, texts: List[str]) -> List[List[float]]:
+        """Call Together AI for embeddings."""
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
+                "https://api.together.xyz/v1/embeddings",
+                json={
+                    "input": texts,
+                    "model": logic_config.model_embedding
+                },
+                headers={"Authorization": f"Bearer {self.together_api_key}"}
+            )
+            response.raise_for_status()
+            data = response.json()
+            # Together API returns format: {"data": [{"embedding": [...]}, ...]}
+            return [item["embedding"] for item in data.get("data", [])]
+
     async def _call_intelligence_api_embeddings(self, texts: List[str]) -> List[List[float]]:
-        """Call Intelligence API for embeddings (existing implementation)."""
+        """Call Intelligence API for embeddings."""
         if not self.intelligence_api_token:
             logger.warning("IntelligenceAPI token missing, using dummy embeddings.")
             return [[0.0] * 1024 for _ in texts]

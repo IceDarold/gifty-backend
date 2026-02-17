@@ -116,6 +116,8 @@ nav:
           - Internals: architecture/telegram_bot_internals.md
           - Development Guide: guides/telegram_bot_dev.md
   - Engineering & DevOps:
+      - Configuration (logic.yaml): guides/configuration.md
+      - AI Providers: guides/providers.md
       - Infrastructure & Secrets: guides/infrastructure_secrets.md
       - Deployment & CI/CD: guides/deployment.md
   - API Reference:
