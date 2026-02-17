@@ -64,7 +64,7 @@ def install_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(AppError)
     async def app_error_handler(request: Request, exc: AppError) -> JSONResponse:
-        if exc.http_status in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY}:
+        if exc.http_status in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_CONTENT}:
             await _log_bad_request(request, {"code": exc.code, "message": exc.message, "fields": exc.fields})
         return error_response(exc.code, exc.message, exc.http_status, exc.fields)
 
@@ -73,7 +73,7 @@ def install_exception_handlers(app: FastAPI) -> None:
         code = "http_error"
         message = exc.detail if isinstance(exc.detail, str) else "HTTP error"
         fields = exc.detail if isinstance(exc.detail, dict) else None
-        if exc.status_code in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_ENTITY}:
+        if exc.status_code in {status.HTTP_400_BAD_REQUEST, status.HTTP_422_UNPROCESSABLE_CONTENT}:
             await _log_bad_request(request, {"code": code, "message": message, "fields": fields})
         return error_response(code, message, exc.status_code, fields)
 
@@ -86,7 +86,7 @@ def install_exception_handlers(app: FastAPI) -> None:
         return error_response(
             "validation_error",
             "Invalid request",
-            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status.HTTP_422_UNPROCESSABLE_CONTENT,
             {"details": exc.errors()},
         )
 

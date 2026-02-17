@@ -135,6 +135,13 @@ def _get_pg_env() -> tuple[str, str, str]:
 
 @pytest.fixture(scope="session")
 def postgres_container():
+    # Only run if we actually intend to use a local Postgres (not SQLite or other)
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and "sqlite" in db_url:
+         print("DEBUG: Using SQLite, skipping postgres_container fixture")
+         yield
+         return
+
     user, password, db = _get_pg_env()
     # PREFER PORT 5432 (Existing Dev Container)
     port = int(os.getenv("POSTGRES_TEST_PORT", "5432"))
@@ -224,8 +231,14 @@ def _sanitize_url(raw: str):
 
 @pytest_asyncio.fixture(scope="session")
 async def postgres_db_url(postgres_container) -> str:
+    db_url = os.getenv("DATABASE_URL")
+    if db_url and "sqlite" in db_url:
+        print(f"DEBUG: Using SQLite URL: {db_url}")
+        yield db_url
+        return
+
     local = _build_local_url()
-    base_url = local or os.getenv("DATABASE_URL")
+    base_url = local or db_url
     if not base_url:
         raise RuntimeError("DATABASE_URL/POSTGRES_* are not set. Source .env before running tests.")
 
