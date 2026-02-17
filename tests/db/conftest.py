@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import pytest
+import pytest_asyncio
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.ext.compiler import compiles
@@ -27,7 +28,7 @@ def _compile_vector_sqlite(type_, compiler, **kw):
     return "BLOB"
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def sqlite_db_session(tmp_path):
     db_path = tmp_path / "db_only_tests.sqlite"
     engine = create_async_engine(f"sqlite+aiosqlite:///{db_path}", future=True)
