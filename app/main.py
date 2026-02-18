@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
-        await app.state.redis.close()
+        await app.state.redis.aclose()
 
 
 from scalar_fastapi import get_scalar_api_reference
