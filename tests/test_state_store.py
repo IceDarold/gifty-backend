@@ -20,4 +20,3 @@ async def test_state_round_trip():
         assert missing is None
     finally:
         await redis.aclose()
-
