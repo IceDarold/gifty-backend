@@ -33,14 +33,24 @@ class RussianLegacySpider(GiftyBaseSpider):
         """
         self.logger.info(f"Discovery: Parsing categories from {response.url}")
         
-        # Select all category links from the top menu
-        categories = response.css(self.category_selector)
+        # 1. Select category links from the top menu
+        top_categories = response.css(self.category_selector)
         
-        for category in categories:
+        # 2. Select subcategories from the main content (usually in category hubs)
+        # Shift4Shop often uses ul with class like "columns-4" for subcategories
+        sub_categories = response.css('ul[class*="columns-"] li a')
+        
+        # Combine them
+        all_category_links = top_categories + sub_categories
+        
+        found_urls = set()
+        for category in all_category_links:
             url = response.urljoin(category.css('::attr(href)').get())
-            name = category.css('::text').get()
+            # Name can be in a span.name (subcategories) or direct text (top menu)
+            name = category.css('span.name::text').get() or category.css('::text').get()
             
-            if url and name:
+            if url and name and url not in found_urls:
+                found_urls.add(url)
                 # If we are just doing discovery, yield the category info
                 if self.strategy == "discovery":
                     yield {
@@ -53,6 +63,7 @@ class RussianLegacySpider(GiftyBaseSpider):
                     }
                 else:
                     # If we are in deep mode, follow the category link to get products
+                    self.logger.debug(f"Discovery: Following category {name.strip()} -> {url}")
                     yield response.follow(url, self.parse_catalog)
 
     def parse_catalog(self, response):
