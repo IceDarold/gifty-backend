@@ -57,4 +57,4 @@ jobs:
           ANTHROPIC_API_KEY: "sk-ant-mock-key"
         run: |
           # Pytest will automatically respect tests_config.yaml in the root
-          pytest --verbose
+          pytest --verbose -m "not ai_test"

@@ -42,7 +42,7 @@ async def test_proactive_ai_notification_in_dm(
     mock_anthropic_service.normalize_topics.side_effect = Exception("AI Offline")
     
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         db=AsyncMock()

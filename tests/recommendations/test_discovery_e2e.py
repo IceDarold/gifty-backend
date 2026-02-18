@@ -39,8 +39,8 @@ async def e2e_client(sqlite_db_session, in_memory_session_storage):
     async def override_get_dialogue_manager():
         # We need the real DialogueManager logic for session state, 
         # but with our mocked components
-        from app.services.anthropic_service import AnthropicService
-        return DialogueManager(AnthropicService(), mock_rec, in_memory_session_storage, db=sqlite_db_session)
+        from app.services.ai_reasoning_service import AIReasoningService
+        return DialogueManager(AIReasoningService(), mock_rec, in_memory_session_storage, db=sqlite_db_session)
 
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_session_storage] = override_get_session_storage
@@ -109,9 +109,9 @@ async def test_full_discovery_flow_e2e(e2e_client, sqlite_db_session, in_memory_
 
     mock_notifier = AsyncMock()
     
-    with patch("app.services.anthropic_service.AnthropicService.normalize_topics", AsyncMock(return_value=["Coffee", "Gadgets"])), \
-         patch("app.services.anthropic_service.AnthropicService.generate_hypotheses_bulk", AsyncMock(return_value=mock_hypos_bulk)), \
-         patch("app.services.anthropic_service.AnthropicService.generate_hypotheses", AsyncMock(return_value=mock_hypo_list)), \
+    with patch("app.services.ai_reasoning_service.AIReasoningService.normalize_topics", AsyncMock(return_value=["Coffee", "Gadgets"])), \
+         patch("app.services.ai_reasoning_service.AIReasoningService.generate_hypotheses_bulk", AsyncMock(return_value=mock_hypos_bulk)), \
+         patch("app.services.ai_reasoning_service.AIReasoningService.generate_hypotheses", AsyncMock(return_value=mock_hypo_list)), \
          patch("app.services.dialogue_manager.get_notification_service", return_value=mock_notifier), \
          patch("routes.recommendations.get_session_storage", return_value=in_memory_session_storage):
         

@@ -17,7 +17,8 @@ from recommendations.models import (
     UserInteraction
 )
 from app.services.i18n import i18n, TranslationKey
-from app.services.anthropic_service import AnthropicService
+from app.services.i18n import i18n, TranslationKey
+from app.services.ai_reasoning_service import AIReasoningService
 from app.services.recommendation import RecommendationService
 from app.services.session_storage import SessionStorage, get_session_storage
 from app.services.recipient_service import RecipientService
@@ -28,13 +29,13 @@ logger = logging.getLogger(__name__)
 class DialogueManager:
     def __init__(
         self, 
-        anthropic_service: AnthropicService,
+        ai_service: AIReasoningService,
         recommendation_service: RecommendationService,
         session_storage: SessionStorage,
         db: Optional[AsyncSession] = None,
         recipient_service: Optional[any] = None
     ):
-        self.anthropic_service = anthropic_service
+        self.ai_service = ai_service
         self.recommendation_service = recommendation_service
         self.session_storage = session_storage
         self.db = db
@@ -80,7 +81,7 @@ class DialogueManager:
         
         # 1. Normalize and split topics
         try:
-            normalized_topics = await self.anthropic_service.normalize_topics(
+            normalized_topics = await self.ai_service.normalize_topics(
                 quiz.interests, 
                 language=session.language
             )
@@ -101,7 +102,7 @@ class DialogueManager:
             # Generate a deep psychological question instead of a hardcoded one
             quiz_dict = session.full_recipient.quiz_data.dict() if session.full_recipient.quiz_data else {}
             try:
-                probe_data = await self.anthropic_service.generate_personalized_probe(
+                probe_data = await self.ai_service.generate_personalized_probe(
                     context_type="dead_end",
                     quiz_data=quiz_dict,
                     language=session.language
@@ -126,7 +127,7 @@ class DialogueManager:
             quiz_dict = session.full_recipient.quiz_data.model_dump() if session.full_recipient.quiz_data else {}
             
             # Single bulk call
-            bulk_data = await self.anthropic_service.generate_hypotheses_bulk(
+            bulk_data = await self.ai_service.generate_hypotheses_bulk(
                 topics=topics_to_process,
                 quiz_data=quiz_dict,
                 liked_concepts=session.full_recipient.liked_labels,
@@ -208,7 +209,7 @@ class DialogueManager:
             # Fallback if AI returned nothing for this topic
             quiz_dict = session.full_recipient.quiz_data.model_dump() if session.full_recipient.quiz_data else {}
             try:
-                probe_data = await self.anthropic_service.generate_personalized_probe(
+                probe_data = await self.ai_service.generate_personalized_probe(
                     context_type="exploration",
                     quiz_data=quiz_dict,
                     topic=topic,
@@ -277,7 +278,7 @@ class DialogueManager:
         # 1. Classify (determine if wide)
         quiz_dict = session.full_recipient.quiz_data.dict() if session.full_recipient.quiz_data else {}
         try:
-            classification = await self.anthropic_service.classify_topic(topic, quiz_data=quiz_dict, language=session.language)
+            classification = await self.ai_service.classify_topic(topic, quiz_data=quiz_dict, language=session.language)
         except Exception as e:
             logger.error(f"DialogueManager: Classification failed for topic '{topic}': {e}")
             classification = {"is_wide": False, "refined_topic": topic}
@@ -297,7 +298,7 @@ class DialogueManager:
         all_shown = [h.title for t in session.tracks for h in t.hypotheses]
         
         # 2. Generate Hypotheses for the refined topic
-        raw_hypotheses = await self.anthropic_service.generate_hypotheses(
+        raw_hypotheses = await self.ai_service.generate_hypotheses(
             topic=refined_topic,
             quiz_data=quiz_dict,
             liked_concepts=session.full_recipient.liked_labels,
@@ -369,7 +370,7 @@ class DialogueManager:
             quiz_dict = session.full_recipient.quiz_data.model_dump() if session.full_recipient.quiz_data else {}
             existing_topics = [t.topic_name for t in session.tracks]
             
-            hints = await self.anthropic_service.generate_topic_hints(
+            hints = await self.ai_service.generate_topic_hints(
                 quiz_data=quiz_dict,
                 topics_explored=existing_topics,
                 language=session.language
@@ -395,7 +396,7 @@ class DialogueManager:
                 quiz_dict = session.full_recipient.quiz_data.model_dump() if session.full_recipient.quiz_data else {}
                 all_shown = [h.title for t in session.tracks for h in t.hypotheses]
                 
-                raw_new = await self.anthropic_service.generate_hypotheses(
+                raw_new = await self.ai_service.generate_hypotheses(
                     topic=track.topic_name,
                     quiz_data=quiz_dict,
                     liked_concepts=session.full_recipient.liked_labels,

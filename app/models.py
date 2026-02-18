@@ -5,12 +5,22 @@ from datetime import datetime
 from typing import Optional, List
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, ForeignKey, String, Text, UniqueConstraint, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, Boolean, Float, Numeric
+from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.ext.compiler import compiles
 from pgvector.sqlalchemy import Vector
 
 from app.db import Base
+
+# Compatibility: Allow Postgres-specific types to be used with SQLite in tests
+@compiles(JSONB, "sqlite")
+def compile_jsonb_sqlite(type_, compiler, **kw):
+    return "JSON"
+
+@compiles(PG_UUID, "sqlite")
+def compile_uuid_sqlite(type_, compiler, **kw):
+    return "CHAR(32)"
 
 
 class TimestampMixin:
@@ -29,7 +39,7 @@ class User(TimestampMixin, Base):
     """
     __tablename__ = "users"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     avatar_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
@@ -54,9 +64,9 @@ class OAuthAccount(TimestampMixin, Base):
         UniqueConstraint("provider", "provider_user_id", name="uq_oauth_provider_user"),
     )
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
     provider: Mapped[str] = mapped_column(String, nullable=False)
     provider_user_id: Mapped[str] = mapped_column(String, nullable=False)
@@ -75,9 +85,9 @@ class Recipient(TimestampMixin, Base):
     """
     __tablename__ = "recipients"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
+        PG_UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=True, index=True
     )
     
     # Basic Info
@@ -89,7 +99,7 @@ class Recipient(TimestampMixin, Base):
     
     # Preferences / Context
     interests: Mapped[list[str]] = mapped_column(
-        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+        JSONB, server_default='[]', nullable=False
     )
     
     user: Mapped[Optional[User]] = relationship(back_populates="recipients")
@@ -104,9 +114,9 @@ class Interaction(TimestampMixin, Base):
     """
     __tablename__ = "interactions"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     recipient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=False, index=True
+        PG_UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=False, index=True
     )
     session_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     
@@ -115,7 +125,7 @@ class Interaction(TimestampMixin, Base):
     target_id: Mapped[str] = mapped_column(String, nullable=False)
     
     value: Mapped[Optional[str]] = mapped_column(Text, nullable=True) # comment text or value
-    metadata_json: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+    metadata_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     recipient: Mapped[Recipient] = relationship(back_populates="interactions")
 
@@ -126,10 +136,10 @@ class Hypothesis(TimestampMixin, Base):
     """
     __tablename__ = "hypotheses"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     session_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     recipient_id: Mapped[Optional[uuid.UUID]] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=True, index=True
+        PG_UUID(as_uuid=True), ForeignKey("recipients.id", ondelete="CASCADE"), nullable=True, index=True
     )
     
     track_title: Mapped[str] = mapped_column(String, nullable=False) # Название топика (Кофе, Спорт)
@@ -137,7 +147,7 @@ class Hypothesis(TimestampMixin, Base):
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)   # Обоснование ИИ
     search_queries: Mapped[list[str]] = mapped_column(
-        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+        JSONB, server_default='[]', nullable=False
     )
     
     # Feedback tracking
@@ -146,7 +156,7 @@ class Hypothesis(TimestampMixin, Base):
     
     # AI Metadata
     model_name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    raw_response: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+    raw_response: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
     recipient: Mapped[Optional[Recipient]] = relationship()
 
@@ -167,15 +177,15 @@ class Product(TimestampMixin, Base):
     product_url: Mapped[str] = mapped_column(Text, nullable=False)
     merchant: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
     category: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
-    raw: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
-    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    raw: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
     content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # LLM Scoring
     llm_gift_score: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True, index=True)
     llm_gift_reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_gift_vector: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+    llm_gift_vector: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     llm_scoring_model: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     llm_scoring_version: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     llm_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -213,9 +223,9 @@ class ParsingSource(TimestampMixin, Base):
     refresh_interval_hours: Mapped[int] = mapped_column(sa.Integer, server_default="24")
     last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
-    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
     status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
-    config: Mapped[Optional[dict]] = mapped_column(sa.dialects.postgresql.JSONB, nullable=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class ParsingRun(TimestampMixin, Base):
@@ -250,21 +260,21 @@ class CategoryMap(TimestampMixin, Base):
 class TeamMember(TimestampMixin, Base):
     __tablename__ = "team_members"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String, nullable=False)
     role: Mapped[str] = mapped_column(String, nullable=False)
     bio: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     linkedin_url: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     photo_public_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    sort_order: Mapped[int] = mapped_column(sa.Integer, server_default="0", index=True)
-    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", index=True)
+    sort_order: Mapped[int] = mapped_column(sa.Integer, server_default="0", default=0, index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
 
 
 class InvestorContact(TimestampMixin, Base):
     __tablename__ = "investor_contacts"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String, nullable=False)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -277,7 +287,7 @@ class InvestorContact(TimestampMixin, Base):
 class PartnerContact(TimestampMixin, Base):
     __tablename__ = "partner_contacts"
 
-    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name: Mapped[str] = mapped_column(String, nullable=False)
     company: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     email: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -303,13 +313,13 @@ class TelegramSubscriber(TimestampMixin, Base):
         sa.Integer, ForeignKey("telegram_subscribers.id", ondelete="SET NULL"), nullable=True
     )
     subscriptions: Mapped[list[str]] = mapped_column(
-        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+        JSONB, server_default='[]', nullable=False
     )
     language: Mapped[str] = mapped_column(String, server_default="ru", nullable=False)
-    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True)
     role: Mapped[str] = mapped_column(String, server_default="user", nullable=False) # user, admin, superadmin
     permissions: Mapped[list[str]] = mapped_column(
-        sa.dialects.postgresql.JSONB, server_default='[]', nullable=False
+        JSONB, server_default='[]', nullable=False
     )
 
 class WeeekAccount(TimestampMixin, Base):
@@ -335,4 +345,29 @@ class WeeekAccount(TimestampMixin, Base):
     reminder_time: Mapped[str] = mapped_column(String, server_default="09:00")  # Время напоминаний
     timezone: Mapped[str] = mapped_column(String, server_default="Europe/Moscow")
     
-    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true")
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True)
+
+
+class ComputeTask(TimestampMixin, Base):
+    """
+    Queue for offline compute tasks (embeddings, reranking, etc.).
+    External workers (Kaggle, home clusters) poll this table via API.
+    """
+    __tablename__ = "compute_tasks"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # 'embedding', 'rerank'
+    priority: Mapped[str] = mapped_column(String, server_default="low", index=True)  # 'low', 'high'
+    status: Mapped[str] = mapped_column(String, server_default="pending", nullable=False, index=True)  # 'pending', 'processing', 'completed', 'failed'
+    
+    # Task data
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)  # Input data (texts, queries, etc.)
+    result: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)  # Output data (vectors, scores, etc.)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # Error message if failed
+    
+    # Worker tracking
+    worker_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # ID of worker that picked up the task
+    
+    # Timing
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
