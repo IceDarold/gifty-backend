@@ -9,7 +9,9 @@ import { UsageChart } from "@/components/UsageChart";
 import { SettingsView } from "@/components/SettingsView";
 import { useDashboardData } from "@/hooks/useDashboard";
 import { useTMA } from "@/components/TMAProvider";
-import { Zap, Bell, RefreshCcw, LayoutDashboard, Loader2, Settings } from "lucide-react";
+import { Zap, Bell, RefreshCcw, LayoutDashboard, Loader2, Settings, List } from "lucide-react";
+import { CategoriesTable } from "@/components/CategoriesTable";
+
 
 
 const AVAILABLE_SPIDERS = [
@@ -31,8 +33,10 @@ export default function Home() {
     stats, health, scraping, sources, trends, subscriber,
     syncSpiders, isSyncing, isLoading,
     forceRun, isForceRunning,
+    toggleSourceActive, isTogglingActive,
     connectWeeek, isConnectingWeeek,
-    toggleSubscription, setLanguage: setBackendLanguage
+    toggleSubscription, setLanguage: setBackendLanguage,
+    sendTestNotification, isSendingTest
   } = useDashboardData(chatId);
 
 
@@ -90,6 +94,17 @@ export default function Home() {
           />
 
         );
+      case "categories":
+        return (
+          <CategoriesTable
+            sources={sources.data}
+            onOpenDetail={(id) => setSelectedSourceId(id)}
+            onOpenChart={(id) => {
+              // Open chart modal - will be implemented
+              setSelectedSourceId(id);
+            }}
+          />
+        );
       case "alerts":
         return (
           <div className="p-10 text-center space-y-4">
@@ -107,6 +122,8 @@ export default function Home() {
             isConnectingWeeek={isConnectingWeeek}
             toggleSubscription={(topic, active) => toggleSubscription({ topic, active })}
             setBackendLanguage={(lang) => setBackendLanguage(lang)}
+            onSendTestNotification={(topic) => sendTestNotification(topic)}
+            isSendingTest={isSendingTest}
           />
         );
       default:
@@ -125,6 +142,8 @@ export default function Home() {
           sourceId={selectedSourceId}
           onClose={() => setSelectedSourceId(null)}
           onForceRun={(id, strategy) => forceRun({ id, strategy })}
+          onToggleActive={(id, active) => toggleSourceActive({ id, active })}
+          onOpenSource={(id) => setSelectedSourceId(id)}
           isForceRunning={isForceRunning}
         />
       )}
@@ -137,6 +156,14 @@ export default function Home() {
         >
           <LayoutDashboard size={22} fill={activeTab === 'dashboard' ? 'currentColor' : 'none'} />
           <span className="text-[10px] font-bold">{t('common.main')}</span>
+        </button>
+
+        <button
+          onClick={() => setActiveTab("categories")}
+          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'categories' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'}`}
+        >
+          <List size={22} fill={activeTab === 'categories' ? 'currentColor' : 'none'} />
+          <span className="text-[10px] font-medium">{t('categories.title')}</span>
         </button>
 
         <button

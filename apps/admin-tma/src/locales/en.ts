@@ -12,6 +12,7 @@ export const en = {
         no_alerts: "No active alerts",
         system_normal: "System is running within normal parameters.",
         superadmin_panel: "Superadmin Panel",
+        no_data: "No data available",
     },
     dashboard: {
         title: "Gifty Admin",
@@ -79,5 +80,26 @@ export const en = {
             scraping: "Scraping Status",
             global: "Global Notifications"
         }
+    },
+    categories: {
+        title: "Categories",
+        subtitle: "Monitoring {count} sources",
+        category: "Category",
+        products: "Products",
+        status: "Status",
+        last_run: "Last Run",
+        next_run: "Next Run",
+        actions: "Actions",
+        view_chart: "View Chart",
+        view_details: "View Details",
+        status_running: "Running",
+        status_waiting: "Waiting",
+        status_error: "Error",
+        status_broken: "Broken",
+        status_disabled: "Disabled",
+        never: "Never",
+        unknown: "Unknown",
+        scheduled_now: "Scheduled now",
+        no_data: "No categories available"
     }
 };

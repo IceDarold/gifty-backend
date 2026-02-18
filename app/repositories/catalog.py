@@ -40,6 +40,14 @@ class CatalogRepository(ABC):
         pass
 
     @abstractmethod
+    async def get_products(self, site_key: Optional[str] = None, category: Optional[str] = None, limit: int = 50, offset: int = 0) -> list[Product]:
+        pass
+
+    @abstractmethod
+    async def get_products_count(self, site_key: Optional[str] = None, category: Optional[str] = None) -> int:
+        pass
+
+    @abstractmethod
     async def save_llm_scores(self, scores: list[dict]) -> int:
         pass
 
@@ -58,12 +66,13 @@ class PostgresCatalogRepository(CatalogRepository):
         if not products:
             return 0
 
+        # Debug: Log first 3 gift_ids
+        for p in products[:3]:
+            logger.info(f"DEBUG_UPSERT: Attempting to insert gift_id={p['gift_id']} for site={p.get('site_key')}")
+
         # Construct values for upsert.
-        # We assume products list contains dicts matching Product model fields.
         stmt = insert(Product).values(products)
         
-        # On conflict do update
-        # We update everything except created_at (and gift_id obviously)
         update_dict = {
             col.name: col
             for col in stmt.excluded
@@ -73,17 +82,31 @@ class PostgresCatalogRepository(CatalogRepository):
         stmt = stmt.on_conflict_do_update(
             index_elements=[Product.gift_id],
             set_=update_dict
-        ).returning(sa.literal_column("xmax"))
+        ).returning(Product.gift_id, sa.literal_column("xmax"))
         
         result = await self.session.execute(stmt)
-        rows = result.scalars().all()
-        # In PostgreSQL, xmax is 0 for inserted rows, and non-zero for updated rows.
-        # But wait, scalars().all() might not work well with literal_column if not grouped.
-        # Let's use fetchall()
+        res_all = result.all()
         
-        # Correction: use result.all() 
-        inserted_count = sum(1 for xmax in rows if xmax == 0)
-        return inserted_count # Total NEW products added to DB
+        # In PostgreSQL, xmax is 0 for inserted rows, and non-zero for updated rows.
+        inserted_count = 0
+        updated_count = 0
+        for row in res_all:
+            # Result row is (gift_id, xmax)
+            xmax = row[1]
+            try:
+                # xmax might be an integer or a string depending on driver
+                is_new = int(xmax) == 0
+                if is_new:
+                    inserted_count += 1
+                else:
+                    updated_count += 1
+            except:
+                # Fallback if xmax is not easily castable to 0 (sometimes it's special)
+                # But usually 0 means new.
+                inserted_count += 1 
+
+        logger.info(f"DEBUG_UPSERT_RESULT: Inserted {inserted_count}, Updated {updated_count}")
+        return inserted_count
 
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
         """
@@ -109,6 +132,37 @@ class PostgresCatalogRepository(CatalogRepository):
         query = select(func.count(Product.gift_id)).where(Product.is_active.is_(True))
         result = await self.session.execute(query)
         return result.scalar() or 0
+
+    async def get_products(self, site_key: Optional[str] = None, category: Optional[str] = None, limit: int = 50, offset: int = 0) -> list[Product]:
+        """
+        Fetch products with optional filters for site_key and category.
+        """
+        stmt = select(Product).where(Product.is_active.is_(True))
+        
+        if site_key:
+            stmt = stmt.where(Product.gift_id.like(f"{site_key}:%"))
+        if category:
+            stmt = stmt.where(Product.category == category)
+            
+        stmt = stmt.order_by(Product.updated_at.desc()).limit(limit).offset(offset)
+        
+        result = await self.session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def get_products_count(self, site_key: Optional[str] = None, category: Optional[str] = None) -> int:
+        """
+        Count products with optional filters.
+        """
+        from sqlalchemy import func
+        stmt = select(func.count()).select_from(Product).where(Product.is_active.is_(True))
+        
+        if site_key:
+            stmt = stmt.where(Product.gift_id.like(f"{site_key}:%"))
+        if category:
+            stmt = stmt.where(Product.category == category)
+            
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def get_products_without_embeddings(self, model_version: str, limit: int = 100) -> list[Product]:
         """

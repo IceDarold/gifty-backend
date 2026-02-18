@@ -34,15 +34,33 @@ class MVideoSpider(GiftyBaseSpider):
         'COOKIES_ENABLED': True
     }
 
-    def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
-        # Default to "all categories" if no URL provided
-        default_url = "https://www.mvideo.ru/vse-kategorii"
-        super(MVideoSpider, self).__init__(url=url or default_url, strategy=strategy, source_id=source_id, *args, **kwargs)
+    def start_requests(self):
+        if not self.url:
+            self.url = "https://www.mvideo.ru/vse-kategorii"
+        
+        # We must visit the landing page first to initialize session/cookies
+        # This helps with BFF API calls
+        self.logger.info("Initializing session by visiting homepage...")
+        yield scrapy.Request(
+            "https://www.mvideo.ru/",
+            callback=self.parse_homepage,
+            dont_filter=True
+        )
+
+    def parse_homepage(self, response):
+        """Once cookies are set, go to the actual requested URL"""
+        self.logger.info("Session initialized. Going to target URL: %s", self.url)
+        yield scrapy.Request(
+            self.url,
+            callback=self.parse,
+            dont_filter=True
+        )
 
     def parse_catalog(self, response):
         """
         Parses the catalog page. Use __NEXT_DATA__ for initial products and POST API for pagination.
         """
+        self.log_progress(f"Starting parsing: {response.url}")
         category_id = None
         
         match = re.search(r'-(\d+)$', response.url.rstrip('/'))
@@ -82,6 +100,7 @@ class MVideoSpider(GiftyBaseSpider):
         Custom discovery for M.Video category structure.
         Yields CategoryItem for each found category link.
         """
+        self.log_progress(f"Starting discovery: {response.url}")
         self.logger.info("Starting discovery on: %s", response.url)
         
         # Try to find links with text in common category patterns
@@ -98,8 +117,10 @@ class MVideoSpider(GiftyBaseSpider):
             # Filter for category-like URLs
             if url and re.search(r'-[\d]+$', url.rstrip('/')) and '/products/' not in url:
                 found_count += 1
+                self.log_progress(f"Found category: {name}")
                 yield self.create_category(url=url, name=name)
                 
+        self.log_progress(f"Discovery complete. Found {found_count} categories.")
         self.logger.info(f"Discovery found {found_count} potential categories.")
 
     def parse_api_error(self, failure):
@@ -194,6 +215,8 @@ class MVideoSpider(GiftyBaseSpider):
                 name = item.get('name')
                 image = item.get('image')
                 if image and not image.startswith('http'):
+                    if not image.startswith('/'):
+                        image = f"/{image}"
                     image = f"https://static.mvideo.ru{image}"
                     
                 parsed_products[p_id] = {
@@ -249,6 +272,7 @@ class MVideoSpider(GiftyBaseSpider):
                 if str(p_id) in price_map:
                     item_data['price'] = str(price_map[str(p_id)])
                 
+                self.log_progress(f"Parsed: {item_data['title']} - {item_data['price']} RUB")
                 yield self.create_product(**item_data)
                 
         except Exception as e:

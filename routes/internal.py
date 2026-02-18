@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Header, Query, Body
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
-from typing import List, Optional
+from typing import List, Optional, AsyncGenerator
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
@@ -55,7 +56,7 @@ async def submit_scoring_results(
     await db.commit()
     return {"status": "ok", "updated": count}
 
-from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate
+from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate, ProductCatalogSchema, ProductListResponse
 from app.services.ingestion import IngestionService
 
 @router.get("/monitoring", summary="Агрегированный мониторинг по сайтам")
@@ -91,15 +92,15 @@ async def get_parsing_sources(
         schema_data = ParsingSourceSchema.model_validate(source)
         
         # Populate total_items
-        if source.type == "hub":
-             schema_data.total_items = await repo.get_total_products_count(source.site_key)
-        else:
-             cat_name = source.config.get("discovery_name")
-             if cat_name:
-                 schema_data.total_items = await repo.get_total_category_products_count(source.site_key, cat_name)
+        cat_name = source.config.get("discovery_name")
+        schema_data.total_items = await repo.get_products_count(
+            site_key=source.site_key, 
+            category=cat_name if source.type != "hub" else None
+        )
         
         result.append(schema_data)
         
+    print(f"DEBUG_SOURCES: Found {len(result)} sources to return")
     return result
 
 
@@ -295,7 +296,7 @@ async def get_parsing_source_details(
     
     # If it's a hub, aggregate stats and history for the whole site
     if source.type == "hub":
-        total_items = await repo.get_total_products_count(source.site_key)
+        total_items = await repo.get_products_count(site_key=source.site_key)
         status = await repo.get_aggregate_status(source.site_key)
         last_run_new = await repo.get_last_full_cycle_stats(source.site_key)
         history_raw = await repo.get_aggregate_history(source.site_key)
@@ -313,31 +314,25 @@ async def get_parsing_source_details(
         site_sources = [s for s in all_sources if s.site_key == source.site_key]
         last_synced = max([s.last_synced_at for s in site_sources if s.last_synced_at] or [None])
         next_sync = min([s.next_sync_at for s in site_sources] or [source.next_sync_at])
+
+        # Populate related sources (categories)
+        related = []
+        for s in site_sources:
+            if s.id == source.id: continue
+            
+            s_data = {c.name: getattr(s, c.name) for c in s.__table__.columns}
+            cat_name = s.config.get("discovery_name")
+            s_data["total_items"] = await repo.get_products_count(site_key=s.site_key, category=cat_name)
+            
+            # Simple history for chart hint if needed, otherwise just basic info
+            related.append(s_data)
+        related_sources = related
     else:
         # It's a specific category/list
-        # Total items specific to this category url
-        # We assume gift_id is constructed as "site_key:product_url"
-        # And product_url usually contains the category part or we can just count by what was scraped?
-        # Actually parsing_runs has items_scraped, but total active items in DB?
-        # We don't have a direct link from Product to Source ID. We only have gift_id.
-        # But we know the source URL. GroupPrice products have /products/ ID. 
-        # The relationship is weak.
-        # However, for GroupPrice, we can try to filter by "category" field in Product table if we saved it?
-        # We saved "category" in Product. Let's use that if possible.
-        # But `upsert_products` saves `category` field.
-        # Let's try to count by matching category name from source config?
-        # Or just use the source URL as a filter if gift_id contains it? No.
-        
-        # Let's count by category name if available, otherwise 0 for now until we have better link.
-        # config['discovery_name'] might match Product.category
         cat_name = source.config.get("discovery_name")
-        if cat_name:
-             total_items = await repo.get_category_products_count(source.site_key, cat_name)
-        else:
-             total_items = 0
+        total_items = await repo.get_products_count(site_key=source.site_key, category=cat_name)
 
         status = source.status
-        # Use daily aggregation for this source too, as requested
         history_raw = await repo.get_source_daily_history(source_id)
         history_dicts = [
             {
@@ -348,16 +343,11 @@ async def get_parsing_source_details(
             }
             for h in history_raw
         ]
-        
-        # Last run new should be from the latest non-aggregated run for accuracy? 
-        # Or just use the execution history.
-        # Let's use the raw detailed history for "last run" value to be precise about the last execution
-        detailed_history = await repo.get_source_history(source_id, limit=1)
-        last_run_new = detailed_history[0].items_new if detailed_history else 0
-        
         last_synced = source.last_synced_at
         next_sync = source.next_sync_at
-
+        last_run_new = await repo.get_last_run_stats(source_id)
+        related_sources = []
+        
     # Convert SQLAlchemy model to Pydantic compatible dict
     source_data = {c.name: getattr(source, c.name) for c in source.__table__.columns}
     source_data["status"] = status
@@ -367,8 +357,42 @@ async def get_parsing_source_details(
     source_data["total_items"] = total_items
     source_data["last_run_new"] = last_run_new
     source_data["history"] = history_dicts
+    source_data["related_sources"] = related_sources
     
     return source_data
+
+@router.get("/sources/{source_id}/products", response_model=ProductListResponse, summary="Получить товары источника")
+async def get_source_products(
+    source_id: int,
+    limit: int = 50,
+    offset: int = 0,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    parsing_repo = ParsingRepository(db)
+    source = await parsing_repo.get_source_by_id(source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    catalog_repo = PostgresCatalogRepository(db)
+    
+    site_key = source.site_key
+    category = None
+    if source.type != "hub":
+        # For non-hub sources (categories), filter by the discovery_name in config
+        category = source.config.get("discovery_name")
+        
+    products = await catalog_repo.get_products(
+        site_key=site_key,
+        category=category,
+        limit=limit,
+        offset=offset
+    )
+    total = await catalog_repo.get_products_count(
+        site_key=site_key,
+        category=category
+    )
+    return {"items": products, "total": total}
 
 from app.schemas.parsing import ParsingSourceUpdate
 
@@ -703,3 +727,56 @@ async def webapp_auth(
             "permissions": subscriber.permissions
         }
     }
+
+@router.post("/telegram/test-notification", summary="Отправить тестовое уведомление")
+async def send_test_notification(
+    topic: str = "global",
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    notifier = get_notification_service()
+    await notifier.notify(
+        topic=topic,
+        message=f"🔔 <b>Test Notification</b>\n\nYou are receiving this message because you subscribed to <b>{topic}</b> topic.\n\nEverything is working correctly! 🚀"
+    )
+    return {"status": "ok"}
+
+
+@router.get("/sources/{source_id}/logs/stream", summary="Стрим логов паука в реальном времени")
+async def stream_source_logs(
+    source_id: int,
+    redis: Redis = Depends(get_redis),
+):
+    """
+    SSE endpoint returning logs for a specific source from Redis Pub/Sub.
+    """
+    async def log_generator() -> AsyncGenerator[str, None]:
+        channel_name = f"logs:source:{source_id}"
+        buffer_key = f"{channel_name}:buffer"
+        
+        # Send buffered logs first
+        buffered_logs = await redis.lrange(buffer_key, 0, -1)
+        for log in buffered_logs:
+            yield f"data: {log}\n\n"
+
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(channel_name)
+        
+        try:
+            if not buffered_logs:
+                # Send initial connection message only if there were no buffered logs
+                yield "data: [CONNECTED] Real-time log stream started...\n\n"
+            
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=10.0)
+                if message and message['type'] == 'message':
+                    data = message['data']
+                    print(f"DEBUG_LOG_STREAM: Sending to SSE: {data}")
+                    yield f"data: {data}\n\n"
+                else:
+                    yield "data: :ping\n\n"
+        finally:
+            await pubsub.unsubscribe(channel_name)
+            await pubsub.close()
+
+    return StreamingResponse(log_generator(), media_type="text/event-stream")

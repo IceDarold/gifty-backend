@@ -1,0 +1,512 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/51/27/2751/images/14157/14157.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Бионикл Bionicle «Набор Копака и Мелум»",
+    "price": "1234",
+    "product_url": "https://vseigrushki.com/konstruktory/bionikl/nabor-kopaka-i-melum/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2751"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Бионикл Bionicle «Набор Копака и Мелум»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/39/27/2739/images/14202/14202.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Бионикл Bionicle «Набор Таху и Икир»",
+    "price": "1338",
+    "product_url": "https://vseigrushki.com/konstruktory/bionikl/nabor-tahu-i-ikir/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2739"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Бионикл Bionicle «Набор Таху и Икир»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/52/27/2752/images/14214/14214.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Бионикл Bionicle «Набор Умарак и Уксар»",
+    "price": "1393",
+    "product_url": "https://vseigrushki.com/konstruktory/bionikl/nabor-umarak-i-uksar/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2752"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Бионикл Bionicle «Набор Умарак и Уксар»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/17/34/3417/images/13774/13774.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт My World Minecraft «Большая деревня»",
+    "price": "4984",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/bolshaya-derevnya/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3417"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт My World Minecraft «Большая деревня»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/09/34/3409/images/14416/14416.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт My World Minecraft «Деревня»",
+    "price": "3890",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/derevnya/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3409"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт My World Minecraft «Деревня»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/77/36/3677/images/13668/13668.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт «Большие Зомби с Поросёнком»",
+    "price": "800",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/bolshie-zombi-s-porosyonkom/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3677"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт «Большие Зомби с Поросёнком»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/76/36/3676/images/14536/14536.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт «Большие Крипер с Оцелотом»",
+    "price": "780",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/bolshie-kriper-s-otselotom/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3676"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт «Большие Крипер с Оцелотом»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/75/35/3575/images/13371/13371.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт «Горная пещера Mini» со светом, 760 деталей, 11 фигурок",
+    "price": "2385",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/gornaya-peshera-760/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3575"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт «Горная пещера Mini» со светом, 760 деталей, 11 фигурок"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/44/35/3544/images/14453/14453.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт «Портал в Нижний мир»",
+    "price": "2283",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/portal-v-nizhniy-mir/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3544"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт «Портал в Нижний мир»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/65/36/3665/images/14512/14512.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Майнкрафт «Шахта Крипера»",
+    "price": "2890",
+    "product_url": "https://vseigrushki.com/konstruktory/minecraft/shahta-kripera/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3665"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Майнкрафт «Шахта Крипера»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/31/19/1931/images/14369/14369.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Подружки Френдс Friends «Дом Мии»",
+    "price": "2925",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/girls-club-dom-mii-v-nahodke/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1931"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Подружки Френдс Friends «Дом Мии»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/84/27/2784/images/14328/14328.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Сити Cities «Полицейский участок»",
+    "price": "3647",
+    "product_url": "https://vseigrushki.com/konstruktory/siti/politseyskiy-uchastok/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2784"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Сити Cities «Полицейский участок»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/41/28/2841/images/14317/14317.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Сити Urban «Побег из полицейского участка»",
+    "price": "4080",
+    "product_url": "https://vseigrushki.com/konstruktory/siti/politseyskiy-uchastok11378/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2841"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Сити Urban «Побег из полицейского участка»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/02/19/1902/images/14357/14357.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Френдс Friends «Дом дружбы»",
+    "price": "2713",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/friends-dom-druzhby/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1902"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Френдс Friends «Дом дружбы»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/51/18/1851/images/14604/14604.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Френдс Friends «Клиника Хартлейк Сити»",
+    "price": "3547",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/frends-klinika-hartleyk-siti/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1851"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Френдс Friends «Клиника Хартлейк Сити»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/06/18/1806/images/14355/14355.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Френдс Friends «Парк развлечений: Американские горки»",
+    "price": "3685",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/amerikanskie-gorki/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1806"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Френдс Friends «Парк развлечений: Американские горки»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/99/17/1799/images/14376/14376.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Френдс Friends «Спортивный лагерь: Дом на дереве»",
+    "price": "3150",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/frends-sportivnyy-lager-dom-na-dereve/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1799"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Френдс Friends «Спортивный лагерь: Дом на дереве»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/03/19/1903/images/14609/14609.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Конструктор Френдс Friends Френдс Friends «Курорт Хартлейк Сити» + 4 минифигурки",
+    "price": "3654",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/frends-kurort-hartleyk-siti/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1903"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Конструктор Френдс Friends Френдс Friends «Курорт Хартлейк Сити» + 4 минифигурки"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/22/39/3922/images/14688/14688.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Магнитный конструктор развивающий пластиковый 100 деталей",
+    "price": "2450",
+    "product_url": "https://vseigrushki.com/konstruktory/magnitnyy-konstruktor-razvivayushchiy-plastikovyy-100-detaley/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3922"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Магнитный конструктор развивающий пластиковый 100 деталей"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/24/39/3924/images/14704/14704.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Магнитный конструктор развивающий пластиковый 20 деталей",
+    "price": "654",
+    "product_url": "https://vseigrushki.com/konstruktory/magnitnyy-konstruktor-razvivayushchiy-plastikovyy-20-detaley/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3924"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Магнитный конструктор развивающий пластиковый 20 деталей"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/25/39/3925/images/14712/14712.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Магнитный конструктор развивающий пластиковый 45 деталей",
+    "price": "1198",
+    "product_url": "https://vseigrushki.com/konstruktory/magnitnyy-konstruktor-razvivayushchiy-plastikovyy-45-detaley/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3925"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Магнитный конструктор развивающий пластиковый 45 деталей"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/23/39/3923/images/14693/14693.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Магнитный конструктор развивающий пластиковый 58 деталей",
+    "price": "1855",
+    "product_url": "https://vseigrushki.com/konstruktory/magnitnyy-konstruktor-razvivayushchiy-plastikovyy-58-detaley/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3923"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Магнитный конструктор развивающий пластиковый 58 деталей"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/20/07/720/images/3285/3285.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Электромеханический конструктор Скоростной пассажирский поезд (40015)",
+    "price": "6500",
+    "product_url": "https://vseigrushki.com/konstruktory/poezda/skorostnoy-passazhirskiy-poezd/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "720"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Электромеханический конструктор Скоростной пассажирский поезд (40015)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/45/02/245/images/1052/1052.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "NICK KNIGHTS из 2-х видов",
+    "price": "990",
+    "product_url": "https://vseigrushki.com/konstruktory/nexo-knights/nick-knights-iz-2-h-vidov/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "245"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "NICK KNIGHTS из 2-х видов"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/87/38/3887/images/14589/14589.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "«Железная Дорога» на радиоуправлении с дымом, звук + свет",
+    "price": "3186",
+    "product_url": "https://vseigrushki.com/konstruktory/poezda/zheleznaya-doroga-na-radioupravlenii-s-dymom-zvuk-svet/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3887"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "«Железная Дорога» на радиоуправлении с дымом, звук + свет"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/48/07/748/images/3420/3420.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "«Железная Дорога» на радиоуправлении, cвет, звук, дым",
+    "price": "3688",
+    "product_url": "https://vseigrushki.com/konstruktory/poezda/zheleznaya-doroga-na-radioupravlenii-cvet-zvuk-dym/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "748"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "«Железная Дорога» на радиоуправлении, cвет, звук, дым"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/07/07/707/images/3231/3231.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Боевой танк на пульте управления инфракрасный «Танковый бой»",
+    "price": "2290",
+    "product_url": "https://vseigrushki.com/konstruktory/voennaya-tekhnika/tank-boevoy-na-pulte-upravleniya-infrakrasnyy-tank/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "707"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Боевой танк на пульте управления инфракрасный «Танковый бой»"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/09/07/709/images/3235/3235.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Боевой Танк на ручном управлении с пультом",
+    "price": "1590",
+    "product_url": "https://vseigrushki.com/konstruktory/voennaya-tekhnika/709/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "709"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Боевой Танк на ручном управлении с пультом"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/65/27/2765/images/11662/11662.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Большой набор конструкторов Бионикл Bionicle",
+    "price": "7590",
+    "product_url": "https://vseigrushki.com/konstruktory/bionikl/nabor-bolshoy/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "2765"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Большой набор конструкторов Бионикл Bionicle"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://vseigrushki.com/wa-data/public/shop/products/38/19/1938/images/8537/8537.300@2x.jpg",
+    "merchant": "VseIgrushki",
+    "name": "Браслет-минифигурка «Френдс Friends»",
+    "price": "249",
+    "product_url": "https://vseigrushki.com/konstruktory/friends/1938/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "1938"
+    },
+    "site_key": "vseigrushki",
+    "source_id": null,
+    "title": "Браслет-минифигурка «Френдс Friends»"
+}
+]

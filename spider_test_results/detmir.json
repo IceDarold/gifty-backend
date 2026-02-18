@@ -1,0 +1,614 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/e6cmm6WnnaQjvVDORUEC1gwOtdTM4mrqkeoGYX_8TaA=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Technic Oracle Red Bull Racing 1639 дет.",
+    "price": "22995",
+    "product_url": "https://www.detmir.ru/product/index/id/6720113/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6720113"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Technic Oracle Red Bull Racing 1639 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/s9BwfN2Eqiw_oV2F7jZmqTx24ttrs3f9JsYT3v92vJI=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Коробка с кубиками 85 дет.",
+    "price": "4511",
+    "product_url": "https://www.detmir.ru/product/index/id/3226557/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3226557"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Коробка с кубиками 85 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/9wu0UCnm_gNzRcqGztlpn2olsG-B4OhjQu7RDSgb2oY=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Коробка с кубиками 65 дет.",
+    "price": "2743",
+    "product_url": "https://www.detmir.ru/product/index/id/3226556/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3226556"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Коробка с кубиками 65 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/63BvRG8U9Wiw8I5f0EXfvQ4uEMofGJJkrNI9AMAuFnE=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Поезд с животными 19 дет.",
+    "price": "2199",
+    "product_url": "https://www.detmir.ru/product/index/id/6432701/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432701"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Поезд с животными 19 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/Ot7WuxlT_1FRePMhhM_so8MYuqjDLpmQm2nr2jiLpZ0=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Железнодорожный мост и пути 42 дет.",
+    "price": "3771",
+    "product_url": "https://www.detmir.ru/product/index/id/6650139/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6650139"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Железнодорожный мост и пути 42 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/HqaEb-Qo3IanH6vVPo21ow3elS3PST06jTBiIAaYlUk=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Minecraft Столкновение с Варденом 238 дет.",
+    "price": "1706",
+    "product_url": "https://www.detmir.ru/product/index/id/6682199/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682199"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Minecraft Столкновение с Варденом 238 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/8U3WwuhVseXO-fU-v_arcCW9QHqESCA5PShxz3L6ycg=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Speed Champions Mercedes-AMG F1 W15 Race Car 267 дет.",
+    "price": "3699",
+    "product_url": "https://www.detmir.ru/product/index/id/6678684/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6678684"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Speed Champions Mercedes-AMG F1 W15 Race Car 267 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/7Mu90SBJvM3i3cRhzVUP3yGbTpPI3H_br6sUrJJcaQc=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Speed Champions 2Fast 2Furious Nissan Skyline 319 дет.",
+    "price": "2434",
+    "product_url": "https://www.detmir.ru/product/index/id/6041868/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6041868"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Speed Champions 2Fast 2Furious Nissan Skyline 319 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/J2IobnGWooq2MdoggfOtpzwFDkacJdlM2KMuxpn6Lns=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DC Super Heroes Супермен против Лекса Лютера 120 дет.",
+    "price": "1699",
+    "product_url": "https://www.detmir.ru/product/index/id/6655400/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6655400"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DC Super Heroes Супермен против Лекса Лютера 120 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/yi0imqn4lX_mdliU87KUliQsi4H2dr43Jq0q-u8cNdk=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Classic Чемоданчик для творчества 213 дет.",
+    "price": "2260",
+    "product_url": "https://www.detmir.ru/product/index/id/3018898/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "3018898"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Classic Чемоданчик для творчества 213 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/q7SvBO_Vo_mE_OSXYQotFu6bkI3rjisP6TcOnv3OgpA=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Speed Champions Гоночная машина Ф1 Феррари 275 дет.",
+    "price": "2999",
+    "product_url": "https://www.detmir.ru/product/index/id/6685514/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6685514"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Speed Champions Гоночная машина Ф1 Феррари 275 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/DXUhtcpFxXIZLQfR78zbzmmoEdspVyhuuBlPO0_cS2w=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Самолет скорой помощи 403 дет.",
+    "price": "4277",
+    "product_url": "https://www.detmir.ru/product/index/id/6682201/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682201"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Самолет скорой помощи 403 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/wzlAKW4M17bINgCkz7WeZSqQLFVJ5-spTFH7Tr8X_TQ=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Marvel Super Heroes Человек-паук vs Антивенома 107 дет.",
+    "price": "1899",
+    "product_url": "https://www.detmir.ru/product/index/id/6655401/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6655401"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Marvel Super Heroes Человек-паук vs Антивенома 107 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/mBexp1Rrac38acFDiqdiLoLAFBik8bJfQuDQDm7OriE=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Пожарно-спасательная лодка 144 дет.",
+    "price": "1999",
+    "product_url": "https://www.detmir.ru/product/index/id/6024105/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6024105"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Пожарно-спасательная лодка 144 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/0DqgO35pjf7hb8zLic5eJ92WQq4hxLFVp5uAuyBJNHw=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Creator Космический шаттл 144 дет.",
+    "price": "1299",
+    "product_url": "https://www.detmir.ru/product/index/id/6041785/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6041785"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Creator Космический шаттл 144 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/5rSpkwbcRikGfgfBg8HXZ2lQqnc_sJjmj64dZezPO3k=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Minecraft Дом в джунглях ТНТ 287 дет.",
+    "price": "2563",
+    "product_url": "https://www.detmir.ru/product/index/id/6682099/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682099"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Minecraft Дом в джунглях ТНТ 287 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/K3iEHQTiXGNjVoV6bc2BmGM_Dktn6SyeQL0UpVui7Gs=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Star Wars Боевой набор 119 дет.",
+    "price": "1999",
+    "product_url": "https://www.detmir.ru/product/index/id/6682178/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682178"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Star Wars Боевой набор 119 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/d5KMKqg-XqrYqxgx18l-_IaQjY-lW2SZjrcOOJmqihY=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Семейства диких животных 10 дет.",
+    "price": "1199",
+    "product_url": "https://www.detmir.ru/product/index/id/6650143/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6650143"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Семейства диких животных 10 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/HirHIrm1RUpq5neI9C2aG-RnQwCTcbtB7CdmY8Oj3gM=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Creator Семейство панд 626 дет.",
+    "price": "3742",
+    "product_url": "https://www.detmir.ru/product/index/id/6650162/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6650162"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Creator Семейство панд 626 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/lGB3Q_2GPfwyfPmH8Gb9immFR1CvPBH4cNti9CInvFc=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Creator Бортовой грузовик с вертолетом 270 дет.",
+    "price": "2299",
+    "product_url": "https://www.detmir.ru/product/index/id/6432746/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432746"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Creator Бортовой грузовик с вертолетом 270 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/GbsoMVudKFMuZYax1tJa4MlEdpQCluuIjtbAAO7faM4=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Погоня на полицейском катере 264 дет.",
+    "price": "3499",
+    "product_url": "https://www.detmir.ru/product/index/id/6682154/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682154"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Погоня на полицейском катере 264 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/YlAz-XogtqIgc-4niWDEODzDEtrN16OdGOaI4C5UU1Q=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Пожарно-спасательный вертолет 85 дет.",
+    "price": "1099",
+    "product_url": "https://www.detmir.ru/product/index/id/6432770/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432770"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Пожарно-спасательный вертолет 85 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/zp7_WdA3xgNtCPCFc8ENR72tz_y2mMgmcPyk8Yi3r1E=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Бургер Трак 194 дет.",
+    "price": "2499",
+    "product_url": "https://www.detmir.ru/product/index/id/6432745/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432745"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Бургер Трак 194 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/sYuPe-msWUwBe2CBzY0AdlwjNH99Di4MftAL4KzfOTc=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Star Wars 501st Clone Troopers 119 дет.",
+    "price": "1887",
+    "product_url": "https://www.detmir.ru/product/index/id/6041907/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6041907"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Star Wars 501st Clone Troopers 119 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/SzFc1AktDmzXiwUy4TFoB6r9t5JUOuqqvzNVd8keoY4=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Minecraft Пчелиный коттедж 254 дет.",
+    "price": "2299",
+    "product_url": "https://www.detmir.ru/product/index/id/6024055/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6024055"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Minecraft Пчелиный коттедж 254 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/MJt2AIXJ1toTXVO3mMPXe9R4Y31glpyRy0U1UNhGAGc=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Желтый строительный экскаватор 633 дет.",
+    "price": "5859",
+    "product_url": "https://www.detmir.ru/product/index/id/6557431/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6557431"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Желтый строительный экскаватор 633 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/SrDMeLK25ot5bLwi1DCPar52yvkDrWPgTktbAvm4tcU=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO DUPLO Первый раз в аэропорту 23 дет.",
+    "price": "2999",
+    "product_url": "https://www.detmir.ru/product/index/id/6682176/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682176"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO DUPLO Первый раз в аэропорту 23 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/li7KnVe1iRG8MSNTakw36RIFV9V6-5sLbKIjGBGYEl8=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Creator Игривый котенок 407 дет.",
+    "price": "3499",
+    "product_url": "https://www.detmir.ru/product/index/id/6650160/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6650160"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Creator Игривый котенок 407 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/qf_uTIxgLF2huRigaaCh1kb5A3KOYGg53z1aixplmqA=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Classic Набор для творчества 484 дет.",
+    "price": "2704",
+    "product_url": "https://www.detmir.ru/product/index/id/619011/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "619011"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Classic Набор для творчества 484 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/sKKa4g2NRy2Q9QmCJOxR3lxQIiINkDzxAvu7_sRJlFI=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Botanicals Маленький солнечный букет 373 дет.",
+    "price": "2516",
+    "product_url": "https://www.detmir.ru/product/index/id/6720112/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6720112"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Botanicals Маленький солнечный букет 373 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/YmxosnlEX-Tp7yRIzbYGqs-V9BAf0eMfV7RSfPWR-ck=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Star Wars Clone Trooper и Battle Droid 215 дет.",
+    "price": "3054",
+    "product_url": "https://www.detmir.ru/product/index/id/6432751/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432751"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Star Wars Clone Trooper и Battle Droid 215 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/1htJ7026uYxDH0O9o4ylZDoaAkh_cNWPOJhvy38LtnU=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO NINJAGO Ледяной мотоцикл Зейна 84 дет.",
+    "price": "1199",
+    "product_url": "https://www.detmir.ru/product/index/id/6557434/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6557434"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO NINJAGO Ледяной мотоцикл Зейна 84 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/ENOwHjN5QCdoHBFL6b4shZiETxKhIfsHytliXMAQSA4=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Спортивный автомобиль 109 дет.",
+    "price": "1199",
+    "product_url": "https://www.detmir.ru/product/index/id/6650191/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6650191"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Спортивный автомобиль 109 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/XRlu7R8pIAKj_IXoa7XUNOxRYbSIIjZtwTolPEPpo-g=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Фургон для путешествий 385 дет.",
+    "price": "3499",
+    "product_url": "https://www.detmir.ru/product/index/id/6663131/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6663131"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Фургон для путешествий 385 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/lvyIIuwtlqlOdi9qEo-iZhXcm27NsO8omLMmstPHfZw=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO City Race Car and Car Carrier Truck 328 дет.",
+    "price": "3599",
+    "product_url": "https://www.detmir.ru/product/index/id/6432715/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6432715"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO City Race Car and Car Carrier Truck 328 дет."
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://catalog-cdn.detmir.st/media/v4iwEddnWxMX180BcNCbh6e3f7XdxVguieCKZVIiM84=.webp?preset=site_product_gallery_r450",
+    "merchant": "Detmir",
+    "name": "Конструктор LEGO Harry Potter Фоуск: феникс Дамблдора 299 дет.",
+    "price": "2299",
+    "product_url": "https://www.detmir.ru/product/index/id/6682160/",
+    "raw_data": {
+        "source": "scrapy_v1",
+        "product_id": "6682160"
+    },
+    "site_key": "detmir",
+    "source_id": null,
+    "title": "Конструктор LEGO Harry Potter Фоуск: феникс Дамблдора 299 дет."
+}
+]

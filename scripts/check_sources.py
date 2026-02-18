@@ -1,22 +1,20 @@
+
 import asyncio
 import os
-import sys
+os.environ["DATABASE_URL"] = "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@localhost:5432/giftyai"
 
-# Add the project root to sys.path
-sys.path.append(os.getcwd())
-
-from app.db import SessionLocal
+from app.db import get_db
 from app.models import ParsingSource
 from sqlalchemy import select
 
-async def check_sources():
-    async with SessionLocal() as session:
-        result = await session.execute(select(ParsingSource))
-        sources = result.scalars().all()
-        print(f"Total sources found: {len(sources)}")
-        for i, s in enumerate(sources):
-            print(f"{i+1}. {s.url} (ID: {s.id}, SiteKey: {s.site_key})")
-
+async def main():
+    async for db in get_db():
+        stmt = select(ParsingSource.id, ParsingSource.site_key, ParsingSource.type, ParsingSource.url)
+        result = await db.execute(stmt)
+        sources = result.all()
+        for s in sources:
+            print(f"ID: {s[0]}, Site: {s[1]}, Type: {s[2]}, URL: {s[3]}")
+        break
 
 if __name__ == "__main__":
-    asyncio.run(check_sources())
+    asyncio.run(main())

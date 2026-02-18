@@ -18,12 +18,14 @@ class IngestionPipeline:
     async def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         self.items_buffer.append(dict(item))
+        # print(f"DEBUG_PIPELINE: Item received for {spider.name}, buffer size: {len(self.items_buffer)}")
 
         # Track scraped items
         item_type = "product" if isinstance(item, ProductItem) else "category"
         scraped_items_total.labels(spider=spider.name, item_type=item_type).inc()
 
         if len(self.items_buffer) >= self.batch_size:
+            self.logger.info(f"Pipeline buffer full ({len(self.items_buffer)}), flushing...")
             await self.flush_items(spider)
             
         return item

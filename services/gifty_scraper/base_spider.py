@@ -1,6 +1,8 @@
 import scrapy
 from gifty_scraper.items import ProductItem, CategoryItem
 
+from gifty_scraper.redis_logger import setup_redis_logging
+
 class GiftyBaseSpider(scrapy.Spider):
     """
     Базовый класс для всех пауков Gifty.
@@ -9,22 +11,29 @@ class GiftyBaseSpider(scrapy.Spider):
     site_key = None  # Должен быть переопределен в потомке
 
     def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
-        super(GiftyBaseSpider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.url = url
         self.strategy = strategy
         self.source_id = source_id
+        
+        # If url provided in init, set start_urls
+        if self.url:
+            self.start_urls = [self.url]
+        
+        # Enable live logging if source_id is provided
+        if self.source_id:
+            try:
+                setup_redis_logging(self)
+                self.logger.info(f"Live logging enabled for source {self.source_id}")
+            except Exception:
+                pass  # Ignore if redis/logging setup fails in tests
 
-    def start_requests(self):
-        """Точка входа. Использует переданный URL и вызывает parse."""
-        if not self.url:
-            self.logger.error("No URL provided for spider %s", self.name)
-            return
+    def log_progress(self, message: str):
+        """Helper for showing clean progress in the UI"""
+        self.logger.info(f"[PROGRESS] {message}")
 
-        yield scrapy.Request(
-            self.url,
-            callback=self.parse,
-            dont_filter=True
-        )
+
+
 
     def parse(self, response):
         """Распределяет логику в зависимости от стратегии."""

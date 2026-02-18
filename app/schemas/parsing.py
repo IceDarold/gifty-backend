@@ -46,6 +46,7 @@ class ParsingSourceSchema(BaseModel):
     total_items: Optional[int] = Field(0, description="Total products in catalog")
     last_run_new: Optional[int] = Field(0, description="New items from last run")
     history: Optional[List[dict]] = Field(None, description="Recent run history")
+    related_sources: Optional[List['ParsingSourceSchema']] = Field(None, description="Related categories for this site")
 
     class Config:
         from_attributes = True
@@ -75,3 +76,22 @@ class ParsingSourceUpdate(BaseModel):
     refresh_interval_hours: Optional[int] = None
     is_active: Optional[bool] = None
     config: Optional[dict[str, Any]] = None
+
+class ProductCatalogSchema(BaseModel):
+    gift_id: str
+    title: str
+    price: Optional[float] = None
+    currency: Optional[str] = "RUB"
+    category: Optional[str] = None
+    merchant: Optional[str] = None
+    product_url: str
+    image_url: Optional[str] = None
+    is_active: bool
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ProductListResponse(BaseModel):
+    items: List[ProductCatalogSchema]
+    total: int

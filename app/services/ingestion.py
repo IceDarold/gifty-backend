@@ -71,6 +71,11 @@ class IngestionService:
                 continue
             seen_gift_ids.add(gift_id)
             
+            # Fallback for category if missing in scraped data
+            p_category = p.category
+            if not p_category and source and source.config:
+                p_category = source.config.get("discovery_name")
+
             product_dicts.append({
                 "gift_id": gift_id,
                 "title": p.title,
@@ -80,7 +85,7 @@ class IngestionService:
                 "image_url": p.image_url,
                 "product_url": clean_url,
                 "merchant": p.merchant,
-                "category": p.category, 
+                "category": p_category, 
                 "raw": p.raw_data,
                 "is_active": True
             })

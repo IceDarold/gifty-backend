@@ -6,7 +6,7 @@ from sqlalchemy import select, update, and_, func, case
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ParsingSource, CategoryMap, ParsingRun
+from app.models import ParsingSource, CategoryMap, ParsingRun, Product
 
 class ParsingRepository:
     def __init__(self, session: AsyncSession, redis: Optional[Any] = None):
@@ -191,9 +191,10 @@ class ParsingRepository:
         for spider_key in available_spiders:
             if spider_key not in existing_keys:
                 # Add new inactive source
+                safe_key = spider_key.replace("_", "-")
                 new_source = ParsingSource(
                     site_key=spider_key,
-                    url=f"https://{spider_key}.placeholder", # Needs to be filled
+                    url=f"https://{safe_key}.placeholder", # Needs to be hyphenated for DNS/IDNA
                     type="hub",
                     strategy="discovery",
                     is_active=False,
@@ -284,12 +285,31 @@ class ParsingRepository:
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
-    async def get_total_products_count(self, site_key: str) -> int:
-        from app.models import Product, ParsingSource, ParsingRun
-        # Approximate count based on gift_id prefix
-        stmt = select(func.count()).select_from(Product).where(Product.gift_id.like(f"{site_key}:%"))
+    async def get_last_run_stats(self, source_id: int) -> int:
+        from app.models import ParsingRun
+        stmt = (
+            select(ParsingRun.items_new)
+            .where(ParsingRun.source_id == source_id)
+            .order_by(ParsingRun.created_at.desc())
+            .limit(1)
+        )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
+
+    async def get_products_count(self, site_key: Optional[str] = None, category: Optional[str] = None) -> int:
+        """
+        Count products with optional filters.
+        """
+        from sqlalchemy import func
+        stmt = select(func.count()).select_from(Product).where(Product.is_active.is_(True))
+        
+        if site_key:
+            stmt = stmt.where(Product.gift_id.like(f"{site_key}:%"))
+        if category:
+            stmt = stmt.where(Product.category == category)
+            
+        result = await self.session.execute(stmt)
+        return result.scalar_one()
 
     async def get_aggregate_status(self, site_key: str) -> str:
         """Returns 'running' if any source for this site is running, else 'waiting' or 'error'."""

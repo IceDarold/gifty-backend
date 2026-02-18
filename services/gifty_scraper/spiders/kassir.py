@@ -34,21 +34,55 @@ class KassirSpider(GiftyBaseSpider):
     def start_requests(self):
         if not self.url:
             self.url = "https://msk.kassir.ru/bilety-na-koncert"
-        # No-op
 
+        self.logger.info("Initializing session via Playwright (HP)...")
+        yield scrapy.Request(
+            "https://kassir.ru/",
+            callback=self.parse_homepage,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_methods": [
+                    PageMethod("wait_for_timeout", 3000),
+                ],
+            },
+            dont_filter=True
+        )
+
+    def parse_homepage(self, response):
+        self.logger.info("Session initialized. Going to target URL: %s", self.url)
         yield scrapy.Request(
             self.url,
-            callback=self.parse,
-                meta={
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_page_methods": [
-                        PageMethod("wait_for_timeout", 5000), # Wait for potential redirect to settle
-                        PageMethod("wait_for_selector", ".event-card, article[class*='event-card'], .event-item", timeout=20000),
-                    ],
-                },
-                errback=self.errback_close_page,
-            )
+            callback=self.parse_rendered,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_methods": [
+                    PageMethod("wait_for_timeout", 10000), # Wait for potential redirect/captcha to settle
+                ],
+            },
+            errback=self.errback_close_page,
+            dont_filter=True
+        )
+
+    async def parse_rendered(self, response):
+        """
+        Called after Playwright renders the page. Gets the fully rendered HTML
+        via page.content() so we can parse JS-rendered event cards.
+        """
+        page = response.meta.get("playwright_page")
+        if page:
+            rendered_html = await page.content()
+            with open("kassir_spider_debug.html", "w") as f:
+                f.write(rendered_html)
+            await page.close()
+            rendered_response = response.replace(body=rendered_html.encode("utf-8"))
+            for item in self.parse(rendered_response):
+                yield item
+        else:
+            for item in self.parse(response):
+                yield item
+
 
     async def errback_close_page(self, failure):
         page = failure.request.meta.get("playwright_page")

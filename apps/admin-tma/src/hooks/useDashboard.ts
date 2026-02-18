@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, forceRunSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage } from '@/lib/api';
+import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, fetchSourceProducts, forceRunSource, updateSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage, sendTestNotification } from '@/lib/api';
 
 
 export function useDashboardData(chatId?: number) {
@@ -66,6 +66,18 @@ export function useDashboardData(chatId?: number) {
         },
     });
 
+    const toggleSourceActiveMutation = useMutation({
+        mutationFn: ({ id, active }: { id: number, active: boolean }) => updateSource(id, { is_active: active }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sources'] });
+            queryClient.invalidateQueries({ queryKey: ['source'] });
+        },
+    });
+
+    const sendTestNotificationMutation = useMutation({
+        mutationFn: (topic: string) => sendTestNotification(topic)
+    });
+
     const setLanguageMutation = useMutation({
         mutationFn: (lang: string) => chatId ? setLanguage(chatId, lang) : Promise.reject('No chatId'),
         onSuccess: () => {
@@ -84,10 +96,14 @@ export function useDashboardData(chatId?: number) {
         isSyncing: syncSpidersMutation.isPending,
         forceRun: forceRunMutation.mutate,
         isForceRunning: forceRunMutation.isPending,
+        toggleSourceActive: toggleSourceActiveMutation.mutate,
+        isTogglingActive: toggleSourceActiveMutation.isPending,
         connectWeeek: connectWeeekMutation.mutateAsync,
         isConnectingWeeek: connectWeeekMutation.isPending,
         toggleSubscription: toggleSubscriptionMutation.mutate,
         setLanguage: setLanguageMutation.mutate,
+        sendTestNotification: sendTestNotificationMutation.mutate,
+        isSendingTest: sendTestNotificationMutation.isPending,
         isLoading: stats.isLoading || health.isLoading || scraping.isLoading || sources.isLoading || subscriber.isLoading,
         isError: stats.isError || health.isError || scraping.isError || sources.isError
     };
@@ -103,6 +119,15 @@ export function useSourceDetails(id?: number) {
             const data: any = query.state.data;
             return data?.status === 'running' ? 5000 : 30000;
         },
+    });
+}
+
+export function useSourceProducts(id?: number, limit = 50, offset = 0) {
+    return useQuery({
+        queryKey: ['source-products', id, limit, offset],
+        queryFn: () => id ? fetchSourceProducts(id, limit, offset) : null,
+        enabled: !!id,
+        refetchInterval: 60000,
     });
 }
 

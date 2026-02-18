@@ -79,5 +79,26 @@ export const ru = {
             scraping: "Статус парсинга",
             global: "Глобальные"
         }
+    },
+    categories: {
+        title: "Категории",
+        subtitle: "Мониторинг {count} источников",
+        category: "Категория",
+        products: "Товаров",
+        status: "Статус",
+        last_run: "Последний запуск",
+        next_run: "Следующий запуск",
+        actions: "Действия",
+        view_chart: "График",
+        view_details: "Подробнее",
+        status_running: "Работает",
+        status_waiting: "Ожидает",
+        status_error: "Ошибка",
+        status_broken: "Сломан",
+        status_disabled: "Отключен",
+        never: "Никогда",
+        unknown: "Неизвестно",
+        scheduled_now: "Запланирован сейчас",
+        no_data: "Нет доступных категорий"
     }
 };

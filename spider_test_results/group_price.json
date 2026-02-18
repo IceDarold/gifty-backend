@@ -1,0 +1,962 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991921/3688.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская apple juice golden, 50 мл",
+    "price": "460",
+    "product_url": "https://groupprice.ru/products/35991921-tualetnaya-voda-zhenskaya-apple-juice-golden-50-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская apple juice golden, 50 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413193/21538.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская с феромонами elite eclat, 17 мл (по мотивам eclat a`arpege (lanvin)",
+    "price": "350",
+    "product_url": "https://groupprice.ru/products/36413193-tualetnaya-voda-zhenskaya-s-feromonami-elite-eclat-17-ml-po-motivam-eclat-a-arpege-lanvin",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская с феромонами elite eclat, 17 мл (по мотивам eclat a`arpege (lanvin)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991903/2927.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская mur amour black, 45 мл",
+    "price": "500",
+    "product_url": "https://groupprice.ru/products/35991903-tualetnaya-voda-zhenskaya-mur-amour-black-45-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская mur amour black, 45 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413146/28088.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская prestige №19 love costa, 17 мл (по мотивам lacoste pour femme (lacoste)",
+    "price": "330",
+    "product_url": "https://groupprice.ru/products/36413146-tualetnaya-voda-zhenskaya-prestige-19-love-costa-17-ml-po-motivam-lacoste-pour-femme-lacoste",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская prestige №19 love costa, 17 мл (по мотивам lacoste pour femme (lacoste)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991156/28406.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская parfum de france clime, 60 мл (по мотивам climat (lancome)",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/35991156-tualetnaya-voda-zhenskaya-parfum-de-france-clime-60-ml-po-motivam-climat-lancome",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская parfum de france clime, 60 мл (по мотивам climat (lancome)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413813/16085.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская genius selina, 25 мл (мот parfums de marly delina limited edition)",
+    "price": "1120",
+    "product_url": "https://groupprice.ru/products/36413813-parfyumernaya-voda-zhenskaya-genius-selina-25-ml-mot-parfums-de-marly-delina-limited-edition",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская genius selina, 25 мл (мот parfums de marly delina limited edition)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413983/4702.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода мужская le chameau arabia heroes, 25 мл (по мотивам eros versace)",
+    "price": "1200",
+    "product_url": "https://groupprice.ru/products/36413983-parfyumernaya-voda-muzhskaya-le-chameau-arabia-heroes-25-ml-po-motivam-eros-versace",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода мужская le chameau arabia heroes, 25 мл (по мотивам eros versace)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/2100754/12185.webp",
+    "merchant": "GroupPrice",
+    "name": "Цветочные Духи 9,5 мл DILIS",
+    "price": "640",
+    "product_url": "https://groupprice.ru/products/2100754-tsvetochnye-dukhi-9-5-ml-dilis",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Цветочные Духи 9,5 мл DILIS"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35701673/25544.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская l'accorte (л'аккорте), 50 мл",
+    "price": "960",
+    "product_url": "https://groupprice.ru/products/35701673-parfyumernaya-voda-zhenskaya-l-accorte-l-akkorte-50-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская l'accorte (л'аккорте), 50 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413981/31803.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская le chameau arabia haya, 25 мл (по мотивам haya lattafa)",
+    "price": "1200",
+    "product_url": "https://groupprice.ru/products/36413981-parfyumernaya-voda-zhenskaya-le-chameau-arabia-haya-25-ml-po-motivam-haya-lattafa",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская le chameau arabia haya, 25 мл (по мотивам haya lattafa)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413142/29816.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская prestige № 6 eclat, 17 мл (по мотивам eclat a`arpege (lanvin)",
+    "price": "290",
+    "product_url": "https://groupprice.ru/products/36413142-tualetnaya-voda-zhenskaya-prestige-6-eclat-17-ml-po-motivam-eclat-a-arpege-lanvin",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская prestige № 6 eclat, 17 мл (по мотивам eclat a`arpege (lanvin)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413164/21973.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская prestige №14 fleur narcotic, 17 мл (по мотивам fleur narcotique (ex nihilo)",
+    "price": "310",
+    "product_url": "https://groupprice.ru/products/36413164-parfyumernaya-voda-zhenskaya-prestige-14-fleur-narcotic-17-ml-po-motivam-fleur-narcotique-ex-nihilo",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская prestige №14 fleur narcotic, 17 мл (по мотивам fleur narcotique (ex nihilo)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413147/25291.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская eclat la belle,100 мл (по мотивам la vie est belle (lancome)",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/36413147-tualetnaya-voda-zhenskaya-eclat-la-belle-100-ml-po-motivam-la-vie-est-belle-lancome",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская eclat la belle,100 мл (по мотивам la vie est belle (lancome)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991885/23671.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская lokasta brava, 95 мл",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/35991885-tualetnaya-voda-zhenskaya-lokasta-brava-95-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская lokasta brava, 95 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991919/7891.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская dessert candy, 50 мл",
+    "price": "520",
+    "product_url": "https://groupprice.ru/products/35991919-tualetnaya-voda-zhenskaya-dessert-candy-50-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская dessert candy, 50 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413817/17764.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская panorama opium (по мотивам yves saint laurent black opium), 100 мл",
+    "price": "2220",
+    "product_url": "https://groupprice.ru/products/36413817-parfyumernaya-voda-zhenskaya-panorama-opium-po-motivam-yves-saint-laurent-black-opium-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская panorama opium (по мотивам yves saint laurent black opium), 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/2471215/17552.webp",
+    "merchant": "GroupPrice",
+    "name": "Цветочные Духи 9,5 мл",
+    "price": "640",
+    "product_url": "https://groupprice.ru/products/2471215-tsvetochnye-dukhi-9-5-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Цветочные Духи 9,5 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/24305183/21870.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин \"Pure Crystal New\", 100 мл",
+    "price": "2850",
+    "product_url": "https://groupprice.ru/products/24305183-parfyumernaya-voda-dlya-zhenschin-pure-crystal-new-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин \"Pure Crystal New\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/2101833/9398.webp",
+    "merchant": "GroupPrice",
+    "name": "Одеколон экстра (Bogart Pour Homme Jacques Bogart 100мл",
+    "price": "1020",
+    "product_url": "https://groupprice.ru/products/2101833-odekolon-ekstra-bogart-pour-homme-jacques-bogart-100ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Одеколон экстра (Bogart Pour Homme Jacques Bogart 100мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413984/26050.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская le chameau arabia soleil, 25 мл (по мотивам haya soleil)",
+    "price": "1200",
+    "product_url": "https://groupprice.ru/products/36413984-parfyumernaya-voda-zhenskaya-le-chameau-arabia-soleil-25-ml-po-motivam-haya-soleil",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская le chameau arabia soleil, 25 мл (по мотивам haya soleil)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35701675/9088.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода jardin de paris женская, 100 мл",
+    "price": "3400",
+    "product_url": "https://groupprice.ru/products/35701675-parfyumernaya-voda-jardin-de-paris-zhenskaya-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода jardin de paris женская, 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413943/7712.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода мужская milestone grandeur green heaven, 35 мл (мотив jean paul gaultier)",
+    "price": "1000",
+    "product_url": "https://groupprice.ru/products/36413943-parfyumernaya-voda-muzhskaya-milestone-grandeur-green-heaven-35-ml-motiv-jean-paul-gaultier",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода мужская milestone grandeur green heaven, 35 мл (мотив jean paul gaultier)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/20074939/20073.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская Box Magic Pink Azalia 50мл",
+    "price": "1360",
+    "product_url": "https://groupprice.ru/products/20074939-parfyumernaya-voda-zhenskaya-box-magic-pink-azalia-50ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская Box Magic Pink Azalia 50мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/17104259/18027.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин 75млLa vie",
+    "price": "2470",
+    "product_url": "https://groupprice.ru/products/17104259-parfyumernaya-voda-dlya-zhenschin-75mlla-vie",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин 75млLa vie"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413897/31266.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская milestone madam moiselle, 20 мл",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/36413897-parfyumernaya-voda-zhenskaya-milestone-madam-moiselle-20-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская milestone madam moiselle, 20 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413642/3786.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода lady night intense perfume, 100 мл,",
+    "price": "730",
+    "product_url": "https://groupprice.ru/products/36413642-tualetnaya-voda-lady-night-intense-perfume-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода lady night intense perfume, 100 мл,"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36022949/2534.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская vegan love studio so exciting 01, 30 мл",
+    "price": "520",
+    "product_url": "https://groupprice.ru/products/36022949-parfyumernaya-voda-zhenskaya-vegan-love-studio-so-exciting-01-30-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская vegan love studio so exciting 01, 30 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991288/5853.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская",
+    "price": "400",
+    "product_url": "https://groupprice.ru/products/35991288-tualetnaya-voda-zhenskaya",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413923/19693.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская milestone crystal angel, 35 мл (мотив angels' share by kilian)",
+    "price": "1000",
+    "product_url": "https://groupprice.ru/products/36413923-parfyumernaya-voda-zhenskaya-milestone-crystal-angel-35-ml-motiv-angels-share-by-kilian",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская milestone crystal angel, 35 мл (мотив angels' share by kilian)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/2100919/6535.webp",
+    "merchant": "GroupPrice",
+    "name": "Цветочные Духи Мимоза 9,5 мл",
+    "price": "640",
+    "product_url": "https://groupprice.ru/products/2100919-tsvetochnye-dukhi-mimoza-9-5-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Цветочные Духи Мимоза 9,5 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413825/5228.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода унисекс barouj modernity, 85 мл (по мотивам accento xerjoff)",
+    "price": "11000",
+    "product_url": "https://groupprice.ru/products/36413825-parfyumernaya-voda-uniseks-barouj-modernity-85-ml-po-motivam-accento-xerjoff",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода унисекс barouj modernity, 85 мл (по мотивам accento xerjoff)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/24305187/5552.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная водa для женщин \"Pure Paradise\", 100 мл",
+    "price": "2850",
+    "product_url": "https://groupprice.ru/products/24305187-parfyumernaya-voda-dlya-zhenschin-pure-paradise-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная водa для женщин \"Pure Paradise\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35997533/29067.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская beauty&glow golden flower, 60 мл",
+    "price": "300",
+    "product_url": "https://groupprice.ru/products/35997533-tualetnaya-voda-zhenskaya-beauty-glow-golden-flower-60-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская beauty&glow golden flower, 60 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413816/4027.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская monaco madame (по мотивам miss dior), 100 мл",
+    "price": "2220",
+    "product_url": "https://groupprice.ru/products/36413816-parfyumernaya-voda-zhenskaya-monaco-madame-po-motivam-miss-dior-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская monaco madame (по мотивам miss dior), 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991866/6571.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода мужская smoking brandy, 63 мл",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/35991866-tualetnaya-voda-muzhskaya-smoking-brandy-63-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода мужская smoking brandy, 63 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413195/8097.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская woman'secret love, 100 мл (по мотивам nina (n.ricci)",
+    "price": "400",
+    "product_url": "https://groupprice.ru/products/36413195-tualetnaya-voda-zhenskaya-woman-secret-love-100-ml-po-motivam-nina-n-ricci",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская woman'secret love, 100 мл (по мотивам nina (n.ricci)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/24305190/23352.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин \"Pure Couture\", 100 мл",
+    "price": "2850",
+    "product_url": "https://groupprice.ru/products/24305190-parfyumernaya-voda-dlya-zhenschin-pure-couture-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин \"Pure Couture\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991175/11243.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода мужская tobacco club, 100 мл (по мотивам cigar (r.latour)",
+    "price": "660",
+    "product_url": "https://groupprice.ru/products/35991175-tualetnaya-voda-muzhskaya-tobacco-club-100-ml-po-motivam-cigar-r-latour",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода мужская tobacco club, 100 мл (по мотивам cigar (r.latour)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991138/7218.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская brilliant noir, 50 мл (по мотивам la vie est belle (lancome)",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/35991138-tualetnaya-voda-zhenskaya-brilliant-noir-50-ml-po-motivam-la-vie-est-belle-lancome",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская brilliant noir, 50 мл (по мотивам la vie est belle (lancome)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/24305191/24269.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин \"Pure Seduction\", 100 мл",
+    "price": "2350",
+    "product_url": "https://groupprice.ru/products/24305191-parfyumernaya-voda-dlya-zhenschin-pure-seduction-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин \"Pure Seduction\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/9672847/6285.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская ame ame, 100 мл",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/9672847-tualetnaya-voda-zhenskaya-ame-ame-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская ame ame, 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35997522/13943.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская sensorium erba, 100 мл",
+    "price": "860",
+    "product_url": "https://groupprice.ru/products/35997522-tualetnaya-voda-zhenskaya-sensorium-erba-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская sensorium erba, 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413894/5186.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская milestone madam moiselle, 35 мл (мотив coco mademoiselle chanel)",
+    "price": "1000",
+    "product_url": "https://groupprice.ru/products/36413894-parfyumernaya-voda-zhenskaya-milestone-madam-moiselle-35-ml-motiv-coco-mademoiselle-chanel",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская milestone madam moiselle, 35 мл (мотив coco mademoiselle chanel)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991900/8965.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская lokasta brava le rouge, 95 мл",
+    "price": "600",
+    "product_url": "https://groupprice.ru/products/35991900-tualetnaya-voda-zhenskaya-lokasta-brava-le-rouge-95-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская lokasta brava le rouge, 95 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/31450681/28701.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин \" Pure Mademoiselle\", 100 мл",
+    "price": "2850",
+    "product_url": "https://groupprice.ru/products/31450681-parfyumernaya-voda-dlya-zhenschin-pure-mademoiselle-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин \" Pure Mademoiselle\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35997664/2838.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская parfum de france arpege, 12 мл",
+    "price": "340",
+    "product_url": "https://groupprice.ru/products/35997664-parfyumernaya-voda-zhenskaya-parfum-de-france-arpege-12-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская parfum de france arpege, 12 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413141/19354.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская prestige № 3 imperatrice, 17 мл (по мотивам l`imperatrice 3 anthology (d&g)",
+    "price": "350",
+    "product_url": "https://groupprice.ru/products/36413141-tualetnaya-voda-zhenskaya-prestige-3-imperatrice-17-ml-po-motivam-l-imperatrice-3-anthology-d-g",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская prestige № 3 imperatrice, 17 мл (по мотивам l`imperatrice 3 anthology (d&g)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35990911/11793.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская prestige № 7 mon amour,17 мл (по мотивам amor amor (cacharel)",
+    "price": "310",
+    "product_url": "https://groupprice.ru/products/35990911-tualetnaya-voda-zhenskaya-prestige-7-mon-amour-17-ml-po-motivam-amor-amor-cacharel",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская prestige № 7 mon amour,17 мл (по мотивам amor amor (cacharel)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/2100762/29555.webp",
+    "merchant": "GroupPrice",
+    "name": "Цветочные Духи 9,5 мл",
+    "price": "640",
+    "product_url": "https://groupprice.ru/products/2100762-tsvetochnye-dukhi-9-5-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Цветочные Духи 9,5 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413948/7589.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода унисекс milestone black leather, 35 мл (по мотивам tom ford black lacquer)",
+    "price": "1000",
+    "product_url": "https://groupprice.ru/products/36413948-parfyumernaya-voda-uniseks-milestone-black-leather-35-ml-po-motivam-tom-ford-black-lacquer",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода унисекс milestone black leather, 35 мл (по мотивам tom ford black lacquer)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991928/10727.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская apple juice, 50 мл",
+    "price": "460",
+    "product_url": "https://groupprice.ru/products/35991928-tualetnaya-voda-zhenskaya-apple-juice-50-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская apple juice, 50 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991908/24216.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода мужская smoking napoleon, 63 мл",
+    "price": "580",
+    "product_url": "https://groupprice.ru/products/35991908-tualetnaya-voda-muzhskaya-smoking-napoleon-63-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода мужская smoking napoleon, 63 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413203/9707.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская lady incognito absolute, 100 мл (по мотивам la vie est belle (lancome)",
+    "price": "500",
+    "product_url": "https://groupprice.ru/products/36413203-tualetnaya-voda-zhenskaya-lady-incognito-absolute-100-ml-po-motivam-la-vie-est-belle-lancome",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская lady incognito absolute, 100 мл (по мотивам la vie est belle (lancome)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/8769906/671.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода FLAVIO NERI для женщин",
+    "price": "2070",
+    "product_url": "https://groupprice.ru/products/8769906-parfyumernaya-voda-flavio-neri-dlya-zhenschin",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода FLAVIO NERI для женщин"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991209/5916.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская райское яблоко red dream, 100 мл (по мотивам nina (n.ricci)",
+    "price": "940",
+    "product_url": "https://groupprice.ru/products/35991209-tualetnaya-voda-zhenskaya-rajskoe-yabloko-red-dream-100-ml-po-motivam-nina-n-ricci",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская райское яблоко red dream, 100 мл (по мотивам nina (n.ricci)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/36413982/4339.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская le chameau arabia emotion, 25 мл (мотив devotion dolce & gabbana)",
+    "price": "1200",
+    "product_url": "https://groupprice.ru/products/36413982-parfyumernaya-voda-zhenskaya-le-chameau-arabia-emotion-25-ml-motiv-devotion-dolce-gabbana",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская le chameau arabia emotion, 25 мл (мотив devotion dolce & gabbana)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35997527/3044.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода мужская free style tobacco vanille, 100 мл",
+    "price": "520",
+    "product_url": "https://groupprice.ru/products/35997527-tualetnaya-voda-muzhskaya-free-style-tobacco-vanille-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода мужская free style tobacco vanille, 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/31448356/13344.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода для женщин \"Pure Cherry\", 100 мл",
+    "price": "2850",
+    "product_url": "https://groupprice.ru/products/31448356-parfyumernaya-voda-dlya-zhenschin-pure-cherry-100-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода для женщин \"Pure Cherry\", 100 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/35991911/3446.webp",
+    "merchant": "GroupPrice",
+    "name": "Туалетная вода женская mur amour kitty, 45 мл",
+    "price": "500",
+    "product_url": "https://groupprice.ru/products/35991911-tualetnaya-voda-zhenskaya-mur-amour-kitty-45-ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Туалетная вода женская mur amour kitty, 45 мл"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://s.gpcdn.ru/s/0/products/20074949/31562.webp",
+    "merchant": "GroupPrice",
+    "name": "Парфюмерная вода женская Opium Hypnotic Green Azalia 50мл",
+    "price": "1270",
+    "product_url": "https://groupprice.ru/products/20074949-parfyumernaya-voda-zhenskaya-opium-hypnotic-green-azalia-50ml",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "group_price",
+    "source_id": null,
+    "title": "Парфюмерная вода женская Opium Hypnotic Green Azalia 50мл"
+}
+]

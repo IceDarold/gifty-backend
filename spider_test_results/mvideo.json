@@ -1,0 +1,818 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087059b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 256GB Silver (без RuStore)",
+    "price": "145999",
+    "product_url": "https://www.mvideo.ru/products/30087059",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087059"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 256GB Silver (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087039b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 256GB Silver (без RuStore)",
+    "price": "132999",
+    "product_url": "https://www.mvideo.ru/products/30087039",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087039"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 256GB Silver (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400538624b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон FONTEL FP200",
+    "price": "790",
+    "product_url": "https://www.mvideo.ru/products/400538624",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400538624"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон FONTEL FP200"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087058b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 256GB Orange (без RuStore)",
+    "price": "145999",
+    "product_url": "https://www.mvideo.ru/products/30087058",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087058"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 256GB Orange (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087038b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 256GB Orange (без RuStore)",
+    "price": "132999",
+    "product_url": "https://www.mvideo.ru/products/30087038",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087038"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 256GB Orange (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087040b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 256GB Blue (без RuStore)",
+    "price": "132999",
+    "product_url": "https://www.mvideo.ru/products/30087040",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087040"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 256GB Blue (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087060b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 256GB Blue (без RuStore)",
+    "price": "145999",
+    "product_url": "https://www.mvideo.ru/products/30087060",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087060"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 256GB Blue (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087001b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB Black (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087001",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087001"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB Black (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400557356b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X175 Green",
+    "price": "1999",
+    "product_url": "https://www.mvideo.ru/products/400557356",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400557356"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X175 Green"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400514188b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X160",
+    "price": "1280",
+    "product_url": "https://www.mvideo.ru/products/400514188",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400514188"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X160"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400514187b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X300 DS",
+    "price": "3290",
+    "product_url": "https://www.mvideo.ru/products/400514187",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400514187"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X300 DS"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400336590b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X240",
+    "price": "2599",
+    "product_url": "https://www.mvideo.ru/products/400336590",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400336590"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X240"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074328b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB Black (без RuStore)",
+    "price": "79999",
+    "product_url": "https://www.mvideo.ru/products/30074328",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074328"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB Black (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074323b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 128GB Black (без RuStore)",
+    "price": "72999",
+    "product_url": "https://www.mvideo.ru/products/30074323",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074323"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 128GB Black (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087004b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB Lavender (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087004",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087004"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB Lavender (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400512027b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM x680",
+    "price": "3790",
+    "product_url": "https://www.mvideo.ru/products/400512027",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400512027"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM x680"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400538572b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон FONTEL FP240",
+    "price": "1340",
+    "product_url": "https://www.mvideo.ru/products/400538572",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400538572"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон FONTEL FP240"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087063b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 512GB Orange (без RuStore)",
+    "price": "169999",
+    "product_url": "https://www.mvideo.ru/products/30087063",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087063"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 512GB Orange (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087044b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 512GB Silver (без RuStore)",
+    "price": "149999",
+    "product_url": "https://www.mvideo.ru/products/30087044",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087044"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 512GB Silver (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400557358b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X718 Red",
+    "price": "1999",
+    "product_url": "https://www.mvideo.ru/products/400557358",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400557358"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X718 Red"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400512007b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM x700",
+    "price": "2990",
+    "product_url": "https://www.mvideo.ru/products/400512007",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400512007"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM x700"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/4253553b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X240 black",
+    "price": "2590",
+    "product_url": "https://www.mvideo.ru/products/4253553",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "4253553"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X240 black"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087002b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB White (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087002",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087002"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB White (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074329b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB White (без RuStore)",
+    "price": "79999",
+    "product_url": "https://www.mvideo.ru/products/30074329",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074329"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB White (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087002b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB White (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087002",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087002"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB White (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074329b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB White (без RuStore)",
+    "price": "79999",
+    "product_url": "https://www.mvideo.ru/products/30074329",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074329"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB White (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074421b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB Pink (без RuStore)",
+    "price": "79999",
+    "product_url": "https://www.mvideo.ru/products/30074421",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074421"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB Pink (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400512024b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM x280 DS",
+    "price": "3290",
+    "product_url": "https://www.mvideo.ru/products/400512024",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400512024"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM x280 DS"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400344324b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X300 Зеленый камуфляж",
+    "price": "3299",
+    "product_url": "https://www.mvideo.ru/products/400344324",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400344324"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X300 Зеленый камуфляж"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400522544b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Xiaomi REDMI Note 15 8/256GB Black",
+    "price": "20990",
+    "product_url": "https://www.mvideo.ru/products/400522544",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400522544"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Xiaomi REDMI Note 15 8/256GB Black"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/4253552b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X170 black",
+    "price": "1690",
+    "product_url": "https://www.mvideo.ru/products/4253552",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "4253552"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X170 black"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400511062b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM x600",
+    "price": "2990",
+    "product_url": "https://www.mvideo.ru/products/400511062",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400511062"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM x600"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400514236b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X718",
+    "price": "2290",
+    "product_url": "https://www.mvideo.ru/products/400514236",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400514236"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X718"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087043b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 512GB Orange (без RuStore)",
+    "price": "149999",
+    "product_url": "https://www.mvideo.ru/products/30087043",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087043"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 512GB Orange (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400514189b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон XENIUM X175 DS",
+    "price": "1990",
+    "product_url": "https://www.mvideo.ru/products/400514189",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400514189"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон XENIUM X175 DS"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30069422b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 15 128GB Blue (без RuStore)",
+    "price": "56999",
+    "product_url": "https://www.mvideo.ru/products/30069422",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30069422"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 15 128GB Blue (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087064b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 512GB Silver (без RuStore)",
+    "price": "169999",
+    "product_url": "https://www.mvideo.ru/products/30087064",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087064"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 512GB Silver (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087006b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB Sage (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087006",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087006"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB Sage (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087045b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro 512GB Blue (без RuStore)",
+    "price": "149999",
+    "product_url": "https://www.mvideo.ru/products/30087045",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087045"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro 512GB Blue (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400474420b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон HUAWEI Pura 80 12/256GB Black",
+    "price": "51999",
+    "product_url": "https://www.mvideo.ru/products/400474420",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400474420"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон HUAWEI Pura 80 12/256GB Black"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400524954b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Xiaomi Redmi 15C 8/256GB Midnight Black",
+    "price": "11990",
+    "product_url": "https://www.mvideo.ru/products/400524954",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400524954"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Xiaomi Redmi 15C 8/256GB Midnight Black"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/4253155b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB Black (без RuStore)",
+    "price": "78999",
+    "product_url": "https://www.mvideo.ru/products/4253155",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "4253155"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB Black (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400523414b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Xiaomi Redmi 15 8/256GB Titan Gray",
+    "price": "15990",
+    "product_url": "https://www.mvideo.ru/products/400523414",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400523414"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Xiaomi Redmi 15 8/256GB Titan Gray"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400524951b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Xiaomi Redmi 15C 8/256GB Moonlight Blue",
+    "price": "11990",
+    "product_url": "https://www.mvideo.ru/products/400524951",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400524951"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Xiaomi Redmi 15C 8/256GB Moonlight Blue"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30074422b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 16 256GB Teal (без RuStore)",
+    "price": "79999",
+    "product_url": "https://www.mvideo.ru/products/30074422",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30074422"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 16 256GB Teal (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087065b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 Pro Max 512GB Blue (без RuStore)",
+    "price": "169999",
+    "product_url": "https://www.mvideo.ru/products/30087065",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087065"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 Pro Max 512GB Blue (без RuStore)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/400538614b.jpg",
+    "merchant": "М.Видео",
+    "name": "Мобильный телефон FONTEL FP210",
+    "price": "1490",
+    "product_url": "https://www.mvideo.ru/products/400538614",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "400538614"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Мобильный телефон FONTEL FP210"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://static.mvideo.ru/Pdb/30087003b.jpg",
+    "merchant": "М.Видео",
+    "name": "Смартфон Apple iPhone 17 256GB Blue (без RuStore)",
+    "price": "89999",
+    "product_url": "https://www.mvideo.ru/products/30087003",
+    "raw_data": {
+        "source": "bff_v3",
+        "id": "30087003"
+    },
+    "site_key": "mvideo",
+    "source_id": null,
+    "title": "Смартфон Apple iPhone 17 256GB Blue (без RuStore)"
+}
+]

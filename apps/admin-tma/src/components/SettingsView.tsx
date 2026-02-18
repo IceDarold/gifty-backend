@@ -22,6 +22,8 @@ interface SettingsViewProps {
     isConnectingWeeek: boolean;
     toggleSubscription: (topic: string, active: boolean) => void;
     setBackendLanguage: (lang: string) => void;
+    onSendTestNotification: (topic: string) => void;
+    isSendingTest: boolean;
 }
 
 
@@ -32,6 +34,7 @@ const TOPIC_ICONS = {
     monitoring: Bell,
     scraping: Activity,
     global: Bell,
+    system: ShieldCheck,
 };
 
 export function SettingsView({
@@ -40,7 +43,9 @@ export function SettingsView({
     onConnectWeeek,
     isConnectingWeeek,
     toggleSubscription,
-    setBackendLanguage
+    setBackendLanguage,
+    onSendTestNotification,
+    isSendingTest
 }: SettingsViewProps) {
     const { t, setLanguage: setUiLanguage, language } = useLanguage();
     const [weeekToken, setWeeekToken] = useState("");
@@ -53,6 +58,7 @@ export function SettingsView({
         { id: 'monitoring', label: t('settings.topics.monitoring'), icon: TOPIC_ICONS.monitoring },
         { id: 'scraping', label: t('settings.topics.scraping'), icon: TOPIC_ICONS.scraping },
         { id: 'global', label: t('settings.topics.global'), icon: TOPIC_ICONS.global },
+        { id: 'system', label: "System Core", icon: TOPIC_ICONS.system },
     ];
 
     const handleConnectWeeek = async () => {
@@ -122,21 +128,53 @@ export function SettingsView({
                     <h3 className="text-xs font-bold text-[var(--tg-theme-hint-color)] uppercase tracking-wider">{t('settings.notifications')}</h3>
                     <span className="text-[10px] text-blue-500 font-bold">{t('settings.bot_updates')}</span>
                 </div>
+
+                {!subscriber && (
+                    <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-500 text-[10px] leading-relaxed">
+                        ⚠️ <b>Subscriber not found.</b> Please make sure you have started the bot by sending <code>/start</code> in Telegram.
+                    </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
-                    {topics.map((topic) => (
-                        <button
-                            key={topic.id}
-                            onClick={() => toggleSubscription(topic.id, !isSubscribed(topic.id))}
-                            className={`p-4 rounded-2xl border transition-all flex flex-col items-center gap-3 active:scale-95 ${isSubscribed(topic.id)
-                                ? "bg-blue-500/10 border-blue-500/30 text-blue-500"
-                                : "bg-[var(--tg-theme-secondary-bg-color)] border-transparent text-[var(--tg-theme-hint-color)]"
-                                }`}
-                        >
-                            <topic.icon size={24} className={isSubscribed(topic.id) ? "animate-pulse" : ""} />
-                            <span className="text-[10px] font-bold text-center leading-tight">{topic.label}</span>
-                            {isSubscribed(topic.id) && <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500"></div>}
-                        </button>
-                    ))}
+                    {topics.map((topic) => {
+                        const active = isSubscribed(topic.id);
+                        return (
+                            <div key={topic.id} className="space-y-2">
+                                <button
+                                    onClick={() => toggleSubscription(topic.id, !active)}
+                                    className={`w-full p-4 rounded-2xl border transition-all flex flex-col items-center gap-3 active:scale-95 group relative overflow-hidden ${active
+                                        ? "bg-blue-500/10 border-blue-500/30 text-blue-500 shadow-inner"
+                                        : "bg-[var(--tg-theme-secondary-bg-color)] border-transparent text-[var(--tg-theme-hint-color)] hover:border-blue-500/20"
+                                        }`}
+                                >
+                                    <div className={`p-2 rounded-xl transition-all ${active ? "bg-blue-500 text-white shadow-lg" : "bg-black/5"}`}>
+                                        <topic.icon size={20} className={active ? "animate-pulse" : ""} />
+                                    </div>
+                                    <span className="text-[10px] font-bold text-center leading-tight">{topic.label}</span>
+
+                                    {active && (
+                                        <div className="absolute top-2 right-2">
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 animate-ping absolute"></div>
+                                            <div className="w-2 h-2 rounded-full bg-blue-500 relative"></div>
+                                        </div>
+                                    )}
+                                </button>
+
+                                {active && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSendTestNotification(topic.id);
+                                        }}
+                                        disabled={isSendingTest}
+                                        className="w-full py-2.5 rounded-xl bg-blue-500 text-white text-[10px] font-bold uppercase tracking-wider shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {isSendingTest ? <Loader2 size={12} className="animate-spin" /> : <Bell size={12} fill="white" />}
+                                        {t('common.alerts') || "Test Notification"}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             </section>
 

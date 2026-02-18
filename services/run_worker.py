@@ -161,8 +161,10 @@ class ScraperWorker:
                         if line:
                             decoded = line.decode().strip()
                             if decoded:
+                                # Print to worker stdout so it appears in docker logs
+                                print(f"[SPIDER-{source_id}] {'ERR: ' if is_stderr else ''}{decoded}", flush=True)
                                 log_buffer.append(decoded)
-                                if len(log_buffer) > 50: log_buffer.pop(0)
+                                if len(log_buffer) > 100: log_buffer.pop(0)
                         else:
                             break
 

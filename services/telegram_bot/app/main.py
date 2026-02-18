@@ -1247,11 +1247,11 @@ async def consume_notifications():
                             continue
 
                         # Noise reduction for scraper errors
-                        # If it's a 'scrapers' or 'scraping' notification, we want to ensure we catch important errors
+                        # If it's a 'scrapers' or 'scraping' notification, we want to ensure we catch important errors or additions
                         if topic in ["scrapers", "scraping"]:
-                            # Check for critical keywords (case-insensitive)
-                            is_critical = any(k in text.upper() for k in ["BROKEN", "NEED TO FIX", "ERROR"])
-                            if not is_critical:
+                            # Check for critical keywords or status updates (case-insensitive)
+                            is_important = any(k in text.upper() for k in ["BROKEN", "NEED TO FIX", "ERROR", "NEW SPIDERS", "SYNC", "COMPLETED"])
+                            if not is_important:
                                 logger.info(f"Skipping noisy scraper notification: {text[:50]}...")
                                 continue
 

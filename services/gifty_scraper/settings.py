@@ -12,6 +12,9 @@ BOT_NAME = "gifty_scraper"
 SPIDER_MODULES = ["gifty_scraper.spiders"]
 NEWSPIDER_MODULE = "gifty_scraper.spiders"
 
+# Enable asyncio reactor for async pipelines and playwright
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
 ADDONS = {}
 
 

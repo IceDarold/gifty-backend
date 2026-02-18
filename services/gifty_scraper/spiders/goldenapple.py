@@ -1,5 +1,7 @@
+import scrapy
 import re
 import json
+from scrapy_playwright.page import PageMethod
 from gifty_scraper.base_spider import GiftyBaseSpider
 from gifty_scraper.items import CategoryItem
 
@@ -13,18 +15,65 @@ class GoldAppleSpider(GiftyBaseSpider):
 
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
-        "USER_AGENT": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-            "AppleWebKit/537.36 (KHTML, like Gecko) "
-            "Chrome/120.0.0.0 Safari/537.36"
-        ),
+        "DOWNLOAD_HANDLERS": {
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 60000,
+        "PLAYWRIGHT_LAUNCH_OPTIONS": {
+            "headless": True,
+        },
+        "PLAYWRIGHT_CONTEXT_ARGS": {
+            "viewport": {"width": 375, "height": 812},
+            "user_agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+            "is_mobile": True,
+            "has_touch": True,
+        },
+        "USER_AGENT": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
         "DEFAULT_REQUEST_HEADERS": {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
             "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8",
-            "Cache-Control": "no-cache",
-            "Pragma": "no-cache",
         },
     }
+
+    def start_requests(self):
+        if not self.url:
+            self.url = "https://goldapple.ru/makijazh"
+        
+        self.logger.info("Initializing GA session (Homepage -> Category)...")
+        yield scrapy.Request(
+            "https://goldapple.ru/",
+            callback=self.parse_rendered,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_methods": [
+                    PageMethod("wait_for_timeout", 5000),
+                    PageMethod("goto", self.url),
+                    PageMethod("wait_for_timeout", 15000),
+                    PageMethod("content"),
+                ],
+            },
+            dont_filter=True
+        )
+
+
+    async def parse_rendered(self, response):
+        """
+        Called after Playwright renders the page. Gets the fully rendered HTML
+        via page.content() so we can parse JS-rendered product data.
+        """
+        page = response.meta.get("playwright_page")
+        if page:
+            rendered_html = await page.content()
+            await page.close()
+            rendered_response = response.replace(body=rendered_html.encode("utf-8"))
+            for item in self.parse(rendered_response):
+                yield item
+        else:
+            for item in self.parse(response):
+                yield item
 
     # --------------------------------------------------
     # Discovery (categories)
@@ -105,6 +154,8 @@ class GoldAppleSpider(GiftyBaseSpider):
         # This regex might need tuning if GoldApple changes their frontend
         match = re.search(r"window\.__INITIAL_STATE__\s*=\s*({.*?});", response.text, re.DOTALL)
         if not match:
+            # Debug: log first 500 chars to see what we actually got
+            self.logger.info(f"Regex failed. Response preview: {response.text[:1000]}")
             return None
         try:
             return json.loads(match.group(1))
@@ -143,9 +194,12 @@ class GoldAppleSpider(GiftyBaseSpider):
                 callback=self.parse_catalog
             )
 
+
     def parse(self, response):
         # Entry point router
-        if "catalog" in response.url:
+        # GoldenApple uses /makijazh, /parfyumeriya etc without "catalog" in URL
+        # Check if page has __INITIAL_STATE__ with catalog data
+        if "window.__INITIAL_STATE__" in response.text:
             yield from self.parse_catalog(response)
         else:
             yield from self.parse_discovery(response)
