@@ -14,7 +14,9 @@ SPIDERS = {
     "group_price": "https://groupprice.ru/categories/parfumeriya",
     "nashi_podarki": "https://nashipodarki.ru/catalog/matreshki/",
     "mvideo": "https://www.mvideo.ru/smartfony-i-svyaz-10",
-    "letu": "https://www.letu.ru/browse/makiyazh"
+    "letu": "https://www.letu.ru/browse/makiyazh",
+    "pichshop": "https://pichshop.ru/catalog",
+    "russian_legacy": "https://russianlegacy.com/winter-hats"
 }
 
 async def get_source_ids():

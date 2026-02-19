@@ -497,6 +497,8 @@ async def run_single_spider_ingest(
         "nashi_podarki": "https://nashipodarki.ru/catalog/matreshki/",
         "mvideo": "https://www.mvideo.ru/smartfony-i-svyaz-10",
         "letu": "https://www.letu.ru/browse/makiyazh",
+        "pichshop": "https://pichshop.ru/catalog",
+        "russian_legacy": "https://russianlegacy.com/winter-hats"
     }
 
     url = source.url or SPIDER_URLS.get(site_key)
