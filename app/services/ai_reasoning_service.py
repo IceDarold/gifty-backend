@@ -217,7 +217,8 @@ class AIReasoningService:
             topics_str=json.dumps([self._sanitize_input(t) for t in topics], ensure_ascii=False),
             quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
             liked_concepts=", ".join([self._sanitize_input(c) for c in liked_concepts]) if liked_concepts else "None",
-            disliked_concepts=", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None"
+            disliked_concepts=", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None",
+            language=language
         )
         
         return await self._generate_with_logging(
