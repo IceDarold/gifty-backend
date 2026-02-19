@@ -100,6 +100,57 @@ class HypothesisDetails:
     total_results_found: int
     products: JSON
 
+@strawberry.type
+class AIUsage:
+    total_tokens: int
+    total_cost_usd: float
+    avg_latency_ms: float
+    requests_count: int
+    provider_distribution: JSON # Dict[str, int]
+    last_updated: str
+
+@strawberry.type
+class LLMCall:
+    id: strawberry.ID
+    provider: str
+    model: str
+    call_type: str
+    latency_ms: int
+    total_tokens: int
+    cost_usd: float
+    created_at: str
+
+@strawberry.type
+class ExperimentVariantStats:
+    variant_id: str
+    variant_name: str
+    requests_count: int
+    avg_latency_ms: float
+    total_cost_usd: float
+    total_tokens: int
+    conversion_rate: Optional[float] = None  # % of liked hypotheses
+
+@strawberry.type
+class ExperimentReport:
+    experiment_id: str
+    variants: List[ExperimentVariantStats]
+    total_requests: int
+    last_updated: str
+
+@strawberry.type
+class DemandForecastItem:
+    category_name: str
+    searches_count: int
+    avg_results_found: float
+    zero_result_rate: float  # % of searches with 0 results
+    deficit_score: float     # searches_count / (avg_results + 1)
+
+@strawberry.type
+class DemandForecastReport:
+    top_deficit_categories: List[DemandForecastItem]
+    total_searches_analyzed: int
+    last_updated: str
+
 async def query_posthog(query: Dict[str, Any], settings: Settings, redis: Redis, cache_key: str, cache_ttl: int = 300) -> Dict[str, Any]:
     if not settings.posthog_api_key or not settings.posthog_project_id:
         return {}
@@ -456,6 +507,187 @@ class Query:
                 "score": l.similarity_score,
                 "clicked": l.was_clicked
             } for l in links]
+        )
+
+    @strawberry.field
+    async def ai_usage(self, info: strawberry.Info, days: int = 7) -> AIUsage:
+        db: AsyncSession = info.context["db"]
+        from app.models import LLMLog
+        since = datetime.utcnow() - timedelta(days=days)
+        
+        stmt = select(
+            func.sum(LLMLog.total_tokens).label("tokens"),
+            func.sum(LLMLog.cost_usd).label("cost"),
+            func.avg(LLMLog.latency_ms).label("latency"),
+            func.count(LLMLog.id).label("count")
+        ).where(LLMLog.created_at >= since)
+        
+        res = (await db.execute(stmt)).one_or_none()
+        
+        dist_stmt = select(LLMLog.provider, func.count(LLMLog.id)).where(LLMLog.created_at >= since).group_by(LLMLog.provider)
+        dist_res = await db.execute(dist_stmt)
+        distribution = {r[0]: r[1] for r in dist_res.all()}
+        
+        return AIUsage(
+            total_tokens=res.tokens or 0,
+            total_cost_usd=float(res.cost or 0),
+            avg_latency_ms=float(res.latency or 0),
+            requests_count=res.count or 0,
+            provider_distribution=distribution,
+            last_updated=datetime.utcnow().isoformat() + "Z"
+        )
+
+    @strawberry.field
+    async def llm_logs(self, info: strawberry.Info, limit: int = 20) -> List[LLMCall]:
+        db: AsyncSession = info.context["db"]
+        from app.models import LLMLog
+        stmt = select(LLMLog).order_by(LLMLog.created_at.desc()).limit(limit)
+        res = await db.execute(stmt)
+        logs = res.scalars().all()
+        
+        return [LLMCall(
+            id=strawberry.ID(str(l.id)),
+            provider=l.provider,
+            model=l.model,
+            call_type=l.call_type,
+            latency_ms=l.latency_ms or 0,
+            total_tokens=l.total_tokens or 0,
+            cost_usd=float(l.cost_usd or 0),
+            created_at=l.created_at.isoformat()
+        ) for l in logs]
+
+    @strawberry.field
+    async def experiment_report(self, info: strawberry.Info, experiment_id: str) -> Optional[ExperimentReport]:
+        db: AsyncSession = info.context["db"]
+        from app.models import LLMLog, Hypothesis as HypothesisModel
+        from sqlalchemy import func
+        
+        # 1. Get stats per variant from LLMLog
+        stmt = select(
+            LLMLog.variant_id,
+            func.count(LLMLog.id).label("count"),
+            func.avg(LLMLog.latency_ms).label("latency"),
+            func.sum(LLMLog.cost_usd).label("cost"),
+            func.sum(LLMLog.total_tokens).label("tokens")
+        ).where(LLMLog.experiment_id == experiment_id).group_by(LLMLog.variant_id)
+        
+        res = await db.execute(stmt)
+        variant_stats = res.all()
+        
+        if not variant_stats:
+            return None
+            
+        # 2. Try to calculate conversion (likes)
+        # We need to link LLMLog -> session_id -> Hypothesis reactions
+        # This is a bit complex, let's do a simplified version: 
+        # count hypotheses liked in sessions belonging to this variant
+        
+        variants = []
+        total_requests = 0
+        
+        # Get experiment config for names
+        from app.core.logic_config import logic_config
+        exp_config = next((e for e in getattr(logic_config, "experiments", []) if e.get("id") == experiment_id), {})
+        variant_names = {k: v.get("name", k) for k, v in exp_config.get("variants", {}).items()}
+        
+        for row in variant_stats:
+            v_id = row.variant_id or "unknown"
+            total_requests += row.count
+            
+            # Simplified conversion calculation:
+            # count likes / total generate_hypotheses calls for this variant
+            like_stmt = select(func.count(HypothesisModel.id)).join(
+                LLMLog, LLMLog.session_id == HypothesisModel.session_id
+            ).where(
+                and_(
+                    LLMLog.experiment_id == experiment_id,
+                    LLMLog.variant_id == v_id,
+                    HypothesisModel.user_reaction == 'like'
+                )
+            )
+            likes = (await db.execute(like_stmt)).scalar() or 0
+            
+            # total generate calls for this variant
+            gen_stmt = select(func.count(LLMLog.id)).where(
+                and_(
+                    LLMLog.experiment_id == experiment_id,
+                    LLMLog.variant_id == v_id,
+                    LLMLog.call_type == 'generate_hypotheses'
+                )
+            )
+            gen_calls = (await db.execute(gen_stmt)).scalar() or 1 # avoid div by zero
+            conv_rate = round((likes / gen_calls) * 100, 2)
+            
+            variants.append(ExperimentVariantStats(
+                variant_id=v_id,
+                variant_name=variant_names.get(v_id, v_id),
+                requests_count=row.count,
+                avg_latency_ms=float(row.latency or 0),
+                total_cost_usd=float(row.cost or 0),
+                total_tokens=int(row.tokens or 0),
+                conversion_rate=conv_rate
+            ))
+            
+        return ExperimentReport(
+            experiment_id=experiment_id,
+            variants=variants,
+            total_requests=total_requests,
+            last_updated=datetime.utcnow().isoformat() + "Z"
+        )
+
+    @strawberry.field
+    async def demand_forecast(self, info: strawberry.Info, days: int = 7) -> DemandForecastReport:
+        db: AsyncSession = info.context["db"]
+        from app.models import SearchLog
+        from sqlalchemy import func, case
+        import datetime as dt
+        
+        since = dt.datetime.utcnow() - dt.timedelta(days=days)
+        
+        # Aggregate by predicted_category
+        stmt = select(
+            SearchLog.predicted_category,
+            func.count(SearchLog.id).label("count"),
+            func.avg(SearchLog.results_count).label("avg_results"),
+            func.sum(case((SearchLog.results_count == 0, 1), else_=0)).label("zero_results")
+        ).where(
+            and_(
+                SearchLog.predicted_category.isnot(None),
+                SearchLog.created_at >= since
+            )
+        ).group_by(SearchLog.predicted_category).order_by(func.count(SearchLog.id).desc())
+        
+        res = await db.execute(stmt)
+        rows = res.all()
+        
+        items = []
+        total_searches = 0
+        
+        for row in rows:
+            cat = row.predicted_category
+            count = row.count
+            avg_results = float(row.avg_results or 0)
+            zero_results = row.zero_results
+            total_searches += count
+            
+            # Simple deficit score logic: high searches + low results = high deficit
+            deficit_score = round(count / (avg_results + 0.5), 2)
+            
+            items.append(DemandForecastItem(
+                category_name=cat,
+                searches_count=count,
+                avg_results_found=round(avg_results, 2),
+                zero_result_rate=round((zero_results / count) * 100, 2),
+                deficit_score=deficit_score
+            ))
+            
+        # Sort by deficit score instead of pure count
+        items.sort(key=lambda x: x.deficit_score, reverse=True)
+        
+        return DemandForecastReport(
+            top_deficit_categories=items[:20],
+            total_searches_analyzed=total_searches,
+            last_updated=datetime.utcnow().isoformat() + "Z"
         )
 
 schema = strawberry.Schema(query=Query)

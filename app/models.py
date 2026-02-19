@@ -391,6 +391,7 @@ class SearchLog(TimestampMixin, Base):
     
     search_query: Mapped[str] = mapped_column(Text, nullable=False)
     results_count: Mapped[int] = mapped_column(Integer, default=0)
+    predicted_category: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     
     # Metrics
     avg_similarity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -421,3 +422,40 @@ class HypothesisProductLink(TimestampMixin, Base):
     
     was_shown: Mapped[bool] = mapped_column(Boolean, default=True)
     was_clicked: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class LLMLog(TimestampMixin, Base):
+    """
+    Records every interaction with LLM providers for observability.
+    Stores prompt, response, usage metrics and timing.
+    """
+    __tablename__ = "llm_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    provider: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    model: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    
+    # Context
+    call_type: Mapped[str] = mapped_column(String, nullable=False, index=True)  # e.g., "generate_hypotheses", "classify_topic"
+    
+    # Input/Output
+    input_messages: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    output_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Metrics
+    prompt_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    completion_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Cost (estimated)
+    cost_usd: Mapped[Optional[float]] = mapped_column(Numeric(10, 6), nullable=True)
+    
+    # Relations (optional links to product logic)
+    session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    hypothesis_id: Mapped[Optional[uuid.UUID]] = mapped_column(PG_UUID(as_uuid=True), nullable=True, index=True)
+    
+    # A/B Testing
+    experiment_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    variant_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)

@@ -1,7 +1,7 @@
 import os
 import yaml
 import logging
-from typing import Optional, Dict, Any
+from typing import Optional, List, Dict, Any
 from pydantic import BaseModel, Field
 
 logger = logging.getLogger(__name__)
@@ -34,6 +34,7 @@ class LogicConfig(BaseModel):
     recommendation: RecommendationSettings = Field(default_factory=RecommendationSettings)
     llm: LLMSettings = Field(default_factory=LLMSettings)
     features: FeatureToggles = Field(default_factory=FeatureToggles)
+    experiments: Optional[List[Dict[str, Any]]] = Field(default_factory=list)
 
     @classmethod
     def load(cls) -> "LogicConfig":

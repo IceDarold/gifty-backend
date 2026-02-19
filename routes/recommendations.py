@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 async def get_dialogue_manager(
     db_session = Depends(get_db)
 ):
-    ai_service = AIReasoningService()
+    ai_service = AIReasoningService(db=db_session)
     emb = get_embedding_service()
     rec = RecommendationService(db_session, emb)
     storage = get_session_storage()

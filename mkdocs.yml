@@ -112,7 +112,20 @@ nav:
       - Gift Query Rules: recommendation/query_rules.md
       - Intelligence API: recommendation/intelligence_api.md
   - Analytics & Monitoring:
-      - Dashboard Guide: analytics_monitoring/dashboard.md
+      - Overview & Philosophy: analytics_monitoring/dashboard.md
+      - Metrics:
+          - Business KPI: analytics_monitoring/kpi_metrics.md
+          - AI Observability: analytics_monitoring/ai_observability.md
+          - Catalog Coverage: analytics_monitoring/catalog_coverage.md
+          - Recommendation Quality: analytics_monitoring/recommendation_quality.md
+      - Advanced Analysis:
+          - Experiments (Concept): analytics_monitoring/experiments.md
+          - Demand Forecasting (Concept): analytics_monitoring/demand_forecasting.md
+          - Technical Health: analytics_monitoring/technical_health.md
+      - Ideas:
+          - Reasoning Chain Bottleneck: analytics_monitoring/ideas/reasoning_bottleneck.md
+          - Semantic Drift Detection: analytics_monitoring/ideas/semantic_drift.md
+          - Persona Mining: analytics_monitoring/ideas/persona_mining.md
       - Telegram Bot:
           - User Guide: analytics_monitoring/telegram_bot/user_guide.md
           - Internals: analytics_monitoring/telegram_bot/internals.md
@@ -133,12 +146,16 @@ nav:
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
-      - Analytics:
+      - Analytics API:
           - Overview: api/analytics/overview.md
-          - Business Metrics: api/analytics/kpi.md
-          - Catalog Coverage: api/analytics/coverage.md
-          - AI & Recommendations: api/analytics/recommendations.md
-          - System Monitoring: api/analytics/monitoring.md
+          - Reports API:
+              - Business Metrics: api/analytics/kpi.md
+              - Catalog Coverage: api/analytics/coverage.md
+              - AI Observability: api/analytics/ai_observability.md
+              - Experiments API: api/analytics/experiments.md
+              - Demand Forecasting API: api/analytics/demand_forecasting.md
+              - Recommendation Analysis: api/analytics/recommendations.md
+              - System Monitoring: api/analytics/monitoring.md
       - Internal: api/internal.md
       - Weeek:
           - Gifty Proxy API: api/weeek.md

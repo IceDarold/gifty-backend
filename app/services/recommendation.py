@@ -200,6 +200,7 @@ class RecommendationService:
                         llm_model=llm_model or logic_config.model_smart,
                         search_query=query,
                         results_count=results_count,
+                        predicted_category=track_title, # Topic serves as the predicted category
                         top_gift_id=top_id,
                         max_price=max_price,
                         engine_version="advanced_v1"
@@ -338,6 +339,7 @@ class RecommendationService:
                  self.session.add(SearchLog(
                      search_query=q,
                      results_count=0,
+                     predicted_category=track_title,
                      engine_version="deep_dive_v1"
                  ))
             return []
@@ -353,6 +355,7 @@ class RecommendationService:
                 llm_model=llm_model or logic_config.model_smart,
                 search_query=q,
                 results_count=len(search_results[0]) if len(search_results) > 0 else 0,
+                predicted_category=track_title,
                 max_price=max_price,
                 engine_version="advanced_v1"
             ))

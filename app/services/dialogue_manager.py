@@ -83,7 +83,8 @@ class DialogueManager:
         try:
             normalized_topics = await self.ai_service.normalize_topics(
                 quiz.interests, 
-                language=session.language
+                language=session.language,
+                session_id=session.session_id
             )
         except Exception as e:
             logger.error(f"Normalization failed: {e}")
@@ -105,7 +106,8 @@ class DialogueManager:
                 probe_data = await self.ai_service.generate_personalized_probe(
                     context_type="dead_end",
                     quiz_data=quiz_dict,
-                    language=session.language
+                    language=session.language,
+                    session_id=session.session_id
                 )
                 session.current_probe = DialogueStep(
                     question=probe_data.get("question"),
@@ -132,7 +134,8 @@ class DialogueManager:
                 quiz_data=quiz_dict,
                 liked_concepts=session.full_recipient.liked_labels,
                 disliked_concepts=session.full_recipient.ignored_labels,
-                language=session.language
+                language=session.language,
+                session_id=session.session_id
             )
             
             # Process results and fetch previews
@@ -213,7 +216,8 @@ class DialogueManager:
                     context_type="exploration",
                     quiz_data=quiz_dict,
                     topic=topic,
-                    language=session.language
+                    language=session.language,
+                    session_id=session.session_id
                 )
                 return TopicTrack(
                     topic_id=str(uuid.uuid4()),
@@ -281,7 +285,12 @@ class DialogueManager:
         # 1. Classify (determine if wide)
         quiz_dict = session.full_recipient.quiz_data.dict() if session.full_recipient.quiz_data else {}
         try:
-            classification = await self.ai_service.classify_topic(topic, quiz_data=quiz_dict, language=session.language)
+            classification = await self.ai_service.classify_topic(
+                topic, 
+                quiz_data=quiz_dict, 
+                language=session.language,
+                session_id=session.session_id
+            )
         except Exception as e:
             logger.error(f"DialogueManager: Classification failed for topic '{topic}': {e}")
             classification = {"is_wide": False, "refined_topic": topic}
@@ -307,7 +316,8 @@ class DialogueManager:
             liked_concepts=session.full_recipient.liked_labels,
             disliked_concepts=session.full_recipient.ignored_labels,
             shown_concepts=all_shown, 
-            language=session.language
+            language=session.language,
+            session_id=session.session_id
         )
         
         # 3. Build the track
@@ -376,7 +386,8 @@ class DialogueManager:
             hints = await self.ai_service.generate_topic_hints(
                 quiz_data=quiz_dict,
                 topics_explored=existing_topics,
-                language=session.language
+                language=session.language,
+                session_id=session.session_id
             )
             session.topic_hints = hints
 
@@ -405,7 +416,8 @@ class DialogueManager:
                     liked_concepts=session.full_recipient.liked_labels,
                     disliked_concepts=session.full_recipient.ignored_labels,
                     shown_concepts=all_shown,
-                    language=session.language
+                    language=session.language,
+                    session_id=session.session_id
                 )
                 
                 # Convert to Hypothesis objects with previews
