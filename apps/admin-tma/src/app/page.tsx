@@ -90,21 +90,7 @@ export default function Home() {
 
           </>
         );
-      case "scrapers":
-        return (
-          <SpiderList
-            sources={sources.data}
-            onSync={handleSync}
-            onOpenDetail={(id) => setSelectedSourceId(id)}
-            isSyncing={isSyncing}
-            onRunAll={runAll}
-            isRunningAll={isRunningAll}
-            onRunOne={runOne}
-            isRunningOne={isRunningOne}
-          />
-
-        );
-      case "categories":
+      case "parsers":
         return (
           <CategoriesTable
             sources={sources.data}
@@ -113,6 +99,12 @@ export default function Home() {
               // Open chart modal - will be implemented
               setSelectedSourceId(id);
             }}
+            onSync={handleSync}
+            isSyncing={isSyncing}
+            onRunAll={runAll}
+            isRunningAll={isRunningAll}
+            onRunOne={runOne}
+            isRunningOne={isRunningOne}
           />
         );
       case "alerts":
@@ -169,19 +161,11 @@ export default function Home() {
         </button>
 
         <button
-          onClick={() => setActiveTab("categories")}
-          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'categories' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'}`}
+          onClick={() => setActiveTab("parsers")}
+          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'parsers' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'}`}
         >
-          <List size={22} fill={activeTab === 'categories' ? 'currentColor' : 'none'} />
-          <span className="text-[10px] font-medium">{t('categories.title')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("scrapers")}
-          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'scrapers' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'}`}
-        >
-          <RefreshCcw size={22} className={activeTab === 'scrapers' ? 'animate-pulse' : ''} />
-          <span className="text-[10px] font-medium">{t('common.scrapers')}</span>
+          <List size={22} className={activeTab === 'parsers' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'} />
+          <span className="text-[10px] font-medium">Parsers</span>
         </button>
 
         <button

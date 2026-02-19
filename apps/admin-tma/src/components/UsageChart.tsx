@@ -27,7 +27,7 @@ export function UsageChart({ data }: UsageChartProps) {
             name,
             date,
             dau: Number(data.dau_trend?.[i] || 0),
-            completed: Number(data.quiz_starts?.[i] || 0)
+            started: Number(data.quiz_starts?.[i] || 0)
         };
     }) : []);
 
@@ -48,7 +48,7 @@ export function UsageChart({ data }: UsageChartProps) {
                         </div>
                         <div className="flex items-center gap-1">
                             <div className="w-2 h-2 rounded-full bg-[#64b5ef]"></div>
-                            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">Quiz</span>
+                            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">Started</span>
                         </div>
                     </div>
                 </div>
@@ -95,7 +95,7 @@ export function UsageChart({ data }: UsageChartProps) {
                                 />
                                 <Area
                                     type="monotone"
-                                    dataKey="completed"
+                                    dataKey="started"
                                     stroke="#64b5ef"
                                     strokeWidth={2}
                                     strokeDasharray="5 5"
