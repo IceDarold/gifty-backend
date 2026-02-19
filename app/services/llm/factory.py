@@ -31,7 +31,10 @@ class LLMFactory:
         """
         Returns an instance of the configured LLM client.
         """
-        provider = provider or logic_config.llm.default_provider
+        settings = get_settings()
+        # Prioritize Settings (ENV) over logic_config (YAML) for the default provider
+        # but allow manual override via the 'provider' parameter.
+        provider = provider or settings.llm_provider or logic_config.llm.default_provider
         
         client_class = LLMFactory._clients.get(provider.lower())
         

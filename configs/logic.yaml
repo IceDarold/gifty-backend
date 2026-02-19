@@ -9,7 +9,7 @@ recommendation:
 
 # LLM Selection
 llm:
-  default_provider: "anthropic"  # Options: anthropic, gemini, groq, openrouter, together
+  default_provider: "groq"  # Options: anthropic, gemini, groq, openrouter, together
   model_fast: "claude-3-haiku-20240307"
   model_smart: "claude-3-5-sonnet-20240620"
   model_embedding: "bge-m3"
@@ -19,3 +19,20 @@ llm:
 features:
   use_runpod_for_high_priority: true
   enable_external_workers: true
+  enable_ab_testing: true
+
+# Experiments Configuration
+experiments:
+  - id: "ai_model_v2_test"
+    is_active: true
+    variants:
+      variant_a:
+        name: "Control (Haiku)"
+        overrides:
+          llm_model_fast: "claude-3-haiku-20240307"
+          llm_model_smart: "claude-3-5-sonnet-20240620"
+      variant_b:
+        name: "Experiment (GPT-4o)"
+        overrides:
+          llm_model_fast: "gpt-4o-mini"
+          llm_model_smart: "gpt-4o"
