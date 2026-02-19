@@ -8,10 +8,10 @@ This portal contains all technical documentation for the **Gifty** project — a
 
 | Section | Description | Link |
 | :--- | :--- | :--- |
-| :material-rocket-launch: **Onboarding** | Step-by-step plan for new members: access, chats, first tasks. | [Open →](guides/onboarding.md) |
-| :material-application-cog: **Local Setup** | Boot up the entire system (Docker, API, Bot) in 5 minutes. | [Open →](guides/local_setup.md) |
-| :material-graph: **Architecture** | High-level overview of how data turns into recommendations. | [Open →](architecture/overview.md) |
-| :material-database: **Data & DB** | Data domains, PostgreSQL schemas, and migration rules. | [Open →](guides/database_work.md) |
+| :material-rocket-launch: **Onboarding** | Step-by-step plan for new members: access, chats, first tasks. | [Open →](onboarding/quick_start.md) |
+| :material-application-cog: **Local Setup** | Boot up the entire system (Docker, API, Bot) in 5 minutes. | [Open →](onboarding/local_setup.md) |
+| :material-graph: **Architecture** | High-level overview of how data turns into recommendations. | [Open →](overview/index.md) |
+| :material-database: **Data & DB** | Data domains, PostgreSQL schemas, and migration rules. | [Open →](onboarding/database_work.md) |
 
 ---
 
@@ -19,15 +19,15 @@ This portal contains all technical documentation for the **Gifty** project — a
 
 ### 🧠 Recommendation Engine
 Our SOTA engine based on **Qwen2-VL** and **Vector Search**. We don't just search for products; we analyze them across 10 psychological axes (GUTG).
-👉 [Read more about RecSys →](architecture/recommendations.md)
+👉 [Read more about RecSys →](recommendation/overview.md)
 
 ### 🕷 Parsing System
 Scalable data collection system using Scrapy and RabbitMQ. Features automatic category mapping and AI validation.
-👉 [How parsers work →](architecture/parsing.md)
+👉 [How parsers work →](parsing/architecture.md)
 
 ### 🤖 Telegram Admin Bot
 Mission control center. Health monitoring, manual parsing control, and access management.
-👉 [Bot guide →](guides/telegram_bot.md)
+👉 [Bot guide →](analytics_monitoring/telegram_bot/user_guide.md)
 
 ---
 
@@ -35,9 +35,9 @@ Mission control center. Health monitoring, manual parsing control, and access ma
 
 We believe in TDD and Observability:
 
-*   **Testing**: Every feature is covered by `pytest`. [Testing Guide →](guides/testing.md)
-*   **Analytics**: We track business success via PostHog. [Why do we need analytics? →](guides/analytics_api_quickstart.md)
-*   **CI/CD**: Automatic deployment on every push. [Deployment process →](guides/deployment.md)
+*   **Testing**: Every feature is covered by `pytest`. [Testing Guide →](onboarding/testing.md)
+*   **Analytics**: We track business success via PostHog. [Why do we need analytics? →](analytics_monitoring/dashboard.md)
+*   **CI/CD**: Automatic deployment on every push. [Deployment process →](engineering/deployment.md)
 
 ---
 

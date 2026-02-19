@@ -77,4 +77,4 @@
 *   **Body**: `RecommendationRequest` (ответы на вопросы квиза).
 *   **Response**: `RecommendationResponse` (Hero-подарок и список альтернатив).
 
-👉 Детальное описание логики работы движка см. в разделе [Recommendation Engine](../architecture/recommendation_engine.md).
+👉 Детальное описание логики работы движка см. в разделе [Recommendation Engine](../recommendation/engine.md).

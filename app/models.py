@@ -371,3 +371,53 @@ class ComputeTask(TimestampMixin, Base):
     # Timing
     started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
     completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+class SearchLog(TimestampMixin, Base):
+    """
+    Логи поисковых запросов в системе рекомендаций.
+    Позволяет анализировать полноту каталога и релевантность выдачи.
+    """
+    __tablename__ = "search_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    session_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    hypothesis_id: Mapped[Optional[uuid.UUID]] = mapped_column(PG_UUID(as_uuid=True), index=True, nullable=True)
+    
+    # Context
+    track_title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    hypothesis_title: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    search_context: Mapped[Optional[str]] = mapped_column(String, nullable=True) # e.g. 'preview', 'deep_dive'
+    llm_model: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    
+    search_query: Mapped[str] = mapped_column(Text, nullable=False)
+    results_count: Mapped[int] = mapped_column(Integer, default=0)
+    
+    # Metrics
+    avg_similarity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    top_similarity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    top_gift_id: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # User state at search time
+    max_price: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    execution_time_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    
+    # Metadata
+    engine_version: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+
+
+class HypothesisProductLink(TimestampMixin, Base):
+    """
+    Связь конкретной гипотезы с найденными товарами.
+    Нужна для анализа воронки "Гипотеза -> Найденные релевантные товары".
+    """
+    __tablename__ = "hypothesis_product_links"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    hypothesis_id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), index=True, nullable=False)
+    gift_id: Mapped[str] = mapped_column(String, index=True, nullable=False)
+    
+    similarity_score: Mapped[float] = mapped_column(Float, nullable=False)
+    rank_position: Mapped[int] = mapped_column(Integer, nullable=False) # Позиция в выдаче
+    
+    was_shown: Mapped[bool] = mapped_column(Boolean, default=True)
+    was_clicked: Mapped[bool] = mapped_column(Boolean, default=False)

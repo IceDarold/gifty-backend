@@ -131,4 +131,4 @@ graph TD
 
 Для локальной разработки, отладки и работы с Mini App см. отдельный гайд:
 
-👉 **[Development Guide](../guides/telegram_bot_dev.md)**
+👉 **[Development Guide](dev.md)**

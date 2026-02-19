@@ -192,8 +192,8 @@ class PostgresCatalogRepository(CatalogRepository):
         model_name: Optional[str] = None
     ) -> list[Product]:
         # Perform vector search using cosine distance (operator <=>)
-        from app.config import get_settings
-        target_model = model_name or get_settings().embedding_model
+        from app.core.logic_config import logic_config
+        target_model = model_name or logic_config.llm.model_embedding
         
         stmt = (
             select(Product)

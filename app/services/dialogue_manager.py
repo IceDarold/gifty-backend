@@ -244,7 +244,10 @@ class DialogueManager:
                 previews = await self.recommendation_service.find_preview_products(
                     search_queries=rh.get("search_queries", []),
                     hypothesis_title=rh.get("title", ""),
-                    max_price=session.full_recipient.budget
+                    max_price=session.full_recipient.budget,
+                    session_id=session.session_id,
+                    hypothesis_id=uuid.UUID(h_id),
+                    track_title=topic
                 )
             except Exception as e:
                 logger.error(f"Failed to fetch previews for hypothesis {rh.get('title')}: {e}")
@@ -470,7 +473,10 @@ class DialogueManager:
                     search_queries=hypothesis.search_queries,
                     hypothesis_title=hypothesis.title,
                     hypothesis_description=hypothesis.description,
-                    max_price=session.full_recipient.budget
+                    max_price=session.full_recipient.budget,
+                    session_id=session_id,
+                    hypothesis_id=uuid.UUID(value) if value else None,
+                    track_title=None # Could find from track if needed
                 )
                 hypothesis.preview_products = products
             else:

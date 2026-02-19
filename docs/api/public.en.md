@@ -63,4 +63,4 @@ The main endpoint for the quiz.
 *   **Body**: `RecommendationRequest` (quiz answers).
 *   **Response**: `RecommendationResponse` (Hero gift and list of alternatives).
 
-👉 For details on engine logic, see the [Recommendation Engine](../architecture/recommendation_engine.md) section.
+👉 For details on engine logic, see the [Recommendation Engine](../recommendation/engine.md) section.

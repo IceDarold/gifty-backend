@@ -88,46 +88,58 @@ markdown_extensions:
 nav:
   - Home: index.md
   - Onboarding:
-      - Quick Start: guides/onboarding.md
-      - Tech Stack & Concepts: guides/tech_stack.md
-      - Local Setup: guides/local_setup.md
-      - GitHub Workflow: guides/github_workflow.md
-      - Testing: guides/testing.md
-      - Database Guide: guides/database_work.md
-      - Roadmap & Milestones: guides/roadmap.md
-  - Overview: architecture/overview.md
+      - Quick Start: onboarding/quick_start.md
+      - Tech Stack & Concepts: onboarding/tech_stack.md
+      - Local Setup: onboarding/local_setup.md
+      - GitHub Workflow: onboarding/github_workflow.md
+      - Testing: onboarding/testing.md
+      - Database Guide: onboarding/database_work.md
+      - Roadmap & Milestones: onboarding/roadmap.md
+  - Overview:
+      - System Overview: overview/index.md
+      - Recipient Management: overview/recipient_management.md
   - Parsing System:
-      - Architecture: architecture/parsing.md
-      - Guide (How to add parser): guides/parsing.md
+      - Architecture: parsing/architecture.md
+      - Guide (How to add parser): parsing/guide.md
   - Recommendation Engine:
-      - The Psychology of Gifting: architecture/grand_unified_theory.md
-      - Architecture (Semantic Bridge): architecture/recommendation_engine.md
-      - Quiz System (Input): architecture/quiz_system.md
-      - Discovery Algorithm (Dialogue): architecture/discovery_algorithm.md
-      - Multi-Track System (v2): architecture/multi_track_discovery.md
-      - Discovery Engine v2 (Deep Dive): architecture/discovery_engine_v2.md
-      - Overview: architecture/recommendations.md
-      - Gift Query Rules: architecture/gift_query_rules.md
-      - Intelligence API: architecture/intelligence.md
+      - The Psychology of Gifting: recommendation/theory.md
+      - Architecture (Semantic Bridge): recommendation/engine.md
+      - Quiz System (Input): recommendation/quiz_system.md
+      - Discovery Algorithm (Dialogue): recommendation/discovery_algorithm.md
+      - Multi-Track System (v2): recommendation/multi_track.md
+      - Discovery Engine v2 (Deep Dive): recommendation/discovery_v2_deep_dive.md
+      - Overview: recommendation/overview.md
+      - Gift Query Rules: recommendation/query_rules.md
+      - Intelligence API: recommendation/intelligence_api.md
   - Analytics & Monitoring:
-      - Dashboard Guide: guides/analytics_api_quickstart.md
+      - Dashboard Guide: analytics_monitoring/dashboard.md
       - Telegram Bot:
-          - User Guide: guides/telegram_bot.md
-          - Internals: architecture/telegram_bot_internals.md
-          - Development Guide: guides/telegram_bot_dev.md
+          - User Guide: analytics_monitoring/telegram_bot/user_guide.md
+          - Internals: analytics_monitoring/telegram_bot/internals.md
+          - Development Guide: analytics_monitoring/telegram_bot/dev.md
   - Engineering & DevOps:
-      - Configuration (logic.yaml): guides/configuration.md
-      - AI Providers: guides/providers.md
-      - Infrastructure & Secrets: guides/infrastructure_secrets.md
-      - Deployment & CI/CD: guides/deployment.md
+      - Configuration (logic.yaml): engineering/configuration.md
+      - AI Providers: engineering/providers.md
+      - Infrastructure & Secrets: engineering/infrastructure.md
+      - Deployment & CI/CD: engineering/deployment.md
   - API Reference:
       - Overview: api/index.md
       - Playground: api/playground.md
       - Auth: api/auth.md
+      - Discovery (Dialogue):
+          - API Reference: api/discovery.md
+          - Integration Guide: api/discovery_guide.md
       - Public: api/public.md
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
-      - Analytics: api/analytics.md
+      - Analytics:
+          - Overview: api/analytics/overview.md
+          - Business Metrics: api/analytics/kpi.md
+          - Catalog Coverage: api/analytics/coverage.md
+          - AI & Recommendations: api/analytics/recommendations.md
+          - System Monitoring: api/analytics/monitoring.md
       - Internal: api/internal.md
-      - Weeek: api/weeek.md
+      - Weeek:
+          - Gifty Proxy API: api/weeek.md
+          - External API Notes: api/weeek_external.md

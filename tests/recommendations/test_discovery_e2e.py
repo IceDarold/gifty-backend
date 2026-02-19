@@ -2,13 +2,14 @@ import pytest
 import pytest_asyncio
 import uuid
 from fastapi.testclient import TestClient
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, patch, MagicMock
 
 from app.main import app
 from app.db import get_db
 from app.services.session_storage import get_session_storage
-from app.services.dialogue_manager import DialogueManager
 from routes.recommendations import get_dialogue_manager
+from app.services.intelligence import get_intelligence_client
+from app.services.llm.factory import LLMFactory
 
 @pytest_asyncio.fixture
 async def e2e_client(sqlite_db_session, in_memory_session_storage):
@@ -19,36 +20,48 @@ async def e2e_client(sqlite_db_session, in_memory_session_storage):
     def override_get_session_storage():
         return in_memory_session_storage
 
-    # Mock embedding service
-    mock_emb = AsyncMock()
-    mock_emb.embed_batch_async.return_value = [[0.1] * 1024]
+    # 1. Mock Intelligence client (for embeddings)
+    mock_intelligence = AsyncMock()
+    mock_intelligence.get_embeddings.return_value = [[0.1] * 1024]
     
-    # Mock Recommendation Service
-    mock_rec = AsyncMock()
-    from app.schemas_v2 import GiftDTO
-    mock_gift = GiftDTO(
-        id="prod-123",
+    # 2. Mock LLM client
+    mock_llm = AsyncMock()
+    # Default response for any text generation
+    from app.services.llm.interface import Message, LLMResponse
+    mock_llm.generate_text.return_value = LLMResponse(content="{}") # Empty JSON by default
+    
+    # 3. Mock Repository search (SQLite doesn't support pgvector <=>)
+    from app.models import Product
+    mock_product = Product(
+        gift_id="prod-123",
         title="Test Product",
         price=4500.0,
         product_url="https://example.com/p/123",
-        is_active=True
+        is_active=True,
+        currency="RUB"
     )
-    mock_rec.get_deep_dive_products.return_value = [mock_gift]
-    mock_rec.find_preview_products.return_value = [mock_gift]
-
-    async def override_get_dialogue_manager():
-        # We need the real DialogueManager logic for session state, 
-        # but with our mocked components
-        from app.services.ai_reasoning_service import AIReasoningService
-        return DialogueManager(AIReasoningService(), mock_rec, in_memory_session_storage, db=sqlite_db_session)
-
+    
+    # We'll use a patch for the repository method later
+    
+    # 4. Mock Notification Service
+    mock_notifier = AsyncMock()
+    
+    # --- SETTING UP OVERRIDES ---
     app.dependency_overrides[get_db] = override_get_db
     app.dependency_overrides[get_session_storage] = override_get_session_storage
-    app.dependency_overrides[get_dialogue_manager] = override_get_dialogue_manager
-    app.state.embedding_service = mock_emb
+    
+    # We REMOVE override for get_dialogue_manager to force real construction
+    if get_dialogue_manager in app.dependency_overrides:
+        del app.dependency_overrides[get_dialogue_manager]
 
-    with TestClient(app) as client:
-        yield client
+    # Mock the internal clients that would otherwise hit network or fail in SQLite
+    with patch("app.services.intelligence.get_intelligence_client", return_value=mock_intelligence), \
+         patch("app.services.llm.factory.LLMFactory.get_client", return_value=mock_llm), \
+         patch("app.repositories.catalog.PostgresCatalogRepository.search_similar_products", AsyncMock(return_value=[mock_product])), \
+         patch("app.services.notifications.get_notification_service", return_value=mock_notifier):
+        
+        with TestClient(app) as client:
+            yield client
     
     app.dependency_overrides.clear()
 
@@ -109,10 +122,28 @@ async def test_full_discovery_flow_e2e(e2e_client, sqlite_db_session, in_memory_
 
     mock_notifier = AsyncMock()
     
+    # Mocking LLM outputs for specific prompts
+    async def mock_llm_generate(*args, **kwargs):
+        from app.services.llm.interface import Response
+        import json
+        
+        system_prompt = kwargs.get("system_prompt", "")
+        # Very crude prompt detection
+        if "bulk" in str(kwargs.get("messages", [])) or "bulk" in str(args):
+            return Response(role="assistant", content=json.dumps(mock_hypos_bulk))
+        elif "normalize" in str(kwargs.get("messages", [])):
+            return Response(role="assistant", content=json.dumps(["Coffee", "Gadgets"]))
+        
+        return Response(role="assistant", content="[]")
+
+    # We need a way to mock the LLM client that's returned by the factory
+    # In the fixture we already have patch("app.services.llm.factory.LLMFactory.get_client")
+    # But here we need to tune its behavior if we want specific LLM flows.
+    
+    # For this test, we'll patch the reasoning service's LLM calls
     with patch("app.services.ai_reasoning_service.AIReasoningService.normalize_topics", AsyncMock(return_value=["Coffee", "Gadgets"])), \
          patch("app.services.ai_reasoning_service.AIReasoningService.generate_hypotheses_bulk", AsyncMock(return_value=mock_hypos_bulk)), \
          patch("app.services.ai_reasoning_service.AIReasoningService.generate_hypotheses", AsyncMock(return_value=mock_hypo_list)), \
-         patch("app.services.dialogue_manager.get_notification_service", return_value=mock_notifier), \
          patch("routes.recommendations.get_session_storage", return_value=in_memory_session_storage):
         
         # Pass user_id as query param to ensure DB persistence
@@ -129,7 +160,7 @@ async def test_full_discovery_flow_e2e(e2e_client, sqlite_db_session, in_memory_
                     hypo_id = h["id"]
                     break
         assert hypo_id is not None
-
+ 
         # --- STEP 2: INTERACT (Like) ---
         interaction_data = {
             "session_id": session_id,
@@ -164,11 +195,8 @@ async def test_full_discovery_flow_e2e(e2e_client, sqlite_db_session, in_memory_
     recipient_id = recipients[0].id
     
     # 2. Check Interactions (init interaction + like interaction)
-    # Note: init_session doesn't explicitly save an interaction unless we add it, 
-    # but interact() definitely does.
     res = await sqlite_db_session.execute(select(Interaction).where(Interaction.recipient_id == recipient_id))
     interactions = res.scalars().all()
-    # Should have at least the 'like_hypothesis' interaction
     assert any(i.action_type == "like_hypothesis" for i in interactions), "Like interaction not saved"
     
     # 3. Check Hypothesis Persistence
