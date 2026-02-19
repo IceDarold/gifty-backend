@@ -128,6 +128,11 @@ nav:
       - Models: api/models.md
       - Services: api/services.md
       - Repositories: api/repositories.md
-      - Analytics: api/analytics.md
+      - Analytics:
+          - Overview: api/analytics/overview.md
+          - Business Metrics: api/analytics/kpi.md
+          - Catalog Coverage: api/analytics/coverage.md
+          - AI & Recommendations: api/analytics/recommendations.md
+          - System Monitoring: api/analytics/monitoring.md
       - Internal: api/internal.md
       - Weeek: api/weeek.md

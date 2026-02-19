@@ -1,18 +1,6 @@
-# Analytics API Reference 📈
+# Business Metrics & KPI 📊
 
-This section provides a detailed description of the Gifty internal analytics endpoints. The API acts as a secure proxy between the internal dashboard and data collection systems (PostHog, Prometheus, PostgreSQL).
-
-## Authentication
-
-All requests to the Analytics API require an access token in the `X-Analytics-Token` header.
-
-| Header | Description |
-| :--- | :--- |
-| `X-Analytics-Token` | Secret token defined in settings (`ANALYTICS_API_TOKEN`). |
-
----
-
-## Endpoints
+Core product indicators, user funnels, and time-series trends.
 
 ### 1. KPI Stats (`/stats`)
 Returns key performance indicators for the last 24 hours and 7 days.
@@ -74,51 +62,3 @@ Returns data on users' progress through core product steps over the last 30 days
       "last_updated": "2024-02-10T12:00:00Z"
     }
     ```
-
----
-
-### 4. Technical Health (`/technical`)
-Aggregates system health metrics from Prometheus and Loki.
-
-*   **URL**: `/analytics/technical`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "api_health": "healthy",
-      "requests_per_minute": 120.5,
-      "error_rate_5xx": 0.001,
-      "active_workers": 4,
-      "last_errors": ["Error in search vector...", "Timeout connecting to LLM..."],
-      "last_updated": "2024-02-10T12:00:00Z"
-    }
-    ```
-
----
-
-### 5. Scraping Monitoring (`/scraping`)
-Provides detailed information about the data parsing subsystem.
-
-*   **URL**: `/analytics/scraping`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "active_sources": 12,
-      "unmapped_categories": 5,
-      "total_scraped_items": 45000,
-      "ingestion_errors": 2,
-      "spiders": {
-        "ozon": { "items_scraped": 15000 },
-        "wildberries": { "items_scraped": 30000 }
-      }
-    }
-    ```
-
----
-
-## Caching
-To reduce load on external services, Redis is used:
-- Behavioral data (PostHog): 5-10 minutes.
-- Technical metrics (Prometheus): 1 minute.
-- Errors (Loki): 1 minute.

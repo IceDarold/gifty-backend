@@ -50,7 +50,7 @@ Integration with Weeek for task management: internal endpoints for the bot and p
 ### 🛡️ [Auth API](auth.md)
 Session management and login via OAuth 2.0 (Google, Yandex, VK).
 
-### 📊 [Analytics API](analytics.md)
+### 📊 [Analytics API](analytics/overview.md)
 A secure proxy layer for retrieving product metrics from PostHog and technical data from Prometheus/Loki.
 
 ### 🔐 [Internal API](internal.md)

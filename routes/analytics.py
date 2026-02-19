@@ -474,3 +474,384 @@ async def get_scraping_monitoring(
             scraping_stats["error"] = f"Metric fetch error: {str(e)}"
 
     return scraping_stats
+
+from app.models import SearchLog, Hypothesis as HypothesisModel, HypothesisProductLink
+
+@router.get("/catalog/coverage")
+async def get_catalog_coverage(
+    days: int = 7,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Analyzes how well the catalog covers AI-generated search queries.
+    """
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    # 1. Hit Rate & Quality Metrics
+    stmt = select(
+        func.count(SearchLog.id).label("total"),
+        func.sum(case((SearchLog.results_count > 0, 1), else_=0)).label("hits"),
+        func.avg(SearchLog.results_count).label("avg_results")
+    ).where(SearchLog.created_at >= since)
+    
+    res = (await db.execute(stmt)).one_or_none()
+    total = res.total if res else 0
+    hits = res.hits if res else 0
+    hit_rate = round((hits / total * 100), 2) if total > 0 else 0
+    
+    # 2. Top Zero-Result Queries (The "Catalog Gaps")
+    gaps_stmt = (
+        select(SearchLog.search_query, func.count(SearchLog.id).label("count"))
+        .where(and_(SearchLog.created_at >= since, SearchLog.results_count == 0))
+        .group_by(SearchLog.search_query)
+        .order_by(func.count(SearchLog.id).desc())
+        .limit(10)
+    )
+    gaps_res = await db.execute(gaps_stmt)
+    top_gaps = [{"query": r.search_query, "misses": r.count} for r in gaps_res.all()]
+    
+    return {
+        "period_days": days,
+        "total_searches": total,
+        "hit_rate": hit_rate,
+        "avg_results_per_search": round(float(res.avg_results or 0), 2),
+        "top_catalog_gaps": top_gaps,
+        "last_updated": datetime.utcnow().isoformat() + "Z"
+    }
+
+
+@router.get("/catalog/hypotheses")
+async def get_hypothesis_analytics(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """
+    Analyzes user reactions to AI hypotheses.
+    """
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    # 1. Global Sentiment
+    stmt = select(
+        func.count(HypothesisModel.id).label("total"),
+        func.sum(case((HypothesisModel.user_reaction == 'like', 1), else_=0)).label("likes"),
+        func.sum(case((HypothesisModel.user_reaction == 'dislike', 1), else_=0)).label("dislikes")
+    ).where(and_(HypothesisModel.created_at >= since, HypothesisModel.is_shown == True))
+    
+    res = (await db.execute(stmt)).one_or_none()
+    total = res.total if res else 0
+    likes = res.likes if res else 0
+    dislikes = res.dislikes if res else 0
+    
+    like_rate = round((likes / total * 100), 2) if total > 0 else 0
+    dislike_rate = round((dislikes / total * 100), 2) if total > 0 else 0
+    
+    # 2. Performance by Track (Topic)
+    track_stmt = (
+        select(
+            HypothesisModel.track_title,
+            func.count(HypothesisModel.id).label("total"),
+            func.sum(case((HypothesisModel.user_reaction == 'like', 1), else_=0)).label("likes")
+        )
+        .where(and_(HypothesisModel.created_at >= since, HypothesisModel.is_shown == True))
+        .group_by(HypothesisModel.track_title)
+        .order_by(func.sum(case((HypothesisModel.user_reaction == 'like', 1), else_=0)).desc())
+        .limit(5)
+    )
+    track_res = await db.execute(track_stmt)
+    top_tracks = [{
+        "topic": r.track_title, 
+        "total": r.total, 
+        "likes": r.likes,
+        "like_rate": round((r.likes / r.total * 100), 2) if r.total > 0 else 0
+    } for r in track_res.all()]
+    
+@router.get("/catalog/coverage/trends")
+async def get_coverage_trends(
+    days: int = 14,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Returns time-series data for catalog coverage."""
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    # Group by date
+    stmt = (
+        select(
+            func.date(SearchLog.created_at).label("date"),
+            func.count(SearchLog.id).label("total"),
+            func.sum(case((SearchLog.results_count > 0, 1), else_=0)).label("hits"),
+            func.avg(SearchLog.results_count).label("avg_results")
+        )
+        .where(SearchLog.created_at >= since)
+        .group_by(func.date(SearchLog.created_at))
+        .order_by(func.date(SearchLog.created_at))
+    )
+    
+    res = await db.execute(stmt)
+    rows = res.all()
+    
+    return {
+        "dates": [str(r.date) for r in rows],
+        "hit_rate_trend": [round(float(r.hits or 0) / r.total * 100, 2) if r.total > 0 else 0 for r in rows],
+        "avg_results_trend": [round(float(r.avg_results or 0), 2) for r in rows],
+        "total_searches": [r.total for r in rows]
+    }
+
+
+@router.get("/catalog/coverage/segments")
+async def get_coverage_segments(
+    days: int = 7,
+    group_by: str = "budget", # budget, model, track
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Analyzes coverage across different user segments."""
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    if group_by == "budget":
+        # Group by budget buckets
+        dim = case(
+            (SearchLog.max_price < 1000, "0-1k"),
+            (SearchLog.max_price < 3000, "1k-3k"),
+            (SearchLog.max_price < 5000, "3k-5k"),
+            else_="5k+"
+        ).label("segment")
+    elif group_by == "model":
+        dim = SearchLog.llm_model.label("segment")
+    else:
+        dim = SearchLog.track_title.label("segment")
+
+    stmt = (
+        select(
+            dim,
+            func.count(SearchLog.id).label("total"),
+            func.avg(case((SearchLog.results_count > 0, 100.0), else_=0.0)).label("hit_rate")
+        )
+        .where(SearchLog.created_at >= since)
+        .group_by(dim)
+        .order_by(func.count(SearchLog.id).desc())
+    )
+    
+    res = await db.execute(stmt)
+    return {
+        "group_by": group_by,
+        "segments": [{"name": str(r.segment or "unknown"), "total": r.total, "hit_rate": round(float(r.hit_rate or 0), 2)} for r in res.all()]
+    }
+
+
+@router.get("/catalog/hypotheses/funnel")
+async def get_recommendation_funnel(
+    days: int = 30,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Detailed funnel analysis of the recommendation loop."""
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    # 1. Total Hypotheses Generated
+    total_stmt = select(func.count(HypothesisModel.id)).where(HypothesisModel.created_at >= since)
+    total_count = (await db.execute(total_stmt)).scalar() or 0
+    
+    # 2. Shown to User
+    shown_stmt = select(func.count(HypothesisModel.id)).where(and_(HypothesisModel.created_at >= since, HypothesisModel.is_shown == True))
+    shown_count = (await db.execute(shown_stmt)).scalar() or 0
+    
+    # 3. Had Products (Coverage)
+    # This is a join or subquery. Let's use SearchLog as proxy or just check if previews > 0
+    # Actually, Hypothesis model doesn't store if it had products easily without a join.
+    # Let's use the new HypothesisProductLink
+    covered_stmt = select(func.count(func.distinct(HypothesisProductLink.hypothesis_id)))
+    covered_count = (await db.execute(covered_stmt)).scalar() or 0
+    
+    # 4. Filtered Interest
+    liked_stmt = select(func.count(HypothesisModel.id)).where(and_(HypothesisModel.created_at >= since, HypothesisModel.user_reaction == 'like'))
+    liked_count = (await db.execute(liked_stmt)).scalar() or 0
+    
+    # 5. Product Clicks
+    clicks_stmt = select(func.count(HypothesisProductLink.id)).where(HypothesisProductLink.was_clicked == True)
+    clicks_count = (await db.execute(clicks_stmt)).scalar() or 0
+
+    return {
+        "period_days": days,
+        "funnel": [
+            {"stage": "1. Generated", "count": total_count, "pct": 100},
+            {"stage": "2. Shown", "count": shown_count, "pct": round(shown_count/total_count*100, 1) if total_count > 0 else 0},
+            {"stage": "3. Covered by Catalog", "count": covered_count, "pct": round(covered_count/shown_count*100, 1) if shown_count > 0 else 0},
+            {"stage": "4. Liked/Interested", "count": liked_count, "pct": round(liked_count/shown_count*100, 1) if shown_count > 0 else 0},
+            {"stage": "5. Product Clicks", "count": clicks_count, "pct": round(clicks_count/liked_count*100, 1) if liked_count > 0 else 0}
+        ]
+    }
+
+
+@router.get("/catalog/coverage/drilldown")
+async def get_coverage_drilldown(
+    query: str,
+    days: int = 30,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Provides detailed research data for a specific search query."""
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    stmt = (
+        select(SearchLog)
+        .where(and_(SearchLog.created_at >= since, SearchLog.search_query.ilike(f"%{query}%")))
+        .order_by(SearchLog.created_at.desc())
+        .limit(50)
+    )
+    
+    res = await db.execute(stmt)
+    logs = res.scalars().all()
+    
+    if not logs:
+        return {"error": "No logs found for this query pattern"}
+
+    total_searches = len(logs)
+    avg_results = statistics.mean([l.results_count for l in logs])
+    zero_results = len([l for l in logs if l.results_count == 0])
+    
+    return {
+        "query_pattern": query,
+        "total_searches": total_searches,
+        "avg_results": round(avg_results, 1),
+        "zero_result_rate": round(zero_results / total_searches * 100, 1),
+        "related_hypotheses": list(set([l.hypothesis_title for l in logs if l.hypothesis_title])),
+        "related_tracks": list(set([l.track_title for l in logs if l.track_title])),
+        "recent_instances": [
+            {
+                "id": str(l.id),
+                "created_at": l.created_at.isoformat(),
+                "results": l.results_count,
+                "model": l.llm_model,
+                "max_price": l.max_price
+            } for l in logs[:10]
+        ]
+    }
+
+
+@router.get("/catalog/hypotheses/compare")
+async def compare_analytics(
+    period_a_days: int = 7,
+    period_b_days: int = 7,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Compares two time periods (A/B) to measure performance improvements."""
+    
+    async def get_stats(days_offset: int, duration: int):
+        end = datetime.utcnow() - timedelta(days=days_offset)
+        start = end - timedelta(days=duration)
+        
+        # Hit Rate & Like Rate
+        stmt = select(
+            func.count(SearchLog.id).label("searches"),
+            func.avg(case((SearchLog.results_count > 0, 100.0), else_=0.0)).label("hit_rate")
+        ).where(and_(SearchLog.created_at >= start, SearchLog.created_at <= end))
+        
+        s_res = (await db.execute(stmt)).one_or_none()
+        
+        hypo_stmt = select(
+            func.count(HypothesisModel.id).label("total"),
+            func.avg(case((HypothesisModel.user_reaction == 'like', 100.0), else_=0.0)).label("like_rate")
+        ).where(and_(HypothesisModel.created_at >= start, HypothesisModel.created_at <= end, HypothesisModel.is_shown == True))
+        
+        h_res = (await db.execute(hypo_stmt)).one_or_none()
+        
+        return {
+            "hit_rate": round(float(s_res.hit_rate or 0), 2),
+            "like_rate": round(float(h_res.like_rate or 0), 2),
+            "total_searches": s_res.searches or 0,
+            "total_hypotheses": h_res.total or 0
+        }
+
+    stats_b = await get_stats(0, period_b_days) # Recent
+    stats_a = await get_stats(period_b_days, period_a_days) # Previous
+    
+    return {
+        "period_a": stats_a,
+        "period_b": stats_b,
+        "delta": {
+            "hit_rate": round(stats_b["hit_rate"] - stats_a["hit_rate"], 2),
+            "like_rate": round(stats_b["like_rate"] - stats_a["like_rate"], 2)
+        }
+    }
+
+
+@router.get("/catalog/hypotheses/details")
+async def get_hypothesis_details(
+    hypothesis_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db)
+) -> Dict[str, Any]:
+    """Provides granular analytics for a specific AI hypothesis."""
+    
+    # Get the hypothesis metadata
+    res = await db.execute(select(HypothesisModel).where(HypothesisModel.id == hypothesis_id))
+    h = res.scalar_one_or_none()
+    
+    if not h:
+        return {"error": "Hypothesis not found"}
+        
+    # Get shown products and their performance
+    links_res = await db.execute(
+        select(HypothesisProductLink)
+        .where(HypothesisProductLink.hypothesis_id == hypothesis_id)
+        .order_by(HypothesisProductLink.rank_position)
+    )
+    links = links_res.scalars().all()
+    
+    # Get search logs linked to this hypothesis
+    logs_res = await db.execute(
+        select(SearchLog).where(SearchLog.hypothesis_id == hypothesis_id)
+    )
+    logs = logs_res.scalars().all()
+    
+    return {
+        "id": str(h.id),
+        "title": h.title,
+        "track": h.track_title,
+        "reaction": h.user_reaction,
+        "created_at": h.created_at.isoformat(),
+        "search_efford": {
+            "queries": [l.search_query for l in logs],
+            "total_results_found": sum([l.results_count for l in logs])
+        },
+        "products": [
+            {
+                "gift_id": l.gift_id,
+                "rank": l.rank_position,
+                "score": l.similarity_score,
+                "clicked": l.was_clicked
+            } for l in links
+        ]
+    }
+
+
+@router.get("/catalog/health")
+async def get_system_health(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
+    """Composite health score for the recommendation system."""
+    since = datetime.utcnow() - timedelta(days=3)
+    
+    # 1. Coverage Component
+    cov_stmt = select(func.avg(case((SearchLog.results_count > 0, 100.0), else_=0.0))).where(SearchLog.created_at >= since)
+    hit_rate = (await db.execute(cov_stmt)).scalar() or 0
+    
+    # 2. Relevance Component (Likes)
+    rel_stmt = select(func.avg(case((HypothesisModel.user_reaction == 'like', 100.0), else_=0.0))).where(and_(HypothesisModel.created_at >= since, HypothesisModel.is_shown == True))
+    like_rate = (await db.execute(rel_stmt)).scalar() or 0
+    
+    # 3. Perf Component (Slow searches)
+    perf_stmt = select(func.avg(SearchLog.execution_time_ms)).where(SearchLog.created_at >= since)
+    avg_perf = (await db.execute(perf_stmt)).scalar() or 0
+    
+    # Normalize to 0-100
+    # Hit rate: 80% is 100 points
+    cov_score = min(100, hit_rate / 0.8) if hit_rate > 0 else 0
+    # Like rate: 25% is 100 points
+    rel_score = min(100, like_rate / 0.25) if like_rate > 0 else 0
+    
+    overall = round((cov_score * 0.6 + rel_score * 0.4), 0)
+    
+    return {
+        "health_score": overall,
+        "components": {
+            "catalog_coverage": {"score": round(cov_score, 0), "hit_rate": round(float(hit_rate), 1)},
+            "recommendation_relevance": {"score": round(rel_score, 0), "like_rate": round(float(like_rate), 1)},
+            "search_latency": {"avg_ms": round(float(avg_perf or 0), 0)}
+        },
+        "status": "healthy" if overall > 75 else "degraded" if overall > 50 else "critical"
+    }

@@ -11,7 +11,13 @@ from app.services.embeddings import EmbeddingService
 from app.services.intelligence import IntelligenceAPIClient, get_intelligence_client
 from app.services.notifications import get_notification_service
 
+from app.models import SearchLog, HypothesisProductLink
+import uuid
+import statistics
+import time
+
 logger = logging.getLogger(__name__)
+
 
 class RecommendationService:
     def __init__(self, session: AsyncSession, embedding_service: EmbeddingService):
@@ -113,6 +119,11 @@ class RecommendationService:
         search_queries: List[str], 
         hypothesis_title: str = "", 
         max_price: Optional[int] = None,
+        session_id: Optional[str] = None,
+        hypothesis_id: Optional[uuid.UUID] = None,
+        track_title: Optional[str] = None,
+        llm_model: Optional[str] = None,
+        search_context: str = "preview",
         limit_per_query: Optional[int] = None
     ) -> List[GiftDTO]:
         """
@@ -159,11 +170,47 @@ class RecommendationService:
         # Map queries to their candidates and gather ALL unique candidates for reranking
         query_to_results = {}
         all_unique_candidates = {}
-        for query, candidates in search_results:
-            query_to_results[query] = candidates
-            for c in candidates:
-                if c.gift_id not in all_unique_candidates:
-                    all_unique_candidates[c.gift_id] = c
+        
+        # LOGGING: Track coverage for each query
+        for res in search_results:
+            if isinstance(res, tuple):
+                query, candidates = res
+                query_to_results[query] = candidates
+                
+                # Calculate simple metrics for logging
+                results_count = len(candidates)
+                top_sim = 0.0
+                avg_sim = 0.0
+                top_id = None
+                
+                if candidates:
+                    # In vector search similarity is not directly in Product model, 
+                    # but we can log that it found results.
+                    # If we had access to the raw similarity scores from the repo, we'd log them here.
+                    top_id = candidates[0].gift_id
+                
+                # Create SearchLog entry
+                try:
+                    log_entry = SearchLog(
+                        session_id=session_id,
+                        hypothesis_id=hypothesis_id,
+                        track_title=track_title,
+                        hypothesis_title=hypothesis_title,
+                        search_context=search_context,
+                        llm_model=llm_model or logic_config.model_smart,
+                        search_query=query,
+                        results_count=results_count,
+                        top_gift_id=top_id,
+                        max_price=max_price,
+                        engine_version="advanced_v1"
+                    )
+                    self.session.add(log_entry)
+                except Exception as e:
+                    logger.warning(f"Failed to log search result: {e}")
+
+                for c in candidates:
+                    if c.gift_id not in all_unique_candidates:
+                        all_unique_candidates[c.gift_id] = c
         
         candidates_list = list(all_unique_candidates.values())
         if not candidates_list:
@@ -217,6 +264,21 @@ class RecommendationService:
                             category=p.category
                         ))
         
+        # 6. Create HypothesisProductLink entries for the final list
+        if hypothesis_id:
+            try:
+                for idx, gift_dto in enumerate(final_list[:10]): # Log top 10 shown products
+                    link = HypothesisProductLink(
+                        hypothesis_id=hypothesis_id,
+                        gift_id=gift_dto.id,
+                        similarity_score=id_to_score.get(gift_dto.id, 0.0), # Use reranker score if available
+                        rank_position=idx + 1,
+                        was_shown=True
+                    )
+                    self.session.add(link)
+            except Exception as e:
+                logger.warning(f"Failed to link products to hypothesis in find_preview_products: {e}")
+
         return final_list
 
     async def get_deep_dive_products(
@@ -225,6 +287,10 @@ class RecommendationService:
         hypothesis_title: str,
         hypothesis_description: str,
         max_price: Optional[int] = None,
+        session_id: Optional[str] = None,
+        hypothesis_id: Optional[uuid.UUID] = None,
+        track_title: Optional[str] = None,
+        llm_model: Optional[str] = None,
         limit: int = 15
     ) -> List[GiftDTO]:
         """
@@ -267,7 +333,29 @@ class RecommendationService:
         
         candidates_list = list(all_candidates.values())
         if not candidates_list:
+            # Log zero results for all queries
+            for q in search_queries[:3]:
+                 self.session.add(SearchLog(
+                     search_query=q,
+                     results_count=0,
+                     engine_version="deep_dive_v1"
+                 ))
             return []
+
+        # LOGGING: Log aggregate for deep dive
+        for q in search_queries[:3]:
+            self.session.add(SearchLog(
+                session_id=session_id,
+                hypothesis_id=hypothesis_id,
+                track_title=track_title,
+                hypothesis_title=hypothesis_title,
+                search_context="deep_dive",
+                llm_model=llm_model or logic_config.model_smart,
+                search_query=q,
+                results_count=len(search_results[0]) if len(search_results) > 0 else 0,
+                max_price=max_price,
+                engine_version="advanced_v1"
+            ))
 
         # 2. Reranking
         doc_texts = [f"{c.title} {c.description or ''}" for c in candidates_list]
