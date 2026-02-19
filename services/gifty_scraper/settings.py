@@ -12,17 +12,14 @@ BOT_NAME = "gifty_scraper"
 SPIDER_MODULES = ["gifty_scraper.spiders"]
 NEWSPIDER_MODULE = "gifty_scraper.spiders"
 
-ADDONS = {}
-
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0.0.0 Safari/537.36"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = False # Often better to disable for aggressive Russian sites
+ROBOTSTXT_OBEY = False
 
 # Concurrency and throttling settings
-#CONCURRENT_REQUESTS = 16
 CONCURRENT_REQUESTS_PER_DOMAIN = 1
 DOWNLOAD_DELAY = 1.5
 RANDOMIZE_DOWNLOAD_DELAY = True
@@ -95,3 +92,40 @@ ITEM_PIPELINES = {
 
 # Set settings whose default value is deprecated to a future-proof value
 FEED_EXPORT_ENCODING = "utf-8"
+
+# Playwright Settings
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "headless": True,
+}
+
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 30000
+
+# Optimization: block some requests in Playwright
+def should_abort_request(request):
+    if request.resource_type in ["image", "media", "font", "stylesheet"]:
+        return True
+    
+    blocked_domains = [
+        "google-analytics.com",
+        "yandex.ru",
+        "mc.yandex",
+        "facebook.net",
+        "doubleclick.net",
+        "bidswitch.net",
+        "usedesk.ru",
+        "sbermarketing.ru",
+        "vk.com",
+    ]
+    if any(domain in request.url for domain in blocked_domains):
+        return True
+    
+    return False
+
+PLAYWRIGHT_ABORT_REQUEST = should_abort_request
