@@ -436,7 +436,101 @@ async def sync_spiders_endpoint(
     
     return {"status": "ok", "new_spiders": new_spiders}
 
+
+@router.post("/sources/run-all", summary="Запустить все пауки (ingest_all_spiders)")
+async def run_all_spiders(
+    _ = Depends(verify_internal_token)
+):
+    """
+    Triggers INGEST_LIMIT=0 python3 scripts/ingest_all_spiders.py in the background.
+    Returns immediately — the ingestion runs as a detached subprocess.
+    """
+    import subprocess
+    import sys
+    import os
+
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    script_path = os.path.join(project_root, "scripts", "ingest_all_spiders.py")
+
+    env = os.environ.copy()
+    env["INGEST_LIMIT"] = "0"
+
+    subprocess.Popen(
+        [sys.executable, script_path],
+        env=env,
+        cwd=project_root,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    return {"status": "ok", "message": "All spiders started in background"}
+
+
+@router.post("/sources/{source_id}/run-ingest", summary="Запустить конкретный паук")
+async def run_single_spider_ingest(
+    source_id: int,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    """
+    Runs a single spider by its site_key via scrapy crawl in a background subprocess.
+    Returns immediately.
+    """
+    import subprocess
+    import sys
+    import os
+
+    repo = ParsingRepository(db)
+    source = await repo.get_source_by_id(source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+
+    site_key = source.site_key
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+    SPIDER_URLS = {
+        "detmir": "https://www.detmir.ru/catalog/index/name/lego/",
+        "inteltoys": "https://inteltoys.ru/catalog",
+        "mrgeek": "https://mrgeek.ru/catalog/elektronika/",
+        "vseigrushki": "https://vseigrushki.com/konstruktory/",
+        "group_price": "https://groupprice.ru/categories/parfumeriya",
+        "nashi_podarki": "https://nashipodarki.ru/catalog/matreshki/",
+        "mvideo": "https://www.mvideo.ru/smartfony-i-svyaz-10",
+        "letu": "https://www.letu.ru/browse/makiyazh",
+    }
+
+    url = source.url or SPIDER_URLS.get(site_key)
+    if not url:
+        raise HTTPException(status_code=400, detail=f"No URL configured for spider '{site_key}'")
+
+    services_dir = os.path.join(project_root, "services")
+    env = os.environ.copy()
+    env["INGEST_LIMIT"] = "0"
+    env["PYTHONPATH"] = f"{services_dir}:{project_root}"
+    env.setdefault("CORE_API_URL", "http://localhost:8000/internal/ingest-batch")
+    env.setdefault("INTERNAL_API_TOKEN", settings.internal_api_token or "25VwDZgr9PzYES4c3ZP2wPbp3")
+    env["SCRAPY_BATCH_SIZE"] = "5"
+
+    cmd = [
+        sys.executable, "-m", "scrapy", "crawl", site_key,
+        "-a", f"url={url}",
+        "-a", "strategy=deep",
+        "-a", f"source_id={source_id}",
+    ]
+
+    subprocess.Popen(
+        cmd,
+        env=env,
+        cwd=services_dir,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+
+    return {"status": "ok", "message": f"Spider '{site_key}' started in background"}
+
+
 @router.get("/sources/backlog", response_model=List[ParsingSourceSchema], summary="Получить список обнаруженных источников (бэклог)")
+
 async def get_discovery_backlog(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),

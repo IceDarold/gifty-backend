@@ -36,7 +36,9 @@ export default function Home() {
     toggleSourceActive, isTogglingActive,
     connectWeeek, isConnectingWeeek,
     toggleSubscription, setLanguage: setBackendLanguage,
-    sendTestNotification, isSendingTest
+    sendTestNotification, isSendingTest,
+    runAll, isRunningAll,
+    runOne, isRunningOne,
   } = useDashboardData(chatId);
 
 
@@ -80,6 +82,10 @@ export default function Home() {
               onSync={handleSync}
               onOpenDetail={(id) => setSelectedSourceId(id)}
               isSyncing={isSyncing}
+              onRunAll={runAll}
+              isRunningAll={isRunningAll}
+              onRunOne={runOne}
+              isRunningOne={isRunningOne}
             />
 
           </>
@@ -91,6 +97,10 @@ export default function Home() {
             onSync={handleSync}
             onOpenDetail={(id) => setSelectedSourceId(id)}
             isSyncing={isSyncing}
+            onRunAll={runAll}
+            isRunningAll={isRunningAll}
+            onRunOne={runOne}
+            isRunningOne={isRunningOne}
           />
 
         );
