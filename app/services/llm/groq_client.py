@@ -5,6 +5,7 @@ from typing import List, Optional
 import httpx
 
 from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.services.llm.proxy import build_async_client
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -22,6 +23,7 @@ class GroqClient(LLMClient):
         if not settings.groq_api_key:
             raise ValueError("GROQ_API_KEY not configured")
         self.api_key = settings.groq_api_key
+        self.proxy_url = settings.llm_proxy_url
 
     async def generate_text(
         self,
@@ -68,7 +70,7 @@ class GroqClient(LLMClient):
         last_error = None
         for attempt in range(MAX_RETRIES):
             try:
-                async with httpx.AsyncClient(timeout=60) as client:
+                async with build_async_client(self.proxy_url) as client:
                     resp = await client.post(GROQ_API_BASE, json=payload, headers=headers)
                     resp.raise_for_status()
                     data = resp.json()

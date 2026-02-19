@@ -3,6 +3,7 @@ from anthropic import AsyncAnthropic
 import logging
 
 from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.services.llm.proxy import build_async_client
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -15,8 +16,10 @@ class AnthropicClient(LLMClient):
         if not api_key:
             settings = get_settings()
             api_key = settings.anthropic_api_key
-            
-        self.client = AsyncAnthropic(api_key=api_key)
+
+        proxy_url = get_settings().llm_proxy_url
+        http_client = build_async_client(proxy_url) if proxy_url else None
+        self.client = AsyncAnthropic(api_key=api_key, http_client=http_client)
 
     async def generate_text(
         self, 

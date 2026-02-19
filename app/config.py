@@ -24,6 +24,9 @@ class Settings(BaseSettings):
 
     # LLM Provider Configuration
     llm_provider: str = Field("anthropic", alias="LLM_PROVIDER")
+    # Optional proxy for LLM API calls (e.g. socks5://127.0.0.1:3128 or http://user:pass@host:port)
+    llm_proxy_url: Optional[str] = Field(None, alias="LLM_PROXY_URL")
+
 
     
     @property
