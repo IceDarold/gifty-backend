@@ -43,6 +43,5 @@ class EmbeddingService:
         return await self.intelligence_client.get_embeddings(texts)
 
 def get_embedding_service() -> EmbeddingService:
-    from app.config import get_settings
-    settings = get_settings()
-    return EmbeddingService(model_name=settings.embedding_model)
+    from app.core.logic_config import logic_config
+    return EmbeddingService(model_name=logic_config.llm.model_embedding)
