@@ -68,7 +68,7 @@ from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector
 from app.db import Base
-from app.models import User, Recipient, Interaction, Hypothesis
+from app.models import User, Recipient, Interaction, Hypothesis, SearchLog, HypothesisProductLink
 
 @compiles(UUID, "sqlite")
 def _compile_uuid_sqlite(type_, compiler, **kw):
@@ -95,6 +95,8 @@ async def sqlite_db_session(tmp_path):
                 Recipient.__table__,
                 Interaction.__table__,
                 Hypothesis.__table__,
+                SearchLog.__table__,
+                HypothesisProductLink.__table__,
             ],
         )
 

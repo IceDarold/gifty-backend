@@ -43,7 +43,7 @@ graph TD
 
 ## 2. Маршрутизация (Provider Routing)
 
-Система управления ML-задачами (`IntelligenceAPIClient`) настраивается через [`configs/logic.yaml`](/guides/configuration).
+Система управления ML-задачами (`IntelligenceAPIClient`) настраивается через [`configs/logic.yaml`](../engineering/configuration.md).
 
 ### Эмбеддинги (Embeddings)
 Поддерживаемые провайдеры:

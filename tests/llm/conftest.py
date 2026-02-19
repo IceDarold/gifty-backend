@@ -84,16 +84,26 @@ class TimedAIReasoningService:
             self._reporter.add_llm_call(name, duration, detail=detail)
             self._reporter.add_output(f"llm_raw:{name}", result)
             return result
-        except (APIConnectionError, httpx.ConnectError, OSError) as exc:
+        except Exception as exc:
             duration = time.perf_counter() - start
-            self._reporter.add_llm_call(name, duration, detail=f"connection error: {exc}")
-            self._reporter.add_check(
-                f"LLM call succeeded: {name}",
-                "warn",
-                detail="connection error",
-            )
-            self._reporter.add_note(f"Skipped due to LLM connection error in {name}: {exc}")
-            pytest.skip("LLM connection error")
+            error_msg = str(exc)
+            
+            # Check for common skip-worthy errors (auth, billing, connection)
+            if any(msg in error_msg for msg in ["Authentication", "401", "credit balance", "Request not allowed"]):
+                self._reporter.add_note(f"Skipped due to LLM provider issue: {exc}")
+                pytest.skip(f"LLM Provider issue: {exc}")
+
+            if isinstance(exc, (APIConnectionError, httpx.ConnectError, OSError)):
+                self._reporter.add_llm_call(name, duration, detail=f"connection error: {exc}")
+                self._reporter.add_check(
+                    f"LLM call succeeded: {name}",
+                    "warn",
+                    detail="connection error",
+                )
+                self._reporter.add_note(f"Skipped due to LLM connection error in {name}: {exc}")
+                pytest.skip(f"LLM connection error: {exc}")
+            
+            raise exc
 
     async def normalize_topics(self, topics, language="ru"):
         return await self._time("normalize_topics", self._service.normalize_topics(topics, language=language))
@@ -192,8 +202,8 @@ def llm_enabled():
     elif provider == "openrouter":
         key = settings.openrouter_api_key
         
-    if not key:
-        pytest.skip(f"API key for {provider} not set; skipping LLM integration tests")
+    if not key or key.startswith("sk-ant-mock"):
+        pytest.skip(f"API key for {provider} not set or is mock; skipping LLM integration tests")
     return True
 
 

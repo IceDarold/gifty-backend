@@ -1,64 +1,55 @@
-# Business Metrics & KPI 📊
+# Business Metrics and KPI 📊
 
-Core product indicators, user funnels, and time-series trends.
+All primary metrics are now available via a single GraphQL query.
 
-### 1. KPI Stats (`/stats`)
-Returns key performance indicators for the last 24 hours and 7 days.
+### Core KPI (`stats`)
 
-*   **URL**: `/analytics/stats`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "dau": 150,
-      "quiz_completion_rate": 65.5,
-      "gift_ctr": 12.3,
-      "total_sessions": 450,
-      "last_updated": "2024-02-10T12:00:00Z"
-    }
-    ```
+Returns DAU, quiz completion rate, and gift CTR.
 
-**Response Fields:**
-- `dau`: Daily Active Users count for the last 24 hours.
-- `quiz_completion_rate`: % of completed quizzes over the last 7 days.
-- `gift_ctr`: % of clicks on items relative to total recommendation views.
-- `total_sessions`: Total number of started quizzes over the last 7 days.
+**Query:**
+```graphql
+query {
+  stats {
+    dau
+    quizCompletionRate
+    giftCtr
+    totalSessions
+    lastUpdated
+  }
+}
+```
 
 ---
 
-### 2. Trends & Charts (`/trends`)
-Returns time-series data for chart visualization.
+### Trends and Charts (`trends`)
 
-*   **URL**: `/analytics/trends`
-*   **Method**: `GET`
-*   **Parameters**:
-    - `days` (query, optional): Number of days to analyze (default: 7, max: 90).
-*   **Response**:
-    ```json
-    {
-      "dates": ["2024-02-03", "2024-02-04", ...],
-      "dau_trend": [120, 145, ...],
-      "quiz_starts": [50, 62, ...],
-      "last_updated": "2024-02-10T12:00:00Z"
-    }
-    ```
+Returns time series for building linear charts.
+
+**Query:**
+```graphql
+query GetTrends($days: Int!) {
+  trends(days: $days) {
+    dates
+    dauTrend
+    quizStarts
+    lastUpdated
+  }
+}
+```
 
 ---
 
-### 3. Conversion Funnel (`/funnel`)
-Returns data on users' progress through core product steps over the last 30 days.
+### Conversion Funnel (`funnel`)
 
-*   **URL**: `/analytics/funnel`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "steps": [
-        { "name": "quiz_started", "count": 1000, "conversion_rate": 100.0 },
-        { "name": "quiz_completed", "count": 650, "conversion_rate": 65.0 },
-        { "name": "results_shown", "count": 600, "conversion_rate": 92.3 },
-        { "name": "gift_clicked", "count": 80, "conversion_rate": 13.3 }
-      ],
-      "last_updated": "2024-02-10T12:00:00Z"
-    }
-    ```
+User progression through major product stages over the last 30 days.
+
+**Query:**
+```graphql
+query {
+  funnel {
+    name
+    count
+    conversionRate
+  }
+}
+```

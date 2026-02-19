@@ -1,41 +1,43 @@
-# Technical Monitoring 🛠️
+# Monitoring and Health 🛠️
 
-Health metrics for the API and data collection systems.
+Technical metrics and spider status.
 
-### 1. Technical Health (`/technical`)
-Aggregates system health metrics from Prometheus and Loki.
+### Technical Health (`technical`)
 
-*   **URL**: `/analytics/technical`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "api_health": "healthy",
-      "requests_per_minute": 120.5,
-      "error_rate_5xx": 0.001,
-      "active_workers": 4,
-      "last_errors": ["Error in search vector...", "Timeout connecting to LLM..."],
-      "last_updated": "2024-02-10T12:00:00Z"
-    }
-    ```
+Metrics from Prometheus and error logs from Loki.
+
+**Query:**
+```graphql
+query {
+  technical {
+    apiHealth
+    requestsPerMinute
+    errorRate5xx
+    lastErrors
+    lastUpdated
+  }
+}
+```
 
 ---
 
-### 2. Scraping Monitoring (`/scraping`)
-Provides detailed information about the data parsing subsystem.
+### Scraper Status (`scraping`)
 
-*   **URL**: `/analytics/scraping`
-*   **Method**: `GET`
-*   **Response**:
-    ```json
-    {
-      "active_sources": 12,
-      "unmapped_categories": 5,
-      "total_scraped_items": 45000,
-      "ingestion_errors": 2,
-      "spiders": {
-        "ozon": { "items_scraped": 15000 },
-        "wildberries": { "items_scraped": 30000 }
-      }
-    }
-    ```
+Monitoring the data collection process.
+
+**Query:**
+```graphql
+query {
+  scraping {
+    activeSources
+    unmappedCategories
+    totalScrapedItems
+    ingestionErrors
+    spiders
+  }
+}
+```
+
+**Description:**
+- `unmappedCategories`: Number of external site categories not yet mapped to Gifty's internal structure.
+- `spiders`: Detailed statistics for each active Scrapy spider.

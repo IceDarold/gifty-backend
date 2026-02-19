@@ -1,40 +1,48 @@
-# Recommendation Quality & AI 🧠
+# AI Hypotheses and Recommendations ✨
 
-Analysis of gift ideas (hypotheses) proposed by the AI and user reactions to them.
+Analysis of recommendation engine performance.
 
-### 1. Hypothesis Analytics (`/catalog/hypotheses`)
-Basic statistics on user preferences for suggested topics.
+### System Health (`systemHealth`)
 
-*   **URL**: `/analytics/catalog/hypotheses`
-*   **Method**: `GET`
-*   **Response Fields**: `like_rate`, `dislike_rate`, `top_performing_topics`.
+Composite score (Health Score) reflecting catalog coverage and user reactions.
 
----
-
-### 2. Recommendation Funnel (`/catalog/hypotheses/funnel`)
-Detailed funnel tracking from idea generation to product click.
-
-*   **URL**: `/analytics/hypotheses/funnel`
-*   **Stages**: Generated → Shown → Covered (by Catalog) → Interested (Like) → Clicks.
-
----
-
-### 3. Period/Model Comparison (`/catalog/hypotheses/compare`)
-A/B testing tool for prompts and LLM versions. Compares `hit_rate` and `like_rate` between two samples.
-
-*   **URL**: `/analytics/hypotheses/compare`
-
----
-
-### 4. Hypothesis Details (`/catalog/hypotheses/details`)
-All metrics for a specific hypothesis: linked queries, products found, clicks.
-
-*   **URL**: `/analytics/hypotheses/details?hypothesis_id=...`
+**Query:**
+```graphql
+query {
+  systemHealth {
+    healthScore
+    status
+    catalogCoverage {
+      score
+      hitRate
+    }
+    recommendationRelevance {
+      score
+      likeRate
+    }
+    searchLatency {
+      avgMs
+    }
+  }
+}
+```
 
 ---
 
-### 5. System Health Score (`/catalog/health`)
-Global health metric for the AI + Catalog ecosystem. Aggregates coverage, relevance, and latency.
+### Hypothesis Details (`hypothesisDetails`)
 
-*   **URL**: `/analytics/catalog/health`
-*   **Status**: `healthy`, `degraded`, or `critical`.
+Granular analysis of a specific gift idea: search queries used by AI, results found, and products shown.
+
+**Query:**
+```graphql
+query GetHypothesis($id: UUID!) {
+  hypothesisDetails(id: $id) {
+    id
+    title
+    reaction
+    searchQueries
+    totalResultsFound
+    products
+  }
+}
+```
