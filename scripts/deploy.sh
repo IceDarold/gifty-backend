@@ -31,6 +31,7 @@ else
     COMPOSE_CMD="docker compose"
 fi
 
+APP_PORT=$NEW_PORT $COMPOSE_CMD up -d proxy
 APP_PORT=$NEW_PORT $COMPOSE_CMD up -d --build $APP_SERVICE
 
 # 3. Health Check

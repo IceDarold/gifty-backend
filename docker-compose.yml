@@ -19,6 +19,8 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      proxy:
+        condition: service_started
     environment:
       DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
       REDIS_URL: "redis://redis:6379/0"
