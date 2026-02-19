@@ -1,0 +1,26 @@
+[Unit]
+Description=Shadowsocks Local Proxy (sslocal)
+After=network.target
+Documentation=https://github.com/shadowsocks/shadowsocks-rust
+
+[Service]
+Type=simple
+User=root
+Restart=always
+RestartSec=5
+
+# Shadowsocks local SOCKS5 proxy on 0.0.0.0:3128
+# Binds to all interfaces so Docker containers can reach it via host-gateway
+ExecStart=/usr/local/bin/sslocal \
+    -b "0.0.0.0:3128" \
+    --protocol socks \
+    -s "45.85.117.149:17943" \
+    -m "2022-blake3-aes-256-gcm" \
+    -k "KmIVE99G+r4Do+0toXBPezq1B+IZUWVNvJsoXth7lks="
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sslocal
+
+[Install]
+WantedBy=multi-user.target

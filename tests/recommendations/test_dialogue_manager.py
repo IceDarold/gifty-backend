@@ -23,7 +23,7 @@ async def test_init_session_happy_path(
     }
 
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=recommendation_service,
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -50,7 +50,7 @@ async def test_interact_like_hypothesis(
     recommendation_service.get_deep_dive_products.return_value = []
     
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=recommendation_service,
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -86,7 +86,7 @@ async def test_load_more_hypotheses_deduplication(
     mock_session_storage
 ):
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         db=AsyncMock()
@@ -122,7 +122,7 @@ async def test_suggest_topics_action(
     mock_session_storage
 ):
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         db=AsyncMock()

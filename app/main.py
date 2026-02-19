@@ -12,8 +12,10 @@ from routes.analytics import router as analytics_router
 from routes.public import router as public_router
 from routes.recipients import router as recipients_router
 from app.routes.integrations import router as integrations_router
+from app.routes.workers import router as workers_router
 from routes.weeek import router as weeek_router
 from app.config import get_settings
+from app.core.logic_config import logic_config
 from app.redis_client import init_redis
 from app.utils.errors import install_exception_handlers
 from app.services.embeddings import EmbeddingService
@@ -28,13 +30,13 @@ async def lifespan(app: FastAPI):
     app.state.redis = await init_redis()
     
     # Initialize Embedding Service (stub)
-    app.state.embedding_service = EmbeddingService(model_name=settings.embedding_model)
+    app.state.embedding_service = EmbeddingService(model_name=logic_config.llm.model_embedding)
     # No heavy loading here
     
     try:
         yield
     finally:
-        await app.state.redis.close()
+        await app.state.redis.aclose()
 
 
 from scalar_fastapi import get_scalar_api_reference
@@ -105,6 +107,7 @@ app.include_router(recipients_router)
 app.include_router(internal_router)
 app.include_router(analytics_router)
 app.include_router(integrations_router)
+app.include_router(workers_router)
 app.include_router(public_router)
 app.include_router(weeek_router)
 

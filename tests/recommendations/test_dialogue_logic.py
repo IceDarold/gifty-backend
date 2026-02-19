@@ -16,7 +16,7 @@ from app.services.dialogue_manager import DialogueManager
 async def test_wide_topic_branching(mock_anthropic_service, mock_session_storage):
     """Verify that a topic marked as 'wide' by AI triggers a branching question."""
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -43,7 +43,7 @@ async def test_wide_topic_branching(mock_anthropic_service, mock_session_storage
 async def test_personalized_probe_fallback(mock_anthropic_service, mock_session_storage):
     """Verify that if AI returns no hypotheses, a personalized probe is generated."""
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -71,7 +71,7 @@ async def test_session_history_clipping():
     """Verify that session history is limited to the last 30 interactions."""
     session_storage = AsyncMock()
     dm = DialogueManager(
-        anthropic_service=AsyncMock(),
+        ai_service=AsyncMock(),
         recommendation_service=AsyncMock(),
         session_storage=session_storage,
         recipient_service=AsyncMock()

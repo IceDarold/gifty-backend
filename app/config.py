@@ -21,6 +21,13 @@ class Settings(BaseSettings):
             # Running inside Docker, replace localhost with service name
             return self.database_url.replace("localhost", "postgres")
         return self.database_url
+
+    # LLM Provider Configuration
+    llm_provider: str = Field("anthropic", alias="LLM_PROVIDER")
+    # Optional proxy for LLM API calls (e.g. socks5://127.0.0.1:3128 or http://user:pass@host:port)
+    llm_proxy_url: Optional[str] = Field(None, alias="LLM_PROXY_URL")
+
+
     
     @property
     def redis_connection_url(self) -> str:
@@ -68,18 +75,21 @@ class Settings(BaseSettings):
     vk_userinfo_url: str = Field("https://api.vk.com/method/users.get", alias="VK_USERINFO_URL")
     vk_api_version: str = Field("5.199", alias="VK_API_VERSION")
 
+    # TakProdam Affiliate Network
     takprodam_api_base: Optional[str] = Field(None, alias="TAKPRODAM_API_BASE")
     takprodam_api_token: Optional[str] = Field(None, alias="TAKPRODAM_API_TOKEN")
     takprodam_source_id: Optional[int] = Field(None, alias="TAKPRODAM_SOURCE_ID")
-    embedding_model: str = Field("bge-m3", alias="EMBEDDING_MODEL")
-    anthropic_model_fast: str = Field("claude-3-haiku-20240307", alias="ANTHROPIC_MODEL_FAST")
-    anthropic_model_smart: str = Field("claude-3-5-sonnet-20240620", alias="ANTHROPIC_MODEL_SMART")
+
+    # Intelligence API
     internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
     intelligence_api_base: str = Field("https://api.giftyai.ru", alias="INTELLIGENCE_API_BASE")
     intelligence_api_token: Optional[str] = Field(None, alias="INTELLIGENCE_API_TOKEN")
+    
+    # Weeek Task Management
     weeek_api_token: Optional[str] = Field(None, alias="WEEEK_API_TOKEN")
     weeek_workspace_id: int = Field(911018, alias="WEEEK_WORKSPACE_ID")
     weeek_api_base: str = Field("https://api.weeek.net/public/v1", alias="WEEEK_API_BASE")
+
     debug: bool = Field(False, alias="DEBUG")
     env: str = Field("prod", alias="ENV")
     cors_origins: str = Field("*", alias="CORS_ORIGINS")
@@ -92,14 +102,20 @@ class Settings(BaseSettings):
     telegram_superadmin_secret: str = Field("superadmin123", alias="TELEGRAM_SUPERADMIN_SECRET")
     telegram_webapp_url: Optional[str] = Field(None, alias="TELEGRAM_WEBAPP_URL")
 
-    
     # PostHog Analytics
     posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
     posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
     prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
     loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
 
+    # AI/ML API Keys (Secrets)
     anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
+    groq_api_key: Optional[str] = Field(None, alias="GROQ_API_KEY")
+    openrouter_api_key: Optional[str] = Field(None, alias="OPENROUTER_API_KEY")
+    together_api_key: Optional[str] = Field(None, alias="TOGETHER_API_KEY")
+    runpod_api_key: Optional[str] = Field(None, alias="RUNPOD_API_KEY")
+    runpod_endpoint_id: Optional[str] = Field(None, alias="RUNPOD_ENDPOINT_ID")
 
     model_config = SettingsConfigDict(
         env_file=".env",

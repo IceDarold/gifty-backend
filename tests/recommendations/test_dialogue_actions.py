@@ -33,7 +33,7 @@ def mock_session():
 async def test_action_answer_probe_refines(mock_anthropic_service, mock_session_storage, mock_session):
     """Verify answering a probe refines the track."""
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -53,7 +53,7 @@ async def test_action_answer_probe_refines(mock_anthropic_service, mock_session_
 async def test_action_select_track(mock_session_storage, mock_session):
     """Verify track selection switching."""
     dm = DialogueManager(
-        anthropic_service=AsyncMock(),
+        ai_service=AsyncMock(),
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         recipient_service=AsyncMock()
@@ -72,7 +72,7 @@ async def test_persistence_failure_resilience(mock_anthropic_service, mock_sessi
     recipient_service.save_hypotheses.side_effect = Exception("DB Down")
     
     dm = DialogueManager(
-        anthropic_service=mock_anthropic_service,
+        ai_service=mock_anthropic_service,
         recommendation_service=AsyncMock(),
         session_storage=mock_session_storage,
         recipient_service=recipient_service

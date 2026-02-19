@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 from recommendations.models import QuizAnswers, RecommendationSession
 from app.services.dialogue_manager import DialogueManager
-from app.services.anthropic_service import AnthropicService
+from app.services.ai_reasoning_service import AIReasoningService
 from app.services.recommendation import RecommendationService
 from app.db import get_db
 from app.services.session_storage import get_session_storage
@@ -18,11 +18,11 @@ router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 async def get_dialogue_manager(
     db_session = Depends(get_db)
 ):
-    anthropic = AnthropicService()
+    ai_service = AIReasoningService(db=db_session)
     emb = get_embedding_service()
     rec = RecommendationService(db_session, emb)
     storage = get_session_storage()
-    return DialogueManager(anthropic, rec, storage, db=db_session)
+    return DialogueManager(ai_service, rec, storage, db=db_session)
 
 class InteractionRequest(BaseModel):
     session_id: str

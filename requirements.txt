@@ -1,6 +1,7 @@
 fastapi>=0.110.0
 uvicorn[standard]>=0.23.0
 httpx>=0.25.0
+socksio>=1.0.0  # SOCKS5 proxy support for httpx (LLM_PROXY_URL)
 pydantic-settings>=2.1.0
 SQLAlchemy>=2.0.43
 asyncpg>=0.31.0
@@ -27,3 +28,6 @@ aiogram>=3.17.0
 aio-pika>=9.5.5
 email-validator>=2.0.0
 anthropic
+google-genai
+groq
+strawberry-graphql[fastapi]
