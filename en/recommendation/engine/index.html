@@ -1,0 +1,1679 @@
+
+<!DOCTYPE html>
+
+<html class="no-js" lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width,initial-scale=1" name="viewport"/>
+<meta content="Central knowledge base for Gifty project" name="description"/>
+<link href="https://dev.giftyai.ru/en/recommendation/engine/" rel="canonical"/>
+<link href="../theory/" rel="prev"/>
+<link href="../quiz_system/" rel="next"/>
+<link href="../../../recommendation/engine/" hreflang="ru" rel="alternate"/>
+<link href="./" hreflang="en" rel="alternate"/>
+<link href="../../../assets/images/favicon.png" rel="icon"/>
+<meta content="mkdocs-1.6.1, mkdocs-material-9.7.2" name="generator"/>
+<title>Architecture (Semantic Bridge) - Gifty Engineering Docs</title>
+<link href="../../../assets/stylesheets/main.484c7ddc.min.css" rel="stylesheet"/>
+<link href="../../../assets/stylesheets/palette.ab4e12ef.min.css" rel="stylesheet"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&amp;display=fallback" rel="stylesheet"/>
+<style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+<link href="../../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<link href="../../../assets/_mkdocstrings.css" rel="stylesheet"/>
+<link href="../../../stylesheets/weeek.css" rel="stylesheet"/>
+<script>__md_scope=new URL("../../..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+</head>
+<body data-md-color-accent="indigo" data-md-color-primary="indigo" data-md-color-scheme="default" dir="ltr">
+<input autocomplete="off" class="md-toggle" data-md-toggle="drawer" id="__drawer" type="checkbox"/>
+<input autocomplete="off" class="md-toggle" data-md-toggle="search" id="__search" type="checkbox"/>
+<label class="md-overlay" for="__drawer"></label>
+<div data-md-component="skip">
+<a class="md-skip" href="#gifty-recommendation-engine-the-semantic-bridge">
+          Skip to content
+        </a>
+</div>
+<div data-md-component="announce">
+</div>
+<header class="md-header" data-md-component="header">
+<nav aria-label="Header" class="md-header__inner md-grid">
+<a aria-label="Gifty Engineering Docs" class="md-header__button md-logo" data-md-component="logo" href="../../" title="Gifty Engineering Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+<label class="md-header__button md-icon" for="__drawer">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"></path></svg>
+</label>
+<div class="md-header__title" data-md-component="header-title">
+<div class="md-header__ellipsis">
+<div class="md-header__topic">
+<span class="md-ellipsis">
+            Gifty Engineering Docs
+          </span>
+</div>
+<div class="md-header__topic" data-md-component="header-topic">
+<span class="md-ellipsis">
+            
+              Architecture (Semantic Bridge)
+            
+          </span>
+</div>
+</div>
+</div>
+<form class="md-header__option" data-md-component="palette">
+<input aria-label="Switch to dark mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="default" id="__palette_0" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_1" hidden="" title="Switch to dark mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a4 4 0 0 0-4 4 4 4 0 0 0 4 4 4 4 0 0 0 4-4 4 4 0 0 0-4-4m0 10a6 6 0 0 1-6-6 6 6 0 0 1 6-6 6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+<input aria-label="Switch to light mode" class="md-option" data-md-color-accent="indigo" data-md-color-media="" data-md-color-primary="indigo" data-md-color-scheme="slate" id="__palette_1" name="__palette" type="radio"/>
+<label class="md-header__button md-icon" for="__palette_0" hidden="" title="Switch to light mode">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 18c-.89 0-1.74-.2-2.5-.55C11.56 16.5 13 14.42 13 12s-1.44-4.5-3.5-5.45C10.26 6.2 11.11 6 12 6a6 6 0 0 1 6 6 6 6 0 0 1-6 6m8-9.31V4h-4.69L12 .69 8.69 4H4v4.69L.69 12 4 15.31V20h4.69L12 23.31 15.31 20H20v-4.69L23.31 12z"></path></svg>
+</label>
+</form>
+<script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+<div class="md-header__option">
+<div class="md-select">
+<button aria-label="Select language" class="md-header__button md-icon">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="m12.87 15.07-2.54-2.51.03-.03A17.5 17.5 0 0 0 14.07 6H17V4h-7V2H8v2H1v2h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"></path></svg>
+</button>
+<div class="md-select__inner">
+<ul class="md-select__list">
+<li class="md-select__item">
+<a class="md-select__link" href="../../../recommendation/engine/" hreflang="ru">
+              Русский
+            </a>
+</li>
+<li class="md-select__item">
+<a class="md-select__link" href="./" hreflang="en">
+              English
+            </a>
+</li>
+</ul>
+</div>
+</div>
+</div>
+<label class="md-header__button md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+</label>
+<div class="md-search" data-md-component="search" role="dialog">
+<label class="md-search__overlay" for="__search"></label>
+<div class="md-search__inner" role="search">
+<form class="md-search__form" name="search">
+<input aria-label="Search" autocapitalize="off" autocomplete="off" autocorrect="off" class="md-search__input" data-md-component="search-query" name="query" placeholder="Search" required="" spellcheck="false" type="text"/>
+<label class="md-search__icon md-icon" for="__search">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"></path></svg>
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"></path></svg>
+</label>
+<nav aria-label="Search" class="md-search__options">
+<a aria-label="Share" class="md-search__icon md-icon" data-clipboard="" data-clipboard-text="" data-md-component="search-share" href="javascript:void(0)" tabindex="-1" title="Share">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9a3 3 0 0 0-3 3 3 3 0 0 0 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.15c-.05.21-.08.43-.08.66 0 1.61 1.31 2.91 2.92 2.91s2.92-1.3 2.92-2.91A2.92 2.92 0 0 0 18 16.08"></path></svg>
+</a>
+<button aria-label="Clear" class="md-search__icon md-icon" tabindex="-1" title="Clear" type="reset">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path></svg>
+</button>
+</nav>
+<div class="md-search__suggest" data-md-component="search-suggest"></div>
+</form>
+<div class="md-search__output">
+<div class="md-search__scrollwrap" data-md-scrollfix="" tabindex="0">
+<div class="md-search-result" data-md-component="search-result">
+<div class="md-search-result__meta">
+            Initializing search
+          </div>
+<ol class="md-search-result__list" role="presentation"></ol>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="md-header__source">
+<a class="md-source" data-md-component="source" href="https://github.com/IceDarold/gifty-backend" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    Gifty
+  </div>
+</a>
+</div>
+</nav>
+</header>
+<div class="md-container" data-md-component="container">
+<nav aria-label="Tabs" class="md-tabs" data-md-component="tabs">
+<div class="md-grid">
+<ul class="md-tabs__list">
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../">
+        
+  
+  
+    
+  
+  Home
+
+      </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../onboarding/quick_start/">
+          
+  
+  
+    
+  
+  Onboarding
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../overview/">
+          
+  
+  
+    
+  
+  Overview
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../parsing/architecture/">
+          
+  
+  
+    
+  
+  Parsing System
+
+        </a>
+</li>
+<li class="md-tabs__item md-tabs__item--active">
+<a class="md-tabs__link" href="../theory/">
+          
+  
+  
+    
+  
+  Recommendation Engine
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../analytics_monitoring/dashboard/">
+          
+  
+  
+    
+  
+  Analytics &amp; Monitoring
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../engineering/configuration/">
+          
+  
+  
+    
+  
+  Engineering &amp; DevOps
+
+        </a>
+</li>
+<li class="md-tabs__item">
+<a class="md-tabs__link" href="../../api/">
+          
+  
+  
+    
+  
+  API Reference
+
+        </a>
+</li>
+</ul>
+</div>
+</nav>
+<main class="md-main" data-md-component="main">
+<div class="md-main__inner md-grid">
+<div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Navigation" class="md-nav md-nav--primary md-nav--lifted" data-md-level="0">
+<label class="md-nav__title" for="__drawer">
+<a aria-label="Gifty Engineering Docs" class="md-nav__button md-logo" data-md-component="logo" href="../../" title="Gifty Engineering Docs">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"></path></svg>
+</a>
+    Gifty Engineering Docs
+  </label>
+<div class="md-nav__source">
+<a class="md-source" data-md-component="source" href="https://github.com/IceDarold/gifty-backend" title="Go to repository">
+<div class="md-source__icon md-icon">
+<svg viewbox="0 0 448 512" xmlns="http://www.w3.org/2000/svg"><!--! Font Awesome Free 7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free (Icons: CC BY 4.0, Fonts: SIL OFL 1.1, Code: MIT License) Copyright 2025 Fonticons, Inc.--><path d="M439.6 236.1 244 40.5c-5.4-5.5-12.8-8.5-20.4-8.5s-15 3-20.4 8.4L162.5 81l51.5 51.5c27.1-9.1 52.7 16.8 43.4 43.7l49.7 49.7c34.2-11.8 61.2 31 35.5 56.7-26.5 26.5-70.2-2.9-56-37.3L240.3 199v121.9c25.3 12.5 22.3 41.8 9.1 55-6.4 6.4-15.2 10.1-24.3 10.1s-17.8-3.6-24.3-10.1c-17.6-17.6-11.1-46.9 11.2-56v-123c-20.8-8.5-24.6-30.7-18.6-45L142.6 101 8.5 235.1C3 240.6 0 247.9 0 255.5s3 15 8.5 20.4l195.6 195.7c5.4 5.4 12.7 8.4 20.4 8.4s15-3 20.4-8.4l194.7-194.7c5.4-5.4 8.4-12.8 8.4-20.4s-3-15-8.4-20.4"></path></svg>
+</div>
+<div class="md-source__repository">
+    Gifty
+  </div>
+</a>
+</div>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../">
+<span class="md-ellipsis">
+    
+  
+    Home
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Onboarding
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_2_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Onboarding
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/quick_start/">
+<span class="md-ellipsis">
+    
+  
+    Quick Start
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/tech_stack/">
+<span class="md-ellipsis">
+    
+  
+    Tech Stack &amp; Concepts
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/local_setup/">
+<span class="md-ellipsis">
+    
+  
+    Local Setup
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/github_workflow/">
+<span class="md-ellipsis">
+    
+  
+    GitHub Workflow
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/testing/">
+<span class="md-ellipsis">
+    
+  
+    Testing
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/database_work/">
+<span class="md-ellipsis">
+    
+  
+    Database Guide
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../onboarding/roadmap/">
+<span class="md-ellipsis">
+    
+  
+    Roadmap &amp; Milestones
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_3" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../overview/">
+<span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_3" id="__nav_3_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_3_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_3">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Overview
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../overview/recipient_management/">
+<span class="md-ellipsis">
+    
+  
+    Recipient Management
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_4" id="__nav_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Parsing System
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_4_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Parsing System
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../parsing/architecture/">
+<span class="md-ellipsis">
+    
+  
+    Architecture
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../parsing/guide/">
+<span class="md-ellipsis">
+    
+  
+    Guide (How to add parser)
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--active md-nav__item--section md-nav__item--nested">
+<input checked="" class="md-nav__toggle md-toggle" id="__nav_5" type="checkbox"/>
+<label class="md-nav__link" for="__nav_5" id="__nav_5_label" tabindex="">
+<span class="md-ellipsis">
+    
+  
+    Recommendation Engine
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="true" aria-labelledby="__nav_5_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_5">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Recommendation Engine
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../theory/">
+<span class="md-ellipsis">
+    
+  
+    The Psychology of Gifting
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--active">
+<input class="md-nav__toggle md-toggle" id="__toc" type="checkbox"/>
+<label class="md-nav__link md-nav__link--active" for="__toc">
+<span class="md-ellipsis">
+    
+  
+    Architecture (Semantic Bridge)
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<a class="md-nav__link md-nav__link--active" href="./">
+<span class="md-ellipsis">
+    
+  
+    Architecture (Semantic Bridge)
+  
+
+    
+  </span>
+</a>
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Высокоуровневая архитектура
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-1">
+<span class="md-ellipsis">
+      
+        2. Слой 1: Профайлер (Анализ ввода)
+      
+    </span>
+</a>
+<nav aria-label="2. Слой 1: Профайлер (Анализ ввода)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-gutg">
+<span class="md-ellipsis">
+      
+        2.1. Вектор GUTG
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-">
+<span class="md-ellipsis">
+      
+        2.2. Мета-Контекст
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-2">
+<span class="md-ellipsis">
+      
+        3. Слой 2: Движок Концептов (Мозг системы)
+      
+    </span>
+</a>
+<nav aria-label="3. Слой 2: Движок Концептов (Мозг системы)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-dhg">
+<span class="md-ellipsis">
+      
+        3.1. Динамическая Генерация Гипотез (DHG)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2. Портфель Гипотез (Стратегия Слоттинга)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-3">
+<span class="md-ellipsis">
+      
+        4. Слой 3: Закупщик (Исполнение)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-active-learning">
+<span class="md-ellipsis">
+      
+        5. Протокол Извлечения (Active Learning)
+      
+    </span>
+</a>
+<nav aria-label="5. Протокол Извлечения (Active Learning)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51-probes">
+<span class="md-ellipsis">
+      
+        5.1. Система "Зондов" (Probes)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2. Петля Обратной Связи (Явное важнее Неявного)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. Пример Пользовательской Сессии (Поток)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. Модели Данных
+      
+    </span>
+</a>
+<nav aria-label="7. Модели Данных" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#the-hypothesis">
+<span class="md-ellipsis">
+      
+        Гипотеза (The Hypothesis)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#the-user-state">
+<span class="md-ellipsis">
+      
+        Состояние Пользователя (The User State)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../quiz_system/">
+<span class="md-ellipsis">
+    
+  
+    Quiz System (Input)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../discovery_algorithm/">
+<span class="md-ellipsis">
+    
+  
+    Discovery Algorithm (Dialogue)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../multi_track/">
+<span class="md-ellipsis">
+    
+  
+    Multi-Track System (v2)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../discovery_v2_deep_dive/">
+<span class="md-ellipsis">
+    
+  
+    Discovery Engine v2 (Deep Dive)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../overview/">
+<span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../query_rules/">
+<span class="md-ellipsis">
+    
+  
+    Gift Query Rules
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../intelligence_api/">
+<span class="md-ellipsis">
+    
+  
+    Intelligence API
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_6" type="checkbox"/>
+<label class="md-nav__link" for="__nav_6" id="__nav_6_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Analytics &amp; Monitoring
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_6_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_6">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Analytics &amp; Monitoring
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../analytics_monitoring/dashboard/">
+<span class="md-ellipsis">
+    
+  
+    Dashboard Guide
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_6_2" type="checkbox"/>
+<label class="md-nav__link" for="__nav_6_2" id="__nav_6_2_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Telegram Bot
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_6_2_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_6_2">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Telegram Bot
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../analytics_monitoring/telegram_bot/user_guide/">
+<span class="md-ellipsis">
+    
+  
+    User Guide
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../analytics_monitoring/telegram_bot/internals/">
+<span class="md-ellipsis">
+    
+  
+    Internals
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../analytics_monitoring/telegram_bot/dev/">
+<span class="md-ellipsis">
+    
+  
+    Development Guide
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_7" type="checkbox"/>
+<label class="md-nav__link" for="__nav_7" id="__nav_7_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Engineering &amp; DevOps
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_7_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_7">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Engineering &amp; DevOps
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../engineering/configuration/">
+<span class="md-ellipsis">
+    
+  
+    Configuration (logic.yaml)
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../engineering/providers/">
+<span class="md-ellipsis">
+    
+  
+    AI Providers
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../engineering/infrastructure/">
+<span class="md-ellipsis">
+    
+  
+    Infrastructure &amp; Secrets
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../engineering/deployment/">
+<span class="md-ellipsis">
+    
+  
+    Deployment &amp; CI/CD
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_8" type="checkbox"/>
+<div class="md-nav__link md-nav__container">
+<a class="md-nav__link" href="../../api/">
+<span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+</a>
+<label class="md-nav__link" for="__nav_8" id="__nav_8_label" tabindex="0">
+<span class="md-nav__icon md-icon"></span>
+</label>
+</div>
+<nav aria-expanded="false" aria-labelledby="__nav_8_label" class="md-nav" data-md-level="1">
+<label class="md-nav__title" for="__nav_8">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    API Reference
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/playground/">
+<span class="md-ellipsis">
+    
+  
+    Playground
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/auth/">
+<span class="md-ellipsis">
+    
+  
+    Auth
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_8_4" type="checkbox"/>
+<label class="md-nav__link" for="__nav_8_4" id="__nav_8_4_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Discovery (Dialogue)
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_8_4_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_8_4">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Discovery (Dialogue)
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/discovery/">
+<span class="md-ellipsis">
+    
+  
+    API Reference
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/discovery_guide/">
+<span class="md-ellipsis">
+    
+  
+    Integration Guide
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/public/">
+<span class="md-ellipsis">
+    
+  
+    Public
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/models/">
+<span class="md-ellipsis">
+    
+  
+    Models
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/services/">
+<span class="md-ellipsis">
+    
+  
+    Services
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/repositories/">
+<span class="md-ellipsis">
+    
+  
+    Repositories
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_8_9" type="checkbox"/>
+<label class="md-nav__link" for="__nav_8_9" id="__nav_8_9_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Analytics
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_8_9_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_8_9">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Analytics
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/analytics/overview/">
+<span class="md-ellipsis">
+    
+  
+    Overview
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/analytics/kpi/">
+<span class="md-ellipsis">
+    
+  
+    Business Metrics
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/analytics/coverage/">
+<span class="md-ellipsis">
+    
+  
+    Catalog Coverage
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/analytics/recommendations/">
+<span class="md-ellipsis">
+    
+  
+    AI &amp; Recommendations
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/analytics/monitoring/">
+<span class="md-ellipsis">
+    
+  
+    System Monitoring
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/internal/">
+<span class="md-ellipsis">
+    
+  
+    Internal
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item md-nav__item--nested">
+<input class="md-nav__toggle md-toggle md-toggle--indeterminate" id="__nav_8_11" type="checkbox"/>
+<label class="md-nav__link" for="__nav_8_11" id="__nav_8_11_label" tabindex="0">
+<span class="md-ellipsis">
+    
+  
+    Weeek
+  
+
+    
+  </span>
+<span class="md-nav__icon md-icon"></span>
+</label>
+<nav aria-expanded="false" aria-labelledby="__nav_8_11_label" class="md-nav" data-md-level="2">
+<label class="md-nav__title" for="__nav_8_11">
+<span class="md-nav__icon md-icon"></span>
+            
+  
+    Weeek
+  
+
+          </label>
+<ul class="md-nav__list" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/weeek/">
+<span class="md-ellipsis">
+    
+  
+    Gifty Proxy API
+  
+
+    
+  </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="../../api/weeek_external/">
+<span class="md-ellipsis">
+    
+  
+    External API Notes
+  
+
+    
+  </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc">
+<div class="md-sidebar__scrollwrap">
+<div class="md-sidebar__inner">
+<nav aria-label="Table of contents" class="md-nav md-nav--secondary">
+<label class="md-nav__title" for="__toc">
+<span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+<ul class="md-nav__list" data-md-component="toc" data-md-scrollfix="">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#1">
+<span class="md-ellipsis">
+      
+        1. Высокоуровневая архитектура
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#2-1">
+<span class="md-ellipsis">
+      
+        2. Слой 1: Профайлер (Анализ ввода)
+      
+    </span>
+</a>
+<nav aria-label="2. Слой 1: Профайлер (Анализ ввода)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#21-gutg">
+<span class="md-ellipsis">
+      
+        2.1. Вектор GUTG
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#22-">
+<span class="md-ellipsis">
+      
+        2.2. Мета-Контекст
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#3-2">
+<span class="md-ellipsis">
+      
+        3. Слой 2: Движок Концептов (Мозг системы)
+      
+    </span>
+</a>
+<nav aria-label="3. Слой 2: Движок Концептов (Мозг системы)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#31-dhg">
+<span class="md-ellipsis">
+      
+        3.1. Динамическая Генерация Гипотез (DHG)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#32">
+<span class="md-ellipsis">
+      
+        3.2. Портфель Гипотез (Стратегия Слоттинга)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#4-3">
+<span class="md-ellipsis">
+      
+        4. Слой 3: Закупщик (Исполнение)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#5-active-learning">
+<span class="md-ellipsis">
+      
+        5. Протокол Извлечения (Active Learning)
+      
+    </span>
+</a>
+<nav aria-label="5. Протокол Извлечения (Active Learning)" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#51-probes">
+<span class="md-ellipsis">
+      
+        5.1. Система "Зондов" (Probes)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#52">
+<span class="md-ellipsis">
+      
+        5.2. Петля Обратной Связи (Явное важнее Неявного)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#6">
+<span class="md-ellipsis">
+      
+        6. Пример Пользовательской Сессии (Поток)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#7">
+<span class="md-ellipsis">
+      
+        7. Модели Данных
+      
+    </span>
+</a>
+<nav aria-label="7. Модели Данных" class="md-nav">
+<ul class="md-nav__list">
+<li class="md-nav__item">
+<a class="md-nav__link" href="#the-hypothesis">
+<span class="md-ellipsis">
+      
+        Гипотеза (The Hypothesis)
+      
+    </span>
+</a>
+</li>
+<li class="md-nav__item">
+<a class="md-nav__link" href="#the-user-state">
+<span class="md-ellipsis">
+      
+        Состояние Пользователя (The User State)
+      
+    </span>
+</a>
+</li>
+</ul>
+</nav>
+</li>
+</ul>
+</nav>
+</div>
+</div>
+</div>
+<div class="md-content" data-md-component="content">
+<article class="md-content__inner md-typeset">
+<h1 id="gifty-recommendation-engine-the-semantic-bridge">Gifty Recommendation Engine: The Semantic Bridge (Семантический Мост)</h1>
+<blockquote>
+<p><strong>Философское ядро:</strong> Мы не рекомендуем товары. Мы рекомендуем <em>смыслы</em>, упакованные в товары.</p>
+</blockquote>
+<p>Этот документ описывает архитектуру системы рекомендаций Gifty. В отличие от традиционных систем коллаборативной фильтрации (которые сопоставляют User-to-Item), Gifty использует архитектуру <strong>Семантического Моста</strong> (User -&gt; Psychology -&gt; Concept -&gt; Item).</p>
+<hr/>
+<h2 id="1">1. Высокоуровневая архитектура</h2>
+<p>Система состоит из трех отдельных слоев, которые преобразуют абстрактное намерение пользователя в конкретные товары, доступные для покупки.</p>
+<div class="mermaid">graph TD
+    User["Ввод пользователя"] --&gt;|Квиз + Контекст| Profiler
+
+    subgraph "Слой 1: Профайлер (The Profiler)"
+        Profiler["Психологический Профайлер"] --&gt;|Векторы GUTG| ProfileState["Состояние Профиля"]
+        Meta["Мета-Контекст"] --&gt;|"Фильтры: Усилия, Время, Цель"| ProfileState
+    end
+
+    subgraph "Слой 2: Движок Концептов (The Concept Engine)"
+        ProfileState --&gt;|Топ Gaps| DHG["Динамический Генератор Гипотез (LLM)"]
+        DHG --&gt;|Генерирует| Cloud["Облака Гипотез"]
+        Cloud --&gt;|Фильтрация| Portfolio["Портфельный Менеджер"]
+    end
+
+    subgraph "Слой 3: Закупщик (The Procurer)"
+        Portfolio --&gt;|Поисковые запросы| VectorDB[("PgVector Product DB")]
+        VectorDB --&gt;|Находит| Candidates
+        Candidates --&gt;|Ранжирование| Scorer
+    end
+
+    Scorer --&gt;|Выдача| Feed["Smart Feed UI"]
+    Feed --&gt;|Действие пользователя| ActiveLearning["Active Learning Loop"]
+    ActiveLearning --&gt;|Обратная связь| Profiler
+</div>
+<hr/>
+<h2 id="2-1">2. Слой 1: Профайлер (Анализ ввода)</h2>
+<p><strong>Цель:</strong> Преобразовать сырой ввод пользователя в <strong>Вероятностный Профиль</strong>.</p>
+<p>Профайлер не ищет ключевые слова вроде "гитара". Он ищет <em>психологические векторы</em>.</p>
+<h3 id="21-gutg">2.1. Вектор GUTG</h3>
+<p>Намерение пользователя мапится на 5 измерений "Grand Unified Theory of Gifting".
+*   <strong>Результат:</strong> Распределение вероятностей, например <code>{Mirror: 0.6, Optimizer: 0.3, Catalyst: 0.1, Anchor: 0.0, Permission: 0.0}</code>.</p>
+<h3 id="22-">2.2. Мета-Контекст</h3>
+<p>Вопросы о <em>процессе</em> дарения, а не о получателе. Они действуют как <strong>Жесткие Фильтры</strong> и <strong>Множители Ранжирования</strong>.</p>
+<table>
+<thead>
+<tr>
+<th style="text-align: left;">Переменная контекста</th>
+<th style="text-align: left;">Определение</th>
+<th style="text-align: left;">Влияние на архитектуру</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align: left;"><strong>Relationship (Отношения)</strong></td>
+<td style="text-align: left;">Кто это? (Партнер, Босс)</td>
+<td style="text-align: left;"><strong>Веса:</strong> "Босс" убивает <em>Anchor</em> (слишком интимно), бустит <em>Optimizer</em>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Effort Level (Уровень усилий)</strong></td>
+<td style="text-align: left;">Своими руками vs "Купить сейчас"</td>
+<td style="text-align: left;"><strong>Фильтрация:</strong> "Низкие усилия" скрывают сложные DIY наборы из <em>Catalyst</em>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Gifting Goal (Цель подарка)</strong></td>
+<td style="text-align: left;">Впечатлить vs Забота vs Протокол</td>
+<td style="text-align: left;"><strong>Бустинг:</strong> "Впечатлить" бустит <em>Mirror/Permission</em>. "Забота" бустит <em>Optimizer</em>.</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Session Mode (Режим сессии)</strong></td>
+<td style="text-align: left;">Быстрое решение vs Глубокий поиск</td>
+<td style="text-align: left;"><strong>Процесс:</strong> "Быстро" пропускает глубокие уточнения, показывает надежные варианты (Safe Bets).</td>
+</tr>
+<tr>
+<td style="text-align: left;"><strong>Timeline (Сроки)</strong></td>
+<td style="text-align: left;">Завтра vs Месяц</td>
+<td style="text-align: left;"><strong>Фильтрация:</strong> "Завтра" скрывает товары с долгой доставкой/кастомизацией.</td>
+</tr>
+</tbody>
+</table>
+<hr/>
+<h2 id="3-2">3. Слой 2: Движок Концептов (Мозг системы)</h2>
+<p><strong>Цель:</strong> Генерировать "Облака Гипотез" — кластеры абстрактных идей, которые служат мостом между психологией и товарами.</p>
+<h3 id="31-dhg">3.1. Динамическая Генерация Гипотез (DHG)</h3>
+<p>Мы не поддерживаем статическое дерево категорий. Мы используем LLM или кэшированные кластеры для генерации гипотез на лету.</p>
+<p><strong>Пример потока:</strong></p>
+<ol>
+<li><strong>Ввод:</strong> Пользователь говорит <em>"Любит Гитару"</em>.</li>
+<li><strong>Экспансия DHG:</strong> Движок не просто ищет "гитара". Он расщепляет концепт по осям GUTG:<ul>
+<li><strong>Гипотеза A (Catalyst):</strong> "Начинающая рок-звезда" (Нужно: Обучающие материалы, стартовые наборы).</li>
+<li><strong>Гипотеза B (Optimizer):</strong> "Гик звука" (Нужно: Дорогие струны, уход за педалбордом, наборы для чистки).</li>
+<li><strong>Гипотеза C (Mirror):</strong> "Фанат" (Нужно: Биографии, винил, мерч групп).</li>
+</ul>
+</li>
+<li><strong>Результат:</strong> Теперь у нас есть 3 отличных "Облака" поисковых запросов.</li>
+</ol>
+<h3 id="32">3.2. Портфель Гипотез (Стратегия Слоттинга)</h3>
+<p>Мы никогда не показываем однородную ленту. Мы используем <strong>Портфельную Стратегию</strong> для баланса между Исследованием (Exploration) и Использованием (Exploitation). Лента строится с использованием <strong>Слотов</strong>.</p>
+<p><strong>Алгоритм Слоттинга:</strong></p>
+<ul>
+<li><strong>Слот 1: Надежная ставка (High Confidence).</strong> Прямое попадание из Профайлера. (напр., <em>Mirror: Фанат Гитары</em>).</li>
+<li><strong>Слот 2: Эмоциональный Пивот.</strong> Другой психологический угол. (напр., <em>Anchor: "Зафреймить ваше лучшее совместное фото"</em>).</li>
+<li><strong>Слот 3: Практическое решение.</strong> Чистая польза. (напр., <em>Optimizer: "Апгрейд его утреннего кофе"</em>).</li>
+<li><strong>Слот 4: Джокер (Wildcard).</strong> Случайная догадка с высокой энтропией для проверки нового вектора. (напр., <em>Permission: "Массажный пистолет"</em>).</li>
+</ul>
+<hr/>
+<h2 id="4-3">4. Слой 3: Закупщик (Исполнение)</h2>
+<p><strong>Цель:</strong> Найти лучшее физическое доказательство (Товар) для абстрактной Идеи.</p>
+<ol>
+<li><strong>Ввод:</strong> Конкретная <em>Идея Подарка</em> (напр., "Набор для ухода за гитарой").</li>
+<li><strong>Поисковые запросы:</strong> <code>["guitar cleaning kit", "string winder", "fretboard oil"]</code>.</li>
+<li><strong>Векторный Поиск:</strong> Запрос в пространство эмбеддингов товаров <code>pgvector</code>.</li>
+<li><strong>Фильтрация:</strong> Применение Бюджета, Мета-Контекста (Усилия) и Негативных Ключевых слов.</li>
+<li><strong>Выбор:</strong> Выбор "Товара-Героя" + 2 Альтернативы.</li>
+</ol>
+<hr/>
+<h2 id="5-active-learning">5. Протокол Извлечения (Active Learning)</h2>
+<p>Это "Метод Сократа" движка. Он превращает систему из поисковика в интервьюера.</p>
+<h3 id="51-probes">5.1. Система "Зондов" (Probes)</h3>
+<p><strong>Зонд (Probe)</strong> — это вопрос или взаимодействие, предназначенное для коллапса волновой функции намерения пользователя.</p>
+<p><strong>Типы Зондов:</strong></p>
+<ol>
+<li><strong>Бинарная Развилка (В ленте):</strong><ul>
+<li><em>Контекст:</em> У нас есть "Гитара", но мы не знаем уровень навыка.</li>
+<li><em>Зонд:</em> "Он новичок, который учится играть, или профи с кучей оборудования?"</li>
+<li><em>Действие:</em> [Новичок] -&gt; Буст <em>Catalyst</em>. [Профи] -&gt; Буст <em>Optimizer</em>.</li>
+</ul>
+</li>
+<li><strong>Прорыватель Тупика (Dead-End Breaker):</strong><ul>
+<li><em>Контекст:</em> Пользователь пролистал 10 товаров без взаимодействия.</li>
+<li><em>Зонд:</em> "Давай сменим тему. Что он ненавидит делать? (Уборка, Готовка, Дорога?)"</li>
+<li><em>Действие:</em> Инвертировать поиск для решения конкретной боли.</li>
+</ul>
+</li>
+<li><strong>Проверка Ценностей:</strong><ul>
+<li><em>Контекст:</em> Выбор между практичным и веселым предметом.</li>
+<li><em>Зонд:</em> "Ты хочешь быть полезным или запоминающимся?"</li>
+</ul>
+</li>
+</ol>
+<h3 id="52">5.2. Петля Обратной Связи (Явное важнее Неявного)</h3>
+<p>Доверять "времени остановки" (dwell time) слишком рискованно для подарков. Нам нужна <strong>Явная Обратная Связь</strong> для точной калибровки движка.</p>
+<p><strong>Модель Взаимодействия:</strong>
+1.  <strong>❤️ Добавить в Шорт-лист (Сильный Позитив):</strong>
+    *   <em>Значение:</em> "Это направление верное".
+    *   <em>Действие:</em> Значительно повысить веса этой оси GUTG. Генерировать больше гипотез в этом кластере.
+2.  <strong>❌ Дизлайк/Скрыть (Сильный Негатив):</strong>
+    *   <em>Значение:</em> "Неверный путь".
+    *   <em>Действие:</em> Забанить эту конкретную гипотезу.
+    *   <em>Уточнение:</em> <strong>"Протокол 'Почему?'"</strong>. Иногда спрашивать <em>почему</em> это было отвергнуто:
+        *   <em>Вариант:</em> "Слишком дорого" -&gt; Обновить ограничение бюджета.
+        *   <em>Вариант:</em> "Скучно" -&gt; Переключиться с <em>Optimizer</em> на <em>Catalyst/Mirror</em>.
+        *   <em>Вариант:</em> "Не их стиль" -&gt; Инвертировать текущие теги <em>Aesthetic</em>.
+3.  <strong>🤔 Не уверен (Триггер Зонда):</strong>
+    *   <em>Значение:</em> "Неоднозначно".
+    *   <em>Действие:</em> Запустить конкретный <strong>Вопрос-Зонд</strong> (напр., "Это прикольно, но бесполезно?").</p>
+<p><strong>Эффект Шорт-листа:</strong>
+По мере того как пользователь собирает шорт-лист, Профиль действует как "Центр Масс" выбранных предметов. Мы используем шорт-лист для переранжирования оставшейся ленты в реальном времени.</p>
+<hr/>
+<h2 id="6">6. Пример Пользовательской Сессии (Поток)</h2>
+<p><strong>Шаг 1: Установка (Квиз)</strong></p>
+<ul>
+<li><strong>Пользователь:</strong> "Парень, 30, IT Специалист. Любит Готовить."</li>
+<li><strong>Профайлер:</strong> <ul>
+<li>База: <code>Optimizer: 0.3</code>, <code>Mirror: 0.3</code>.</li>
+<li>Контекст: <code>Отношения: Партнер</code> -&gt; Буст <code>Anchor</code>.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Шаг 2: DHG (Генерация Гипотез)</strong></p>
+<ul>
+<li>Система расширяет "Готовка" + "IT":<ul>
+<li><em>H1 (Optimizer/Tech):</em> "Прецизионная Кулинария" (Су-вид, умные термометры).</li>
+<li><em>H2 (Permission/Taste):</em> "Редкие Ингредиенты" (Трюфельное масло, выдержанный бальзамик).</li>
+<li><em>H3 (Catalyst/Skill):</em> "Мастерство" (Точильные камни, набор молекулярной кухни).</li>
+</ul>
+</li>
+</ul>
+<p><strong>Шаг 3: Портфельная Лента (Первые 4 Карточки)</strong></p>
+<ol>
+<li><strong>Карточка 1 (Optimizer):</strong> "Апгрейд его кухонных гаджетов" (Умный термометр для мяса).</li>
+<li><strong>Карточка 2 (Anchor):</strong> "Свидание с готовкой" (Набор для пасты на двоих).</li>
+<li><strong>Карточка 3 (Permission):</strong> "Униформа Шефа" (Кастомный фартук).</li>
+<li><strong>Карточка 4 (Wildcard):</strong> "Расслабление после работы" (Массажер).</li>
+</ol>
+<p><strong>Шаг 4: Взаимодействие (Зонд)</strong></p>
+<ul>
+<li>Пользователь завис на Карточке 1 (Термометр), но не кликает.</li>
+<li><strong>Системный Зонд:</strong> "Он любит гаджеты или предпочитает олдскульные ручные инструменты?"</li>
+<li><strong>Пользователь:</strong> "Гаджеты."</li>
+</ul>
+<p><strong>Шаг 5: Уточнение</strong></p>
+<ul>
+<li><strong>Обновление Профайлера:</strong> <code>Optimizer</code> ++, <code>Tech</code> ++. <code>Old-school</code> --.</li>
+<li><strong>Новая Лента:</strong> Су-вид, Вакууматор, Bluetooth щуп для барбекю. (Идея "Anchor" сдвигается вниз).</li>
+</ul>
+<hr/>
+<h2 id="7">7. Модели Данных</h2>
+<h3 id="the-hypothesis">Гипотеза (The Hypothesis)</h3>
+<p>Промежуточная структура данных между Намерением Пользователя и Товаром.</p>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-0-1" id="__codelineno-0-1" name="__codelineno-0-1"></a><span class="p">{</span>
+<a href="#__codelineno-0-2" id="__codelineno-0-2" name="__codelineno-0-2"></a><span class="w">  </span><span class="nt">"id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"cooking_precision_tech"</span><span class="p">,</span>
+<a href="#__codelineno-0-3" id="__codelineno-0-3" name="__codelineno-0-3"></a><span class="w">  </span><span class="nt">"title"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Precision Cooking Lab"</span><span class="p">,</span>
+<a href="#__codelineno-0-4" id="__codelineno-0-4" name="__codelineno-0-4"></a><span class="w">  </span><span class="nt">"gutg_axis"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Optimizer"</span><span class="p">,</span>
+<a href="#__codelineno-0-5" id="__codelineno-0-5" name="__codelineno-0-5"></a><span class="w">  </span><span class="nt">"gutg_subtype"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Upgrade"</span><span class="p">,</span>
+<a href="#__codelineno-0-6" id="__codelineno-0-6" name="__codelineno-0-6"></a><span class="w">  </span><span class="nt">"reasoning"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Он в IT, поэтому, скорее всего, ценит точность и контроль."</span><span class="p">,</span>
+<a href="#__codelineno-0-7" id="__codelineno-0-7" name="__codelineno-0-7"></a><span class="w">  </span><span class="nt">"search_queries"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"sous vide"</span><span class="p">,</span><span class="w"> </span><span class="s2">"smart thermometer"</span><span class="p">,</span><span class="w"> </span><span class="s2">"precision scale"</span><span class="p">],</span>
+<a href="#__codelineno-0-8" id="__codelineno-0-8" name="__codelineno-0-8"></a><span class="w">  </span><span class="nt">"validation_question"</span><span class="p">:</span><span class="w"> </span><span class="s2">"Does he treat cooking as an art or a science?"</span>
+<a href="#__codelineno-0-9" id="__codelineno-0-9" name="__codelineno-0-9"></a><span class="p">}</span>
+</code></pre></div>
+<h3 id="the-user-state">Состояние Пользователя (The User State)</h3>
+<div class="highlight"><pre><span></span><code><a href="#__codelineno-1-1" id="__codelineno-1-1" name="__codelineno-1-1"></a><span class="p">{</span>
+<a href="#__codelineno-1-2" id="__codelineno-1-2" name="__codelineno-1-2"></a><span class="w">  </span><span class="nt">"session_id"</span><span class="p">:</span><span class="w"> </span><span class="s2">"xyz"</span><span class="p">,</span>
+<a href="#__codelineno-1-3" id="__codelineno-1-3" name="__codelineno-1-3"></a><span class="w">  </span><span class="nt">"gutg_weights"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-4" id="__codelineno-1-4" name="__codelineno-1-4"></a><span class="w">    </span><span class="nt">"mirror"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span><span class="p">,</span>
+<a href="#__codelineno-1-5" id="__codelineno-1-5" name="__codelineno-1-5"></a><span class="w">    </span><span class="nt">"optimizer"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.6</span><span class="p">,</span>
+<a href="#__codelineno-1-6" id="__codelineno-1-6" name="__codelineno-1-6"></a><span class="w">    </span><span class="nt">"permission"</span><span class="p">:</span><span class="w"> </span><span class="mf">0.2</span>
+<a href="#__codelineno-1-7" id="__codelineno-1-7" name="__codelineno-1-7"></a><span class="w">  </span><span class="p">},</span>
+<a href="#__codelineno-1-8" id="__codelineno-1-8" name="__codelineno-1-8"></a><span class="w">  </span><span class="nt">"meta_context"</span><span class="p">:</span><span class="w"> </span><span class="p">{</span>
+<a href="#__codelineno-1-9" id="__codelineno-1-9" name="__codelineno-1-9"></a><span class="w">    </span><span class="nt">"effort"</span><span class="p">:</span><span class="w"> </span><span class="s2">"low"</span><span class="p">,</span>
+<a href="#__codelineno-1-10" id="__codelineno-1-10" name="__codelineno-1-10"></a><span class="w">    </span><span class="nt">"goal"</span><span class="p">:</span><span class="w"> </span><span class="s2">"impress"</span>
+<a href="#__codelineno-1-11" id="__codelineno-1-11" name="__codelineno-1-11"></a><span class="w">  </span><span class="p">},</span>
+<a href="#__codelineno-1-12" id="__codelineno-1-12" name="__codelineno-1-12"></a><span class="w">  </span><span class="nt">"active_hypotheses"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"cooking_precision_tech"</span><span class="p">,</span><span class="w"> </span><span class="s2">"smart_home"</span><span class="p">],</span>
+<a href="#__codelineno-1-13" id="__codelineno-1-13" name="__codelineno-1-13"></a><span class="w">  </span><span class="nt">"rejected_hypotheses"</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">"cooking_aprons"</span><span class="p">]</span>
+<a href="#__codelineno-1-14" id="__codelineno-1-14" name="__codelineno-1-14"></a><span class="p">}</span>
+</code></pre></div>
+</article>
+</div>
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+</div>
+<button class="md-top md-icon" data-md-component="top" hidden="" type="button">
+<svg viewbox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M13 20h-2V8l-5.5 5.5-1.42-1.42L12 4.16l7.92 7.92-1.42 1.42L13 8z"></path></svg>
+  Back to top
+</button>
+</main>
+<footer class="md-footer">
+<div class="md-footer-meta md-typeset">
+<div class="md-footer-meta__inner md-grid">
+<div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" rel="noopener" target="_blank">
+      Material for MkDocs
+    </a>
+</div>
+</div>
+</div>
+</footer>
+</div>
+<div class="md-dialog" data-md-component="dialog">
+<div class="md-dialog__inner md-typeset"></div>
+</div>
+<script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": ["navigation.sections", "navigation.expand", "navigation.top", "navigation.tabs", "navigation.indexes", "search.suggest", "search.highlight", "search.share", "content.code.copy", "content.code.annotate"], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": null}</script>
+<script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+<script src="../../../javascripts/weeek_static_data.js"></script>
+<script src="../../../javascripts/weeek.js"></script>
+<script type="module">import mermaid from "https://unpkg.com/mermaid@10.4.0/dist/mermaid.esm.min.mjs";
+mermaid.initialize({});</script></body>
+</html>
