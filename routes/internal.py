@@ -251,6 +251,33 @@ async def toggle_parser(
         await repo.reset_source_error(source_id)
         
     return {"status": "ok", "is_active": is_active}
+    
+@router.delete("/sources/{source_id}/data", summary="Удалить все товары источника")
+async def clear_source_data(
+    source_id: int,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token)
+):
+    repo = ParsingRepository(db)
+    source = await repo.get_source_by_id(source_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source not found")
+        
+    catalog_repo = PostgresCatalogRepository(db)
+    # If it's a hub, we delete by site_key, otherwise we might want to delete by category?
+    # For now, let's delete by site_key as requested "remove all data from that scraper"
+    count = await catalog_repo.delete_products_by_site(source.site_key)
+    
+    # Also reset the source stats
+    source.last_synced_at = None
+    if source.config:
+        cfg = dict(source.config)
+        cfg.pop("last_stats", None)
+        cfg.pop("last_logs", None)
+        source.config = cfg
+        
+    await db.commit()
+    return {"status": "ok", "deleted_count": count}
 
 @router.post("/sources/{source_id}/report-status", summary="Обновить статус источника")
 async def report_parsing_status(

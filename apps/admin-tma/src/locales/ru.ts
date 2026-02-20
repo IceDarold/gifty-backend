@@ -12,6 +12,8 @@ export const ru = {
         no_alerts: "Нет активных уведомлений",
         system_normal: "Система работает в штатном режиме.",
         superadmin_panel: "Панель Супер-админа",
+        no_data: "Нет данных",
+        confirm_delete_data: "Вы уверены, что хотите удалить все данные, собранные этим скрапером?",
     },
     dashboard: {
         title: "Gifty Админ",

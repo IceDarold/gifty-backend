@@ -57,6 +57,11 @@ class CatalogRepository(ABC):
         """Mark products NOT in seen_ids as is_active=False. Returns count of modified rows."""
         pass
 
+    @abstractmethod
+    async def delete_products_by_site(self, site_key: str) -> int:
+        """Hard delete all products for a specific site."""
+        pass
+
 
 class PostgresCatalogRepository(CatalogRepository):
     def __init__(self, session: AsyncSession):
@@ -119,12 +124,18 @@ class PostgresCatalogRepository(CatalogRepository):
             return 0
             
         stmt = (
-            update(Product)
+            sa.update(Product)
             .where(Product.gift_id.notin_(seen_ids))
             .where(Product.is_active.is_(True))
             .values(is_active=False, updated_at=func.now())
         )
         
+        result = await self.session.execute(stmt)
+        return result.rowcount
+
+    async def delete_products_by_site(self, site_key: str) -> int:
+        """Hard delete all products for a specific site."""
+        stmt = sa.delete(Product).where(Product.gift_id.like(f"{site_key}:%"))
         result = await self.session.execute(stmt)
         return result.rowcount
 

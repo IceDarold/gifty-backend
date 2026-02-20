@@ -13,6 +13,7 @@ export const en = {
         system_normal: "System is running within normal parameters.",
         superadmin_panel: "Superadmin Panel",
         no_data: "No data available",
+        confirm_delete_data: "Are you sure you want to delete all scraped data for this site?",
     },
     dashboard: {
         title: "Gifty Admin",

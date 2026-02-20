@@ -20,6 +20,7 @@ const AVAILABLE_SPIDERS = [
 ];
 
 import { useLanguage } from "@/contexts/LanguageContext";
+import { ScrapersView } from "@/components/ScrapersView";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -39,6 +40,7 @@ export default function Home() {
     sendTestNotification, isSendingTest,
     runAll, isRunningAll,
     runOne, isRunningOne,
+    deleteData, isDeleting
   } = useDashboardData(chatId);
 
 
@@ -92,7 +94,7 @@ export default function Home() {
         );
       case "scrapers":
         return (
-          <SpiderList
+          <ScrapersView
             sources={sources.data}
             onSync={handleSync}
             onOpenDetail={(id) => setSelectedSourceId(id)}
@@ -101,18 +103,8 @@ export default function Home() {
             isRunningAll={isRunningAll}
             onRunOne={runOne}
             isRunningOne={isRunningOne}
-          />
-
-        );
-      case "categories":
-        return (
-          <CategoriesTable
-            sources={sources.data}
-            onOpenDetail={(id) => setSelectedSourceId(id)}
-            onOpenChart={(id) => {
-              // Open chart modal - will be implemented
-              setSelectedSourceId(id);
-            }}
+            onDeleteData={(id) => deleteData(id)}
+            isDeleting={isDeleting}
           />
         );
       case "alerts":
@@ -166,14 +158,6 @@ export default function Home() {
         >
           <LayoutDashboard size={22} fill={activeTab === 'dashboard' ? 'currentColor' : 'none'} />
           <span className="text-[10px] font-bold">{t('common.main')}</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("categories")}
-          className={`flex flex-col items-center gap-1 transition-colors ${activeTab === 'categories' ? 'text-[var(--tg-theme-button-color)]' : 'text-[var(--tg-theme-hint-color)]'}`}
-        >
-          <List size={22} fill={activeTab === 'categories' ? 'currentColor' : 'none'} />
-          <span className="text-[10px] font-medium">{t('categories.title')}</span>
         </button>
 
         <button

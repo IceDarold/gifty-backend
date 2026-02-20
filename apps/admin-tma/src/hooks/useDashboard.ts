@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, fetchSourceProducts, forceRunSource, updateSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage, sendTestNotification, runAllSpiders, runSingleSpider } from '@/lib/api';
+import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, fetchSourceProducts, deleteSourceProducts, forceRunSource, updateSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage, sendTestNotification, runAllSpiders, runSingleSpider } from '@/lib/api';
 
 
 export function useDashboardData(chatId?: number) {
@@ -99,6 +99,13 @@ export function useDashboardData(chatId?: number) {
         },
     });
 
+    const deleteSourceMutation = useMutation({
+        mutationFn: (id: number) => deleteSourceProducts(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sources'] });
+        },
+    });
+
     return {
         stats,
         health,
@@ -122,6 +129,8 @@ export function useDashboardData(chatId?: number) {
         isRunningAll: runAllSpidersMutation.isPending,
         runOne: runSingleSpiderMutation.mutate,
         isRunningOne: runSingleSpiderMutation.isPending,
+        deleteData: deleteSourceMutation.mutate,
+        isDeleting: deleteSourceMutation.isPending,
         isLoading: stats.isLoading || health.isLoading || scraping.isLoading || sources.isLoading || subscriber.isLoading,
         isError: stats.isError || health.isError || scraping.isError || sources.isError
     };
