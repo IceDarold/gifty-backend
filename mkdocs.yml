@@ -1,0 +1,162 @@
+site_name: Gifty Engineering Docs
+site_description: Central knowledge base for Gifty project
+site_url: https://dev.giftyai.ru/
+repo_name: Gifty
+repo_url: https://github.com/IceDarold/gifty-backend
+edit_uri: edit/documentation/docs/
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - navigation.tabs
+    - navigation.indexes
+    - search.suggest
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.code.annotate
+
+extra_javascript:
+  - javascripts/weeek_static_data.js
+  - javascripts/weeek.js
+
+extra_css:
+  - stylesheets/weeek.css
+
+plugins:
+  - search
+  - i18n:
+      docs_structure: suffix
+      languages:
+        - locale: ru
+          name: Русский
+          default: true
+          build: true
+        - locale: en
+          name: English
+          build: true
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [.]
+          options:
+            show_source: true
+            show_root_heading: true
+            show_category_heading: true
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.tasklist:
+      custom_checkbox: true
+      clickable_checkbox: true
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:mermaid2.fence_mermaid
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.tabbed:
+      alternate_style: true
+  - attr_list
+  - md_in_html
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Onboarding:
+      - Quick Start: onboarding/quick_start.md
+      - Tech Stack & Concepts: onboarding/tech_stack.md
+      - Local Setup: onboarding/local_setup.md
+      - GitHub Workflow: onboarding/github_workflow.md
+      - Testing: onboarding/testing.md
+      - Database Guide: onboarding/database_work.md
+      - Roadmap & Milestones: onboarding/roadmap.md
+  - Overview:
+      - System Overview: overview/index.md
+      - Recipient Management: overview/recipient_management.md
+  - Parsing System:
+      - Architecture: parsing/architecture.md
+      - Guide (How to add parser): parsing/guide.md
+  - Recommendation Engine:
+      - The Psychology of Gifting: recommendation/theory.md
+      - Architecture (Semantic Bridge): recommendation/engine.md
+      - Quiz System (Input): recommendation/quiz_system.md
+      - Discovery Algorithm (Dialogue): recommendation/discovery_algorithm.md
+      - Multi-Track System (v2): recommendation/multi_track.md
+      - Discovery Engine v2 (Deep Dive): recommendation/discovery_v2_deep_dive.md
+      - Overview: recommendation/overview.md
+      - Gift Query Rules: recommendation/query_rules.md
+      - Intelligence API: recommendation/intelligence_api.md
+  - Analytics & Monitoring:
+      - Overview & Philosophy: analytics_monitoring/dashboard.md
+      - Metrics:
+          - Business KPI: analytics_monitoring/kpi_metrics.md
+          - AI Observability: analytics_monitoring/ai_observability.md
+          - Catalog Coverage: analytics_monitoring/catalog_coverage.md
+          - Recommendation Quality: analytics_monitoring/recommendation_quality.md
+      - Advanced Analysis:
+          - Experiments (Concept): analytics_monitoring/experiments.md
+          - Demand Forecasting (Concept): analytics_monitoring/demand_forecasting.md
+          - Technical Health: analytics_monitoring/technical_health.md
+      - Ideas:
+          - Reasoning Chain Bottleneck: analytics_monitoring/ideas/reasoning_bottleneck.md
+          - Semantic Drift Detection: analytics_monitoring/ideas/semantic_drift.md
+          - Persona Mining: analytics_monitoring/ideas/persona_mining.md
+      - Telegram Bot:
+          - User Guide: analytics_monitoring/telegram_bot/user_guide.md
+          - Internals: analytics_monitoring/telegram_bot/internals.md
+          - Development Guide: analytics_monitoring/telegram_bot/dev.md
+  - Engineering & DevOps:
+      - Configuration (logic.yaml): engineering/configuration.md
+      - AI Providers: engineering/providers.md
+      - Infrastructure & Secrets: engineering/infrastructure.md
+      - Deployment & CI/CD: engineering/deployment.md
+  - API Reference:
+      - Overview: api/index.md
+      - Playground: api/playground.md
+      - Auth: api/auth.md
+      - Discovery (Dialogue):
+          - API Reference: api/discovery.md
+          - Integration Guide: api/discovery_guide.md
+      - Public: api/public.md
+      - Models: api/models.md
+      - Services: api/services.md
+      - Repositories: api/repositories.md
+      - Analytics API:
+          - Overview: api/analytics/overview.md
+          - Reports API:
+              - Business Metrics: api/analytics/kpi.md
+              - Catalog Coverage: api/analytics/coverage.md
+              - AI Observability: api/analytics/ai_observability.md
+              - Experiments API: api/analytics/experiments.md
+              - Demand Forecasting API: api/analytics/demand_forecasting.md
+              - Recommendation Analysis: api/analytics/recommendations.md
+              - System Monitoring: api/analytics/monitoring.md
+      - Internal: api/internal.md
+      - Weeek:
+          - Gifty Proxy API: api/weeek.md
+          - External API Notes: api/weeek_external.md

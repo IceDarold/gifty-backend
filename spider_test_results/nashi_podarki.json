@@ -1,0 +1,322 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/dd1/ixid7lo1m99l7cfr9w61gtkwb4g0ohv8.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка кировская \"Зимняя березка\"  9 см. 5 мест арт. 756223  матрешки",
+    "price": "2900",
+    "product_url": "https://nashipodarki.ru/catalog/kirovskaya_matreshka/matreshka_kirovskaya_zimnyaya_berezka_9_sm_5_mest_art_756223/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка кировская \"Зимняя березка\"  9 см. 5 мест арт. 756223  матрешки"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/d7d/c6u11lmff20ko7qddwsfqhbk17ogfr2u.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка Вятская \"Рябинка\" 10 см. арт. 5754222  матрешки",
+    "price": "2900",
+    "product_url": "https://nashipodarki.ru/catalog/vyatskie_matreshki/matreshka_vyatskaya_ryabinka_10_sm_art_5754222/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка Вятская \"Рябинка\" 10 см. арт. 5754222  матрешки"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/0c8/ue1j289ablemxuifo57y7bey651kwiwm.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка автрская Татьяны Пермяковой \"Мишка\" 12 см. врт. 456733  матрешки",
+    "price": "3900",
+    "product_url": "https://nashipodarki.ru/catalog/kirovskaya_matreshka/matreshka_avtrskaya_tatyany_permyakovoy_mishka_12_sm_vrt_456733/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка автрская Татьяны Пермяковой \"Мишка\" 12 см. врт. 456733  матрешки"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/d1d/rd711u7n1uyih66vvtgeo0om95pdh7ee.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка авторская 5 мест  9 см. арт, 6545233",
+    "price": "2900",
+    "product_url": "https://nashipodarki.ru/catalog/avtorskie_matreshki/matreshka_avtorskaya_9_sm_art_6545233/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка авторская 5 мест  9 см. арт, 6545233"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/b66/7jus6nwxzcsfwg1lu86sjigbt03wyu5b.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка гжель 5 мест 18 см арт. 8675635",
+    "price": "1900",
+    "product_url": "https://nashipodarki.ru/catalog/matreshki/matreshka_gzhel_5_mest_18_sm_art_8675635/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка гжель 5 мест 18 см арт. 8675635"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/873/fq3yqhiiueq4rhorhwqneg6yrxkfwcat.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка хохлома 18 см 5 мест арт. 654338",
+    "price": "1900",
+    "product_url": "https://nashipodarki.ru/catalog/matreshki/matreshka_khokhloma_18_sm_5_mest_art_654338/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка хохлома 18 см 5 мест арт. 654338"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/8c4/505n5re61z4f0i94z5zo26ieq2hi2rvc.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка Семеновская Хохлома 7 мест 19 см арт. 8562228",
+    "price": "2500",
+    "product_url": "https://nashipodarki.ru/catalog/semenovskie65/matreshka_semenovskaya_khokhloma_7_mest_19_sm_art_8562228/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка Семеновская Хохлома 7 мест 19 см арт. 8562228"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/ed3/bo7194s3mixow0om513y0543qvgq5y04.jpg",
+    "merchant": "NashiPodarki",
+    "name": "матрешка Матрешка Москва  7 мест 22 см арт. 6874733",
+    "price": "7400",
+    "product_url": "https://nashipodarki.ru/catalog/s_izobrazheniem_moskvy/matreshka_moskva_7_mest_22_sm_art_6874733/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "матрешка Матрешка Москва  7 мест 22 см арт. 6874733"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/8f4/27s89lyg683kwhuklxrf7cyvgc6kjvcz.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка Хохлома 7 мест 19 см арт. 557643522",
+    "price": "3900",
+    "product_url": "https://nashipodarki.ru/catalog/pod_khokhlomu/matreshka_khokhloma_7_mest_19_sm_art_557643522/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка Хохлома 7 мест 19 см арт. 557643522"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/e82/2s64g4ccr2kcpw9d2e452ny1phfvo0oq.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка красная с цветами 18 см. 5 мест арт. 734119",
+    "price": "6500",
+    "product_url": "https://nashipodarki.ru/catalog/tverskie_matreshki/matreshka_krasnaya_s_tsvetami_18_sm_5_mest_art_734119/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка красная с цветами 18 см. 5 мест арт. 734119"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/15f/tl337e5nvf63k3lrx3gmhikae4bfnmi8.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка красная \"Цветы\" 18 см. 5 мест арт. 875126691",
+    "price": "1400",
+    "product_url": "https://nashipodarki.ru/catalog/s_tsvetami/matreshka_krasnaya_tsvety_18_sm_5_mest_art_875126691/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка красная \"Цветы\" 18 см. 5 мест арт. 875126691"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/98f/a8wdhhzioq09jk6qo485pkbpzw7z9mss.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка недорогая 3 мест 10 см. арт. 896279",
+    "price": "440",
+    "product_url": "https://nashipodarki.ru/catalog/podeshevle/matreshka_nedorogaya_3_mest_10_sm_art_896279/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка недорогая 3 мест 10 см. арт. 896279"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/d0c/2ypek1ja8f513sg5v8jf2dektdm3lvf9.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка с цветами 5 мест 16 см. арт. 777666",
+    "price": "840",
+    "product_url": "https://nashipodarki.ru/catalog/s_tsvetami/matreshka_s_tsvetami_5_mest_16_sm_art_777666/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка с цветами 5 мест 16 см. арт. 777666"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/1b1/xmut1f6ikpkg0py30pb3h3wqipnc5oqd.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка 5 мест 8х5 см. арт. 73467",
+    "price": "540",
+    "product_url": "https://nashipodarki.ru/catalog/podeshevle/matreshka_5_mest_8kh5_sm_art_73467/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка 5 мест 8х5 см. арт. 73467"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/resize_cache/iblock/d86/600_600_140cd750bba9870f18aada2478b24840a/mhaq8shdxpanteaoeu538hmn19msd9ul.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка \"Вятская\" 2 места 16см арт. 1218757  матрешки",
+    "price": "0",
+    "product_url": "https://nashipodarki.ru/catalog/vyatskie_matreshki/matreshka_vyatskaya_2_mesta_16sm_art_1218757/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка \"Вятская\" 2 места 16см арт. 1218757  матрешки"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/689/gvqibul4wbxpx4lwmsy5wic4uxzg4b4h.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка сувенирная цветы 18 см 5 мест арт. 8767533",
+    "price": "2500",
+    "product_url": "https://nashipodarki.ru/catalog/suvenirnye_matreshki/matreshka_suvenirnaya_tsvety_18_sm_5_mest_art_8767533/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка сувенирная цветы 18 см 5 мест арт. 8767533"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/dc7/n1o01b1aosfyh40iz48sw834cbem415i.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка сувенирная сказка 12 см 5 мест арт. 8656432",
+    "price": "4500",
+    "product_url": "https://nashipodarki.ru/catalog/suvenirnye_matreshki/matreshka_suvenirnaya_skazka_12_sm_5_mest_art_8656432/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка сувенирная сказка 12 см 5 мест арт. 8656432"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/006/6ing6pefvqus9hcohhv1y65sx4mfhtf8.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка Вятская сувенирная 18 см 5 мест арт. 875338",
+    "price": "2500",
+    "product_url": "https://nashipodarki.ru/catalog/suvenirnye_matreshki/matreshka_vyatskaya_suvenirnaya_18_sm_5_mest_art_875338/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка Вятская сувенирная 18 см 5 мест арт. 875338"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/618/2lehzkysoefdjrhpvx1xbbh2fpg6u88h.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка сувенирная Кировская 15 см 5 мест арт. 6576333",
+    "price": "2500",
+    "product_url": "https://nashipodarki.ru/catalog/suvenirnye_matreshki/matreshka_suvenirnaya_kirovskaya_15_sm_5_mest_art_6576333/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка сувенирная Кировская 15 см 5 мест арт. 6576333"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://nashipodarki.ru/upload/iblock/978/3zp3fr3gpzaldx2uq5y90026aavzg44c.jpg",
+    "merchant": "NashiPodarki",
+    "name": "Матрешка сувенирная Посадская 15 см 5 мест арт. 5567332",
+    "price": "2500",
+    "product_url": "https://nashipodarki.ru/catalog/suvenirnye_matreshki/matreshka_suvenirnaya_posadskaya_15_sm_5_mest_art_5567332/",
+    "raw_data": {
+        "source": "scrapy_v1"
+    },
+    "site_key": "nashi_podarki",
+    "source_id": null,
+    "title": "Матрешка сувенирная Посадская 15 см 5 мест арт. 5567332"
+}
+]

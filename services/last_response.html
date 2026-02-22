@@ -1,0 +1,98 @@
+<!doctype html>
+<html xml:lang="ru-RU" lang="ru-RU" data-beasties-container="">
+  <head>
+    <meta charset="utf-8">
+
+    <script>
+      window.dataLayer =
+        window.dataLayer ||
+        new Proxy(
+          [
+            {
+              platformVersion: 'spa',
+            },
+          ],
+          {
+            set: (obj, prop, value) => {
+              if (prop !== 'length') {
+                const pushEvent = new CustomEvent('MVID_DATALAYER_PUSH', {
+                  detail: value,
+                });
+
+                window.dispatchEvent(pushEvent);
+              }
+
+              return Reflect.set(obj, prop, value);
+            },
+          },
+        );
+      (function () {
+        window.MVID_CONFIG = {
+          basePath: 'https://www.mvideo.ru/bff',
+          bonusRublesWidgetEnabled: 'true',
+          ciCommitSha: '8c2c5c4e956fe2b7ffd69cd746e67835339a301c',
+          deployUrl: 'https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c',
+          directCreditCssUrl: '//dcapi.direct-credit.ru/style.css',
+          directCreditJsHttpRequestUrl: '//dcapi.direct-credit.ru/JsHttpRequest.js',
+          directCreditJsUrl: '//dcapi.direct-credit.ru/dc.js',
+          directCreditPartnerId: '1316853',
+          enablePersonalPrice: 'true',
+          externalBaseUrl: 'https://www.mvideo.ru/',
+          maxCreditPrice: '',
+          maxPodeliPrice: '15000',
+          minCreditPrice: '',
+          mindboxEnable: 'true',
+          mindboxEndpointId: 'mvideo.ru',
+          mindboxSenderId: '906253233496',
+          minPodeliPrice: '300',
+          mockCookies: 'false',
+          mprimeSubscriptionEnabled: 'true',
+          multiofferNoIndexEnabled: '',
+          podeliEnable: 'true',
+          recaptchaSiteKeyV3: '6LejITscAAAAAAcyHjfTYt_dSKfoi3vCqUxYBpcD',
+          sentryRelease: 'release_26_2_1(16701)',
+          yandexStaticApi: 'https://www.mvideo.ru/ya-static-api',
+          yandexMapApiUrl: '',
+          yandexMapApiKey: '479e383e-9e5f-423d-b2e5-4cd27b2f3c0d',
+          logstreamApiUrl: 'https://log-stream.mvideo.ru',
+          staticCdnImgServer: '//img.mvideo.ru',
+        };
+      })();
+    </script>
+    <script data-id="preload">
+(()=>{var s={personalData:"personalData",settings:"settings",productDetails:"product-details",statuses:"product-details/status",competitors:"competitors",prices:"products/prices",creditAndInstallment:"credit/product",promoPage:"custom-page",structure:"structure",banners:"banners",checkUrl:"checkUrl",search:"products/v2/search",plpSettings:"settings/listing-category"},a="types=general&types=common&types=main&types=login&types=promo20&types=pdp&types=plp&types=srp&types=ssrv&types=customerServices&types=typ&types=mcombo&types=promo",e=class{constructor(){this.t=this.i()}get(t){return this.t.get(t)??null}i(){return document.cookie.split("; ").reduce((t,e)=>{var[e,...i]=e.split("=");return t.set(e,i.join("=")),t},new Map)}},i=class{constructor(t,e){this.o=t,this.p=e}h(){return"true"===this.o.get("MVID_DIGINETICA_ENABLED")}m(){return"true"===this.p?.enablePersonalPrice}},r=t=>"/"===t,n=t=>!!~t.indexOf("/products/"),o=t=>!!~t.indexOf("/promo/"),c=t=>{return!(/^\/product-list-page/.test(t)||/^\/products/.test(t)||/^\/cart/.test(t)||/^\/credit/.test(t)||/^\/payment-landing/.test(t)||/^\/appdynv2/.test(t)||/^\/checkout/.test(t)||/^\/brand/.test(t)||/^\/tag/.test(t)||/^\/promo/.test(t)||/^\/confirmation/.test(t)||/^\/action\/search/.test(t)||/^\/404$/.test(t)||!/^\/\S{1,}-\d{1,}$/.test(t)&&!/^\/\S{1,}-\d{1,}/.test(t))},d=(t,e)=>{if(s[t]){var i,a=[];for(i in e)null!=e[i]&&Object.hasOwnProperty.call(e,i)&&a.push(i+"="+encodeURIComponent(e[i]));var r=s[t].includes("?")?"&":"?";return s[t]+(a.length?r+a.sort().join("&"):"")}},p=(t,e)=>s[t]+"?"+e,h=e=>{var{u:e,l:i,media:a,width:r,format:s}=e;if(e){let t=e;i&&s&&r?t=i+`/${e}?width=${r}&fmt=`+s:i&&s?t=i+`/${e}?fmt=`+s:i&&(t=i+"/"+e);r=document.createElement("link");r.rel="preload",r.as="image",r.href=t,a&&(r.media=a,r.g="high"),document.head.appendChild(r)}},m=t=>{t=/(?:\/|\/[^\/]+-)(\d{6,13})(?:[\/?#]|$)/.exec(t.split("?")[0]);return t&&t[1]},u=window||{},t=new class{constructor(t){this.v=t,this.getPath=d,this.getPathString=p,this.data={},this.o=new e,this.D=new i(this.o,u?.MVID_CONFIG)}init(){var t=u.location.pathname;this.checkUrl(t),this.P(t),n(t)&&this.I(t),r(t)&&this.C(),c(t)&&this.k(t),this.U()}P(t){this.preload(d("personalData")),this.preload(p("settings",a)),this.j(t)}I(t){t=m(t);this.preload(d("productDetails",{productId:t})),this.S(t)}C(){this.preload(d("structure")),this.$()}k(t){t=t.split("/f/")[0].match(/\d{1,}$/)[0];this.preload(s.plpSettings+"?seoCategoryId="+t)}U(){this.M("https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/js/sp.js"),this.D.h()&&this.M("//cdn.diginetica.net/5860/client-lite.js"),this.M("https://api.mindbox.ru/scripts/v1/tracker.js")}M(e){if(!window.location.search.includes("blockjs=1")){let t=document.createElement("script");t.type="text/javascript",t.src=e,t.async=!0,setTimeout(()=>"requestIdleCallback"in window?window.requestIdleCallback(()=>document.body.appendChild(t)):document.body.appendChild(t),3600)}}checkUrl(a){var t;this.A(a)&&(t=d("checkUrl",{url:btoa(unescape(encodeURIComponent(window.location.pathname+window.location.search)))}),this.preload(t),this.data[t].then(t=>{var e,i=t?.body;i?.redirectUrl&&200!==i?.statusCode&&(i=i.redirectUrl,n(a)&&(e=i,m(window.location.pathname)===m(e))?this.T(t):this._(i))}))}_(e){try{/^((?!chrome|android).)*safari/i.test(navigator.userAgent)?setTimeout(()=>{window.location.href=e},0):window.location.href=e}catch(t){console.warn("Safe redirect failed, using direct redirect:",t),window.location.href=e}}T(t){var e=t?.body,i=(window.history.replaceState(null,null,e?.redirectUrl),d("checkUrl",{url:btoa(unescape(encodeURIComponent(e?.redirectUrl)))})),t=Promise.resolve({...t,body:{...e,statusCode:200}});this.addToCache(i,t)}A(t){return!r(t)&&(o(t)||c(t)||n(t)||/^\/info\//.test(t)||/^\/brand\//.test(t))}S(t){t=window.location.protocol+`//img.mvideo.ru/Big/${t}bb.jpg`;h({u:t})}j(t){let i=(t=>{switch(!0){case r(t):return"main";case n(t):return"pdp";case c(t):return"plp";case o(t):return"promoPage";case/^\/action\/search/.test(t):return"srp";default:return null}})(t);i&&this.B(e=>{var t=p("settings",a),t=this.getFromCache(t);t&&t.then(t=>{var t=t?.body?.insiderBanners;t?.length&&t.filter(t=>{t=t?.allowedPages;return t&&t.includes(i)}).length&&(t=t[0])?.deskImage&&(t=t.deskImage.replace("jcr:",""),h({u:t,l:e}))})})}$(){this.B(a=>{var t=d("structure"),t=this.getFromCache(t);t&&t.then(t=>{var e,i,t=t?.body?.dataPromoSet;t?.length&&(e=t=>{let e=1;typeof window<"u"&&(e=window?.devicePixelRatio||1);t=Math.floor(t*e);return 2e3<t?null:t},0<(t=t.find(t=>!0===t.isMainPromoSet))?.items?.length)&&(t=t.items[0],i=a.replace(".imaging/webp/dam","dam"),t.imgMobileNewMain&&h({u:t.imgMobileNewMain,l:i,media:"(max-width: 320px)",width:e(542),format:"webp"}),t.imgMobileBigPhone&&h({u:t.imgMobileBigPhone,l:i,media:"(min-width: 321px) and (max-width: 420px)",width:e(880),format:"webp"}),t.imgMobileNewMain&&h({u:t.imgMobileNewMain,l:i,media:"(min-width: 421px) and (max-width: 768px)",width:e(1450),format:"webp"}),t.imgTablet&&h({u:t.imgTablet,l:i,media:"(min-width: 769px) and (max-width: 1280px)",width:e(1770),format:"webp"}),t.imgDesktop)&&h({u:t.imgDesktop,l:i,media:"(min-width: 1281px)",format:"webp"})})})}B(e){var t=p("settings",a),t=this.getFromCache(t);t&&t.then(t=>{t=t?.body?.staticWebPCMSServerUrl;t&&e(t)})}getFromCache(t){return this.data[t]}addToCache(t,e){this.data[t]=e}preload(t,e){t&&this.addToCache(t,this.R(t,e))}R(t,e){var i;if(!this.getFromCache(t))return i={credentials:"include"},u.location.search?.includes("cms_preview")&&Object.assign(i,{headers:{L:!0}}),fetch(this.v+"/"+t,{...i,...e}).then(t=>{if(t.status<200||300<=t.status)throw Error();return t.json()})}}(u.MVID_CONFIG.basePath);t.init(),u.mvidAPI=t})();
+</script>
+    <script data-id="preload-route-chunks"></script>
+    <script id="postbuild-preload" data-deploy-url="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/"></script>
+    <title>
+      М.Видео - интернет-магазин цифровой и бытовой техники и электроники,
+      низкие цены, большой каталог, отзывы.
+    </title>
+    <base href="/">
+
+    <meta name="viewport" content="width=device-width, user-scalable=yes, initial-scale=1, viewport-fit=cover">
+    <link rel="icon" type="image/x-icon" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/favicon.ico">
+    <meta name="theme-color" content="#333333">
+    <meta name="keywords" content="null">
+    <meta name="format-detection" content="telephone=no">
+    <link rel="preload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Regular.woff2" as="font" type="font/woff2" crossorigin="">
+    <link rel="preload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Bold.woff2" as="font" type="font/woff2" crossorigin="">
+
+    <link rel="apple-touch-icon" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/pwa/icon-57.png">
+
+    <link rel="preconnect" href="https://www.mvideo.ru/bff">
+    <link rel="preconnect" href="//www.googletagmanager.com">
+    <link rel="preconnect" href="https://cms.mvideo.ru">
+  <style>body{margin:0;padding:0;background-repeat:no-repeat;box-sizing:border-box}@font-face{font-family:Roboto;src:url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Black.woff2) format("woff2"),url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Black.woff) format("woff");font-weight:900;font-style:normal;font-display:swap}@font-face{font-family:Roboto;src:url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Bold.woff2) format("woff2"),url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Bold.woff) format("woff");font-weight:700;font-style:normal;font-display:swap}@font-face{font-family:Roboto;src:url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Medium.woff2) format("woff2"),url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Medium.woff) format("woff");font-weight:500;font-style:normal;font-display:swap}@font-face{font-family:Roboto;src:url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Regular.woff2) format("woff2"),url(https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/assets/fonts/roboto/Roboto-Regular.woff) format("woff");font-weight:400;font-style:normal;font-display:swap}html{position:relative;top:0;bottom:0;height:100vh;font-size:10px}body{font-size:1.4rem;line-height:2rem;height:100vh;font-family:Roboto,Helvetica,Arial,sans-serif;font-style:normal;font-weight:400;color:#1e1e1e;overflow-x:hidden;background-color:#fff}body{--grid-col-count:24;--grid-col-gap:20px;--grid-padding:50px;--tap-bar-height:calc(45px + env(safe-area-inset-bottom, 0px)) }@media only screen and (min-width:1280px){body{--grid-col-count:24;--grid-col-gap:20px;--grid-padding:50px}}@media only screen and (min-width:768px)and (max-width:1279px){body{--grid-col-count:12;--grid-col-gap:20px;--grid-padding:30px}}@media only screen and (max-width:767px){body{--grid-col-count:2;--grid-col-gap:12px;--grid-padding:16px}}:root{--bp-mobile:767px;--bp-tablet:1279px;--bp-desktop:1600px}:root{--col-count:24;--col-width:calc( ( (100vw - (2 * 50px) - ((var(--col-count) - 1) * var(--gap-width))) / var(--col-count) ) );--gap-width:20px;--max-col-width:calc( var(--col-count) * (var(--col-width) + var(--gap-width)) - var(--gap-width) );--side-offset:calc((100vw - var(--max-col-width)) / 2)}@media only screen and (max-width:767px){:root{--col-count:4;--gap-width:16px}}@media only screen and (min-width:768px)and (max-width:1279px){:root{--col-count:12}}@media only screen and (max-width:1279px){:root{--col-width:calc( ( (100vw - (2 * 20px) - ((var(--col-count) - 1) * var(--gap-width))) / var(--col-count) ) )}}*{box-sizing:border-box}[hidden][hidden]{display:none!important}body{--mvid-content-primary-a:#39393d;--mvid-content-primary-a-hover:#5e5e62;--mvid-content-primary-a-pressed:#000;--mvid-content-primary-a-disabled:#c6c6ca;--mvid-content-primary-b:#fff;--mvid-content-primary-b-hover:#fff;--mvid-content-primary-b-pressed:#fff;--mvid-content-primary-b-disabled:#c6c6ca;--mvid-content-secondary:#86868a;--mvid-content-secondary-hover:#727276;--mvid-content-secondary-pressed:#5e5e62;--mvid-content-secondary-disabled:#c6c6ca;--mvid-content-tertiary:#b0b0b4;--mvid-content-tertiary-hover:#9b9b9f;--mvid-content-tertiary-pressed:#86868a;--mvid-content-tertiary-disabled:#c6c6ca;--mvid-content-accent:#ff0000;--mvid-content-accent-hover:#cc0000;--mvid-content-accent-pressed:#cc0000;--mvid-content-accent-disabled:#c6c6ca;--mvid-content-action:#006eef;--mvid-content-action-hover:#004087;--mvid-content-action-pressed:#004087;--mvid-content-action-disabled:#c6c6ca;--mvid-content-sys-positive:#1b9b40;--mvid-content-sys-negative:#ff0000;--mvid-content-sys-warning:#f59d1b;--mvid-background-primary-a:#fff;--mvid-background-primary-a-hover:#f9f9fd;--mvid-background-primary-a-pressed:#f3f3f7;--mvid-background-primary-a-disabled:#fff;--mvid-background-primary-b:#39393d;--mvid-background-primary-b-hover:#5e5e62;--mvid-background-primary-b-pressed:#000;--mvid-background-primary-b-disabled:#f3f3f7;--mvid-background-secondary:#f3f3f7;--mvid-background-secondary-hover:#e8e8ec;--mvid-background-secondary-pressed:#dddde1;--mvid-background-secondary-disabled:#f3f3f7;--mvid-background-tertiary:#f9f9fd;--mvid-background-tertiary-hover:#f3f3f7;--mvid-background-tertiary-pressed:#e8e8ec;--mvid-background-tertiary-disabled:#f9f9fd;--mvid-background-accent:#ff0000;--mvid-background-accent-hover:#cc0000;--mvid-background-accent-pressed:#cc0000;--mvid-background-accent-disabled:#f3f3f7;--mvid-background-accent-2:#ffe047;--mvid-background-accent-hover-2:#f59d1b;--mvid-background-accent-pressed-2:#ffa41c;--mvid-background-accent-disabled-2:#f3f3f7;--mvid-background-action:#ebf5ff;--mvid-background-action-hover:#d7eaff;--mvid-background-action-pressed:#c3e0ff;--mvid-background-action-disabled:#f3f3f7;--mvid-border-primary:#39393d;--mvid-border-primary-hover:#5e5e62;--mvid-border-primary-pressed:#000;--mvid-border-primary-disabled:#dddde1;--mvid-border-secondary:#e8e8ec;--mvid-border-secondary-hover:#dddde1;--mvid-border-secondary-pressed:#d1d1d5;--mvid-border-secondary-disabled:#d1d1d5;--mvid-border-accent:#ff0000;--mvid-border-accent-hover:#cc0000;--mvid-border-accent-pressed:#cc0000;--mvid-border-accent-disabled:#dddde1;--black:#1e1e1e;--hover-black:#6b6b6b;--click-black:#1e1e1e;--gray:#7e7e83;--hover-gray:#535353;--click-gray:#1e1e1e;--gray-suit:#8e8e93;--light-gray:#babac0;--pearl-gray:#b5b5b9;--hover-light-gray:#878792;--click-light-gray:#64656a;--link:#006eef;--hover-link:#004087;--click-link:#004087;--visited-link:#81b7ff;--dark-link:#409bff;--success:#04a61d;--attention:#ffa41c;--divider:#9b9b9f;--bg-gray:#f3f3f7;--disable:#4a4a4a;--true-black:#000;--pink:#ee7abd;--hover-pink:#d1559d;--click-pink:#992166;--purle:#966feb;--hover-purle:#794ed8;--click-purle:#4f1fb8;--blue:#006eef;--hover-blue:#004087;--click-blue:#004087;--green:#51d0db;--hover-green:#2ab8c5;--click-green:#08818b;--green-availability:#1da444;--white:#fff;--white-transparent:rgba(255, 255, 255, .9);--gray-transparent:rgba(4, 6, 28, .1);--transparent:rgba(255, 255, 255, 0);--skeleton-color-1:#f3f3f7;--skeleton-color-2:#dfdee2}</style><link rel="stylesheet" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/styles.css" media="print" onload="this.media='all'"><noscript><link rel="stylesheet" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/styles.css"></noscript></head>
+  <body ngcm="">
+    <svg hidden="">
+      <use href="/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/sprites/sprite.symbol.svg#mvideo"/>
+    </svg>
+
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-M3DL9V7" height="0" width="0" style="display: none; visibility: hidden"></iframe></noscript>
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-6ZQL" height="0" width="0" style="display: none; visibility: hidden"></iframe></noscript>
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-5ZNT8JD" height="0" width="0" style="display: none; visibility: hidden"></iframe></noscript>
+
+    <mvid-root> </mvid-root>
+  <link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-MHVYOPN4.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-Z66AUV26.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-VTNGAYRK.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-MTRYHSUE.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-VRBORN3P.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-YSH7YXL4.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-ZDGYHD2U.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-CUQ5RY7E.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-QDJ3N4ZZ.js"><link rel="modulepreload" href="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/chunk-X6AVRRLS.js"><script src="https://assets-cdn.mvideo.ru/8c2c5c4e956fe2b7ffd69cd746e67835339a301c/main.js" type="module"></script></body>
+</html>

@@ -1,0 +1,167 @@
+services:
+  api:
+    build: .
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - .:/app
+    ports:
+      - "127.0.0.1:${APP_PORT:-8000}:8000"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      #      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
+      #      REDIS_URL: "redis://redis:6379/0"
+      #      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      LLM_PROXY_URL: "socks5://host.docker.internal:3128"
+      TELEGRAM_BOT_TOKEN: "8504465402:AAG44tbjK0i4SFbDk0YfOnxeWN91uL9bUv8"
+
+  postgres:
+    image: pgvector/pgvector:pg17
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    command: [ "redis-server", "--save", "", "--appendonly", "no" ]
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:5672:5672"
+      - "127.0.0.1:15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    healthcheck:
+      test: [ "CMD", "rabbitmq-diagnostics", "-q", "check_running" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  scraper:
+    build:
+      context: ./services
+    volumes:
+      - ./services:/app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:9410:9410"
+    env_file: .env
+    environment:
+      CORE_API_URL: http://api:8000/api/v1/internal/ingest-batch
+    #      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
+    #      REDIS_URL: "redis://redis:6379/0"
+    #      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+
+  scheduler:
+    build: .
+    restart: unless-stopped
+    command: python scripts/run_parsing_scheduler.py
+    env_file: .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      #      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
+      #      REDIS_URL: "redis://redis:6379/0"
+      #      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      PASS: dummy
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    volumes:
+      - ./deploy/monitoring/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "127.0.0.1:9090:9090"
+
+  loki:
+    image: grafana/loki:3.1.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3100:3100"
+    volumes:
+      - ./deploy/monitoring/loki-config.yml:/etc/loki/local-config.yaml
+    command: -config.file=/etc/loki/local-config.yaml
+
+  promtail:
+    image: grafana/promtail:3.1.1
+    restart: unless-stopped
+    volumes:
+      - /var/log:/var/log
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml
+    command: -config.file=/etc/promtail/config.yml
+
+  telegram-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m services.telegram_bot.app.main
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    environment:
+      API_BASE: "http://api:8000"
+    #      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
+    #      REDIS_URL: "redis://redis:6379/0"
+    #      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+    depends_on:
+      - postgres
+      - redis
+      - rabbitmq
+    restart: always
+volumes:
+  pgdata:
+  redisdata:
+  rabbitmqdata:
+  prometheus_data:

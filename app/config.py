@@ -1,0 +1,130 @@
+from functools import lru_cache
+from typing import Optional
+
+from pydantic import AnyHttpUrl, Field
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    api_base: Optional[str] = Field("http://localhost:8000", alias="API_BASE")
+    frontend_base: Optional[str] = Field("http://localhost:5173", alias="FRONTEND_BASE")
+    cors_origin_regex: Optional[str] = Field(None, alias="CORS_ORIGIN_REGEX")
+    database_url: str = Field("postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@localhost:5432/giftyai", alias="DATABASE_URL")
+    redis_url: str = Field("redis://localhost:6379/0", alias="REDIS_URL")
+    rabbitmq_url: str = Field("amqp://guest:guest@localhost:5672/", alias="RABBITMQ_URL")
+    
+    @property
+    def db_url(self) -> str:
+        """Get database URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            # Running inside Docker, replace localhost with service name
+            return self.database_url.replace("localhost", "postgres")
+        return self.database_url
+
+    # LLM Provider Configuration
+    llm_provider: str = Field("anthropic", alias="LLM_PROVIDER")
+    # Optional proxy for LLM API calls (e.g. socks5://127.0.0.1:3128 or http://user:pass@host:port)
+    llm_proxy_url: Optional[str] = Field(None, alias="LLM_PROXY_URL")
+
+
+    
+    @property
+    def redis_connection_url(self) -> str:
+        """Get Redis URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            return self.redis_url.replace("localhost", "redis")
+        return self.redis_url
+    
+    @property
+    def rabbitmq_connection_url(self) -> str:
+        """Get RabbitMQ URL with proper host for Docker environment."""
+        import os
+        if os.path.exists("/.dockerenv"):
+            return self.rabbitmq_url.replace("localhost", "rabbitmq")
+        return self.rabbitmq_url
+
+    session_cookie_name: str = Field("gifty_session", alias="SESSION_COOKIE_NAME")
+    session_ttl_seconds: int = Field(60 * 60 * 24 * 30, alias="SESSION_TTL_SECONDS")
+    state_ttl_seconds: int = Field(600, alias="STATE_TTL_SECONDS")
+    session_cookie_domain: Optional[str] = Field(None, alias="SESSION_COOKIE_DOMAIN")
+    session_cookie_secure: bool = Field(True, alias="SESSION_COOKIE_SECURE")
+    session_cookie_samesite: str = Field("lax", alias="SESSION_COOKIE_SAMESITE")
+
+    google_client_id: Optional[str] = Field(None, alias="GOOGLE_CLIENT_ID")
+    google_client_secret: Optional[str] = Field(None, alias="GOOGLE_CLIENT_SECRET")
+    google_authorize_url: str = Field(
+        "https://accounts.google.com/o/oauth2/v2/auth", alias="GOOGLE_AUTHORIZE_URL"
+    )
+    google_token_url: str = Field("https://oauth2.googleapis.com/token", alias="GOOGLE_TOKEN_URL")
+    google_userinfo_url: str = Field(
+        "https://openidconnect.googleapis.com/v1/userinfo", alias="GOOGLE_USERINFO_URL"
+    )
+
+    yandex_client_id: Optional[str] = Field(None, alias="YANDEX_CLIENT_ID")
+    yandex_client_secret: Optional[str] = Field(None, alias="YANDEX_CLIENT_SECRET")
+    yandex_authorize_url: str = Field("https://oauth.yandex.com/authorize", alias="YANDEX_AUTHORIZE_URL")
+    yandex_token_url: str = Field("https://oauth.yandex.com/token", alias="YANDEX_TOKEN_URL")
+    yandex_userinfo_url: str = Field("https://login.yandex.ru/info", alias="YANDEX_USERINFO_URL")
+
+    vk_client_id: Optional[str] = Field(None, alias="VK_CLIENT_ID")
+    vk_client_secret: Optional[str] = Field(None, alias="VK_CLIENT_SECRET")
+    vk_authorize_url: str = Field("https://oauth.vk.com/authorize", alias="VK_AUTHORIZE_URL")
+    vk_token_url: str = Field("https://oauth.vk.com/access_token", alias="VK_TOKEN_URL")
+    vk_userinfo_url: str = Field("https://api.vk.com/method/users.get", alias="VK_USERINFO_URL")
+    vk_api_version: str = Field("5.199", alias="VK_API_VERSION")
+
+    # TakProdam Affiliate Network
+    takprodam_api_base: Optional[str] = Field(None, alias="TAKPRODAM_API_BASE")
+    takprodam_api_token: Optional[str] = Field(None, alias="TAKPRODAM_API_TOKEN")
+    takprodam_source_id: Optional[int] = Field(None, alias="TAKPRODAM_SOURCE_ID")
+
+    # Intelligence API
+    internal_api_token: str = Field("default_internal_token", alias="INTERNAL_API_TOKEN")
+    intelligence_api_base: str = Field("https://api.giftyai.ru", alias="INTELLIGENCE_API_BASE")
+    intelligence_api_token: Optional[str] = Field(None, alias="INTELLIGENCE_API_TOKEN")
+    
+    # Weeek Task Management
+    weeek_api_token: Optional[str] = Field(None, alias="WEEEK_API_TOKEN")
+    weeek_workspace_id: int = Field(911018, alias="WEEEK_WORKSPACE_ID")
+    weeek_api_base: str = Field("https://api.weeek.net/public/v1", alias="WEEEK_API_BASE")
+
+    debug: bool = Field(False, alias="DEBUG")
+    env: str = Field("prod", alias="ENV")
+    cors_origins: str = Field("*", alias="CORS_ORIGINS")
+    secret_key: str = Field("change-me-in-production", alias="SECRET_KEY")
+    analytics_api_token: str = Field("dev-analytics-token", alias="ANALYTICS_API_TOKEN")
+    
+    # Telegram Bot
+    telegram_bot_token: Optional[str] = Field(None, alias="TELEGRAM_BOT_TOKEN")
+    telegram_admin_secret: str = Field("admin123", alias="TELEGRAM_ADMIN_SECRET")
+    telegram_superadmin_secret: str = Field("superadmin123", alias="TELEGRAM_SUPERADMIN_SECRET")
+    telegram_webapp_url: Optional[str] = Field(None, alias="TELEGRAM_WEBAPP_URL")
+
+    # PostHog Analytics
+    posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
+    posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
+    prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
+    loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
+
+    # AI/ML API Keys (Secrets)
+    anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
+    gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
+    groq_api_key: Optional[str] = Field(None, alias="GROQ_API_KEY")
+    openrouter_api_key: Optional[str] = Field(None, alias="OPENROUTER_API_KEY")
+    together_api_key: Optional[str] = Field(None, alias="TOGETHER_API_KEY")
+    runpod_api_key: Optional[str] = Field(None, alias="RUNPOD_API_KEY")
+    runpod_endpoint_id: Optional[str] = Field(None, alias="RUNPOD_ENDPOINT_ID")
+
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        case_sensitive=False,
+        populate_by_name=True,
+        extra="ignore",
+    )
+
+
+@lru_cache()
+def get_settings() -> Settings:
+    return Settings()

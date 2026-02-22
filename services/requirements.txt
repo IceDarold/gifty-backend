@@ -1,0 +1,12 @@
+scrapy
+pika
+aio_pika
+redis
+psutil
+httpx
+pydantic
+pydantic-settings
+beautifulsoup4
+python-dotenv
+prometheus_client
+scrapy-playwright

@@ -1,0 +1,10 @@
+version: "3"
+agent:
+  authtoken: 39w8XrrQ9bGSlAz1mHmPFT4CANA_2917F4qRpqMcpC83PdUou
+tunnels:
+  dashboard:
+    proto: http
+    addr: 5173
+  api:
+    proto: http
+    addr: 8000

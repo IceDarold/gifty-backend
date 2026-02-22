@@ -1,0 +1,338 @@
+[
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/-zc6YfS2dlvbaTzt6mFNF0JyMDn-RkQh-zGArx3UiW4/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDE0L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MTQtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Игрушка-спиннер MazePhase (белый)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/igrushka-spinner-mazephase-belyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Игрушка-спиннер MazePhase (белый)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/csABOtizsTBe_BCXz5lgs1ZVwkppmfBO9jucW01Rcho/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzEwMDAwLzEwNzAwLzEwNzk1L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTA3OTUtOS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Квест-набор для влюбленных LOVEHACK",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/kvest-nabor-dlja-vljublennyh-lovehack/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Квест-набор для влюбленных LOVEHACK"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/_-zr23biSkz-xnPK6AniUUv6qUS7olOfM06YqsePkjY/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE1MDAwLzE1OTAwLzE1OTQ3L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTU5NDctMTQuanBn.jpg",
+    "merchant": "MrGeek",
+    "name": "Набор для выживания Надежная защита",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/nabor-dlja-vyjivanija-nadejnaja-zaschita/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Набор для выживания Надежная защита"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/LRwDkUk-Kwu2yQ_UINynAcNu9n2C_maZXJkHBdTFCaY/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDIzL3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MjMtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Бутылка для воды Hantelis (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/butylka-dlja-vody-hantelis-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Бутылка для воды Hantelis (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/3a9_g4Gb6zY1jsZBEtajjvOGLe8KZQ9KLLHsSHZhwtk/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDc5L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0NzktMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Шкатулка для украшений Sweetie, Rectangle Cake",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/shkatulka-dlja-ukrashenij-sweetie-rectangle-cake/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Шкатулка для украшений Sweetie, Rectangle Cake"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/WLON8Uw1vLhoi2-40_DZ_wjhtYG-fzk4hBY5kph0cak/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDQ5L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0NDktMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Подарочный набор Stone Line (белый)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/podarochnyj-nabor-stone-line-belyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Подарочный набор Stone Line (белый)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/nlOLGxFlTvHsAUBja7Jq9Suf02CWIZMetM-_dU-bZTw/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDQ1L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0NDUtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Рюкзак cosmoPolis (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/rjukzak-cosmopolis-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Рюкзак cosmoPolis (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/NrOCxRKdQEZLEmcpyPqcRzfpJI63en-AU7ydQGxLHS4/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDM5L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MzktMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Подарочный набор Intercity (серый)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/podarochnyj-nabor-intercity-seryj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Подарочный набор Intercity (серый)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/1g6zjIzOKYlgTf3ZENeNUXfdiYg7G1xlnEmlAT94hg4/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDM0L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MzQtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Термостакан X1 (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/termostakan-x1-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Термостакан X1 (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/N8Mp4oWCju5eHwCVhzZqn7RkGiyT3WCzk6XA6ktI-tc/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDI5L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MjktMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Кружка Twinnix (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/krujka-twinnix-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Кружка Twinnix (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/039-q7Bl1E9GR24zpXfJUTW0-rcH0tBMPHORHq4lNTs/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE0MDAwLzE0OTAwLzE0OTczL3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTQ5NzMtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Набор бокалов Spiny",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/nabor-bokalov-spiny/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Набор бокалов Spiny"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/EgR4O7RAEhqWO6KIgFufakSaE6EvFbLd9BJdG7Vca0o/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE0MDAwLzE0MzAwLzE0Mzg4L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTQzODgtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Модель сборная Маяк мыса Анива (о. Сахалин)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/model-sbornaja-majak-mysa-aniva-o-sahalin/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Модель сборная Маяк мыса Анива (о. Сахалин)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/2DIZ_ZLROJs99ZssadEQa6pRU5JCYy1QFk5Xb5kdw34/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE0MDAwLzE0NDAwLzE0NDE4L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTQ0MTgtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Книга Кофеман",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/kniga-kofeman/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Книга Кофеман"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/-dAjWKxnlBPPjLumH5delCLBREGA3lEiy8CnJy1EA5k/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzEzMDAwLzEzNDAwLzEzNDg5L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTM0ODktMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Таймер Timekeeper",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/tajmer-timekeeper/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Таймер Timekeeper"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/_6Vduu5IGFFRfNhIaJp555HX2ZmBQiDC0azi1qmV7Zc/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE1MDAwLzE1MTAwLzE1MTQ3L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTUxNDctMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Ланчбокс Hard Work",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/lanchboks-hard-work/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Ланчбокс Hard Work"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/bZKVjFzna9wTEi8PdW4MO3comzWlvzp0Y0bUPldmZew/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE0MDAwLzE0MzAwLzE0MzgzL3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTQzODMtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Деревянный конструктор Марбл Дракон (оригинал!)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/derevjannyj-konstruktor-marbl-drakon/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Деревянный конструктор Марбл Дракон (оригинал!)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/_mDNzvnP_bK_AGDcU0uPdhHRLI8dB7eS9hM7EpbnqSI/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE1MDAwLzE1MTAwLzE1MTU4L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTUxNTgtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Дождевик Плащ, плащ (Красный) (L)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/dojdevik-plasch-plasch-krasnyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Дождевик Плащ, плащ (Красный) (L)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/5aW-AVxaP06TldNt7CDN9A7AoCCthc1nnvwv4BpOM_k/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDI0L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MjQtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Кружка Norgard (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/krujka-norgard-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Кружка Norgard (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/p83j6i_ZQmpoOwKLFpRdlcvhi6wIu_uizWgRwZ5F9Ew/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDMxL3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MzEtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Термобутылка Magnus с магнитным держателем для телефона (черный)",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/termobutylka-magnus-s-magnitnym-derjatelem-dlja-telefona-chernyj/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Термобутылка Magnus с магнитным держателем для телефона (черный)"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/SYXy-B8mydLC86TC2WMG4OCDpcnsFUgeduyuGPquf3o/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDIyL3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MjItMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Набор Большое чайное путешествие №2",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/nabor-bolshoe-chajnoe-puteshestvie-2_l1/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Набор Большое чайное путешествие №2"
+},
+{
+    "category": null,
+    "currency": null,
+    "description": null,
+    "image_url": "https://storage.mrgeek.ru/vt7aKYkONiT8_sTJwiHey1JCVd5eA7dmiBfgsqW3z7E/fit/1080/1080/no/1/aHR0cHM6Ly9tcmdlZWsucnUvaW1hZ2VzL3Byb2R1Y3RfcGljdHVyZXNfbmV3LzE3MDAwLzE3NDAwLzE3NDE1L3Byb2R1Y3RfcGljdHVyZXMvb3JpZ2luYWwvMTc0MTUtMS5qcGc.jpg",
+    "merchant": "MrGeek",
+    "name": "Набор туристической посуды Stackado",
+    "price": null,
+    "product_url": "https://mrgeek.ru/product/nabor-turisticheskoj-posudy-stackado/",
+    "raw_data": {
+        "source": "scrapy_mrgeek_product_page"
+    },
+    "site_key": "mrgeek",
+    "source_id": null,
+    "title": "Набор туристической посуды Stackado"
+}
+]

@@ -1,0 +1,758 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.4.2, pluggy-1.6.0
+Fugue tests will be initialized with options:
+rootdir: /Users/artyomkonukhov/Projects/gifty-backend
+configfile: pytest.ini
+testpaths: tests
+plugins: fugue-0.9.3, mock-3.15.1, asyncio-1.2.0, anyio-4.10.0, hydra-core-1.3.2, cov-7.0.0
+asyncio: mode=strict, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+DEBUG_DB: Driver=postgresql+asyncpg, Host=localhost, DB=giftyai
+DEBUG_DB: User=giftyai_user, Params=immutabledict({})
+collected 82 items
+
+tests/db/test_recipient_persistence.py .......                           [  8%]
+tests/db_postgres/test_catalog_repository.py .....                       [ 14%]
+tests/integrations/takprodam/test_normalizer.py ....                     [ 19%]
+tests/llm/test_dialogue_flow_llm.py EEEEEEEE                             [ 29%]
+tests/llm/test_products_llm.py ssss                                      [ 34%]
+tests/llm/test_providers_smoke.py F.                                     [ 36%]
+tests/recommendations/test_api_validation.py ..                          [ 39%]
+tests/recommendations/test_candidate_collector.py .....                  [ 45%]
+tests/recommendations/test_dialogue_actions.py ...                       [ 48%]
+tests/recommendations/test_dialogue_logic.py ...                         [ 52%]
+tests/recommendations/test_dialogue_manager.py ....                      [ 57%]
+tests/recommendations/test_discovery_e2e.py .                            [ 58%]
+tests/recommendations/test_query_generator.py ........                   [ 68%]
+tests/recommendations/test_ranker_v1.py ...                              [ 71%]
+tests/recommendations/test_recommendation_service.py ...                 [ 75%]
+tests/recommendations/test_stability.py ....                             [ 80%]
+tests/routes/test_public_investor_contact.py .....                       [ 86%]
+tests/routes/test_public_partner_contact.py .....                        [ 92%]
+tests/test_parsing_internal_e2e.py .                                     [ 93%]
+tests/test_parsing_scheduler_e2e.py ..                                   [ 96%]
+tests/test_pkce.py .                                                     [ 97%]
+tests/test_security_cookies.py .                                         [ 98%]
+tests/test_state_store.py .                                              [100%]
+
+==================================== ERRORS ====================================
+____ ERROR at setup of test_llm_init_session_tracks[Lego + Coffee + Travel] ____
+
+self = <Coroutine test_llm_init_session_tracks[Lego + Coffee + Travel]>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:733: in pytest_fixture_setup
+    return (yield)
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+______ ERROR at setup of test_llm_init_session_tracks[Wide Topic: Music] _______
+
+self = <Coroutine test_llm_init_session_tracks[Wide Topic: Music]>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+___ ERROR at setup of test_llm_init_session_tracks[Narrow Topic: Vinyl 70s] ____
+
+self = <Coroutine test_llm_init_session_tracks[Narrow Topic: Vinyl 70s]>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+_________ ERROR at setup of test_llm_init_session_tracks[Complex Mix] __________
+
+self = <Coroutine test_llm_init_session_tracks[Complex Mix]>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+________________ ERROR at setup of test_llm_classify_topic_wide ________________
+
+self = <Coroutine test_llm_classify_topic_wide>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+________________ ERROR at setup of test_llm_personalized_probe _________________
+
+self = <Coroutine test_llm_personalized_probe>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+____________________ ERROR at setup of test_llm_topic_hints ____________________
+
+self = <Coroutine test_llm_topic_hints>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+_______________ ERROR at setup of test_llm_interaction_persists ________________
+
+self = <Coroutine test_llm_interaction_persists>
+
+    def setup(self) -> None:
+        runner_fixture_id = f"_{self._loop_scope}_scoped_runner"
+        if runner_fixture_id not in self.fixturenames:
+            self.fixturenames.append(runner_fixture_id)
+>       return super().setup()
+
+../../Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:463: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+tests/llm/conftest.py:181: in llm_enabled
+    provider = settings.llm_provider.lower()
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = Settings(api_base='http://localhost:8000', frontend_base='http://localhost:5173', cors_origin_regex=None, database_url...15966b1cf6eb3ccdeafc7a5155d92', together_api_key='your_together_api_key', runpod_api_key=None, runpod_endpoint_id=None)
+item = 'llm_provider'
+
+    def __getattr__(self, item: str) -> Any:
+        private_attributes = object.__getattribute__(self, '__private_attributes__')
+        if item in private_attributes:
+            attribute = private_attributes[item]
+            if hasattr(attribute, '__get__'):
+                return attribute.__get__(self, type(self))  # type: ignore
+    
+            try:
+                # Note: self.__pydantic_private__ cannot be None if self.__private_attributes__ has items
+                return self.__pydantic_private__[item]  # type: ignore
+            except KeyError as exc:
+                raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+        else:
+            # `__pydantic_extra__` can fail to be set if the model is not yet fully initialized.
+            # See `BaseModel.__repr_args__` for more details
+            try:
+                pydantic_extra = object.__getattribute__(self, '__pydantic_extra__')
+            except AttributeError:
+                pydantic_extra = None
+    
+            if pydantic_extra:
+                try:
+                    return pydantic_extra[item]
+                except KeyError as exc:
+                    raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}') from exc
+            else:
+                if hasattr(self.__class__, item):
+                    return super().__getattribute__(item)  # Raises AttributeError if appropriate
+                else:
+                    # this is the current error
+>                   raise AttributeError(f'{type(self).__name__!r} object has no attribute {item!r}')
+E                   AttributeError: 'Settings' object has no attribute 'llm_provider'
+
+../../Library/Python/3.9/lib/python/site-packages/pydantic/main.py:991: AttributeError
+=================================== FAILURES ===================================
+___________________________ test_llm_provider_smoke ____________________________
+
+    @pytest.mark.ai_test
+    @pytest.mark.asyncio
+    async def test_llm_provider_smoke():
+        """
+        Smoke test for the currently configured LLM provider.
+        Checks if we can get a simple reply.
+        """
+        provider = logic_config.llm.default_provider
+        logger.info(f"Testing LLM provider: {provider}")
+    
+        try:
+            client = LLMFactory.get_client()
+            messages = [Message(role="user", content="Say 'Integration OK' in one word.")]
+    
+>           response = await client.generate_text(
+                messages=messages,
+                model=logic_config.llm.model_fast,
+                max_tokens=10
+            )
+
+tests/llm/test_providers_smoke.py:24: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+app/services/llm/anthropic_client.py:48: in generate_text
+    response = await self.client.messages.create(**kwargs)
+../../Library/Python/3.9/lib/python/site-packages/anthropic/resources/messages/messages.py:2113: in create
+    return await self._post(
+../../Library/Python/3.9/lib/python/site-packages/anthropic/_base_client.py:1898: in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+../../Library/Python/3.9/lib/python/site-packages/anthropic/_base_client.py:1619: in request
+    request = self._build_request(options, retries_taken=retries_taken)
+../../Library/Python/3.9/lib/python/site-packages/anthropic/_base_client.py:506: in _build_request
+    headers = self._build_headers(options, retries_taken=retries_taken)
+../../Library/Python/3.9/lib/python/site-packages/anthropic/_base_client.py:447: in _build_headers
+    self._validate_headers(headers_dict, custom_headers)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ 
+
+self = <anthropic.AsyncAnthropic object at 0x14d4154f0>
+headers = {'Accept': 'application/json', 'Content-Type': 'application/json', 'User-Agent': 'AsyncAnthropic/Python 0.68.0', 'X-Stainless-Arch': 'arm64', ...}
+custom_headers = {}
+
+    @override
+    def _validate_headers(self, headers: Headers, custom_headers: Headers) -> None:
+        if self.api_key and headers.get("X-Api-Key"):
+            return
+        if isinstance(custom_headers.get("X-Api-Key"), Omit):
+            return
+    
+        if self.auth_token and headers.get("Authorization"):
+            return
+        if isinstance(custom_headers.get("Authorization"), Omit):
+            return
+    
+>       raise TypeError(
+            '"Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"'
+        )
+E       TypeError: "Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+
+../../Library/Python/3.9/lib/python/site-packages/anthropic/_client.py:436: TypeError
+
+During handling of the above exception, another exception occurred:
+
+    @pytest.mark.ai_test
+    @pytest.mark.asyncio
+    async def test_llm_provider_smoke():
+        """
+        Smoke test for the currently configured LLM provider.
+        Checks if we can get a simple reply.
+        """
+        provider = logic_config.llm.default_provider
+        logger.info(f"Testing LLM provider: {provider}")
+    
+        try:
+            client = LLMFactory.get_client()
+            messages = [Message(role="user", content="Say 'Integration OK' in one word.")]
+    
+            response = await client.generate_text(
+                messages=messages,
+                model=logic_config.llm.model_fast,
+                max_tokens=10
+            )
+    
+            assert response.content is not None
+            assert len(response.content) > 0
+            logger.info(f"LLM Response: {response.content.strip()}")
+    
+        except Exception as e:
+>           pytest.fail(f"LLM Provider {provider} failed: {e}")
+E           Failed: LLM Provider anthropic failed: "Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+
+tests/llm/test_providers_smoke.py:35: Failed
+------------------------------ Captured log call -------------------------------
+ERROR    app.services.llm.anthropic_client:anthropic_client.py:63 Anthropic API call failed: "Could not resolve authentication method. Expected either api_key or auth_token to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
+=============================== warnings summary ===============================
+../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323
+../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323
+../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323
+../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323
+../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323
+  /Users/artyomkonukhov/Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+tests/recommendations/test_dialogue_manager.py::test_load_more_hypotheses_deduplication
+tests/recommendations/test_dialogue_manager.py::test_suggest_topics_action
+  /Users/artyomkonukhov/Projects/gifty-backend/app/services/recipient_service.py:94: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(db_interaction)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/recommendations/test_dialogue_manager.py::test_load_more_hypotheses_deduplication
+  /Users/artyomkonukhov/Projects/gifty-backend/app/services/recipient_service.py:136: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self.db.add(db_h)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/recommendations/test_discovery_e2e.py::test_full_discovery_flow_e2e
+tests/test_parsing_internal_e2e.py::test_parsing_internal_flow
+  /Users/artyomkonukhov/Projects/gifty-backend/app/main.py:39: DeprecationWarning: Call to deprecated close. (Use aclose() instead) -- Deprecated since version 5.0.1.
+    await app.state.redis.close()
+
+tests/recommendations/test_stability.py::test_proactive_ai_notification_in_dm
+  /Users/artyomkonukhov/Projects/gifty-backend/app/services/dialogue_manager.py:229: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    return TopicTrack(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_state_store.py::test_state_round_trip
+  /Users/artyomkonukhov/Projects/gifty-backend/tests/test_state_store.py:22: DeprecationWarning: Call to deprecated close. (Use aclose() instead) -- Deprecated since version 5.0.1.
+    await redis.close()
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================================ tests coverage ================================
+_______________ coverage: platform darwin, python 3.9.6-final-0 ________________
+
+Name                                                   Stmts   Miss  Cover   Missing
+------------------------------------------------------------------------------------
+app/__init__.py                                            1      0   100%
+app/auth/__init__.py                                       0      0   100%
+app/auth/dependencies.py                                   6      3    50%   11-13
+app/auth/deps.py                                          30     15    50%   24-41
+app/auth/pkce.py                                           9      0   100%
+app/auth/providers.py                                     96     60    38%   44, 48-82, 86-97, 103-131, 141-189
+app/auth/routes.py                                       111     77    31%   38-53, 57-58, 71-86, 95-133, 148-180, 188, 196-201
+app/auth/session_store.py                                 16      9    44%   10-11, 15-19, 23-24
+app/auth/state_store.py                                   22      1    95%   30
+app/config.py                                             84      6    93%   22, 30, 36-39
+app/core/logic_config.py                                  46      4    91%   48-52
+app/db.py                                                 56     25    55%   36, 43-58, 77-78, 87-92, 98, 103-110
+app/jobs/__init__.py                                       0      0   100%
+app/jobs/ai_classifier.py                                 29     29     0%   1-64
+app/jobs/catalog_sync.py                                  46     46     0%   1-91
+app/jobs/embeddings.py                                    36     36     0%   1-79
+app/jobs/parsing_scheduler.py                             39     19    51%   18-19, 40, 48-72
+app/jobs/weeek_reminders.py                               91     91     0%   2-146
+app/main.py                                               49      2    96%   72, 117
+app/models.py                                            198      0   100%
+app/prompts/__init__.py                                   14      5    64%   11-16
+app/redis_client.py                                       10      2    80%   16-17
+app/repositories/__init__.py                               0      0   100%
+app/repositories/catalog.py                              127     25    80%   24, 28, 32, 36, 59, 98, 157, 180-182, 210, 213, 219, 225-241, 269
+app/repositories/parsing.py                              276    179    35%   60, 71-76, 88, 98, 105-119, 124, 129, 133-145, 157-186, 193-215, 218-224, 227-229, 232-241, 244-255, 258-269, 284-292, 295-299, 303-314, 334-351, 355-363, 370-386, 392-416, 419-428, 431-445, 449-461, 466, 477, 481-488, 492-504
+app/repositories/telegram.py                              92     72    22%   9, 12-14, 17-19, 22-24, 26-35, 45-56, 65-81, 83-92, 95-104, 109-120, 123-128, 131-133, 136-141, 144-149
+app/routes/integrations.py                                18     10    44%   17-18, 25-32
+app/routes/workers.py                                     42     26    38%   34-62, 80-103
+app/schemas/__init__.py                                    1      0   100%
+app/schemas/compute.py                                    30      0   100%
+app/schemas/parsing.py                                    66      0   100%
+app/schemas/public.py                                     31      0   100%
+app/schemas/user.py                                        9      0   100%
+app/schemas_v2.py                                         59      0   100%
+app/services/__init__.py                                   0      0   100%
+app/services/ai_reasoning_service.py                      84     58    31%   30-43, 47-60, 72-87, 91-105, 116-132, 136-149, 153-161, 170-184, 188-200, 204-214
+app/services/dialogue_manager.py                         243     86    65%   64-70, 103-120, 146-147, 165-179, 249-251, 276-311, 317-318, 363-366, 442, 477-524
+app/services/embeddings.py                                28     15    46%   15, 23-34, 40-43, 46-48
+app/services/i18n.py                                      17      1    94%   33
+app/services/ingestion.py                                 76     27    64%   35-37, 47, 53-55, 71, 111, 115-154
+app/services/intelligence.py                              96     55    43%   48-55, 65-71, 74-80, 87-100, 104-116, 124-136, 157-168, 172-186, 190-199
+app/services/llm/anthropic_client.py                      22      5    77%   39, 42, 50-56
+app/services/llm/factory.py                               21      2    90%   39-40
+app/services/llm/gemini_client.py                         45     31    31%   22-25, 38-102
+app/services/llm/groq_client.py                           49     36    27%   21-24, 37-97
+app/services/llm/interface.py                             14      1    93%   33
+app/services/llm/openrouter_client.py                     50     37    26%   21-24, 37-101
+app/services/llm/together_client.py                       55     42    24%   21-24, 37-103
+app/services/notifications.py                             38     13    66%   28-34, 48-62
+app/services/recipient_service.py                         68      1    99%   66
+app/services/recommendation.py                           139     26    81%   32-61, 71-80, 84-97, 101, 105, 109, 139, 170, 239, 244, 258, 270, 278
+app/services/session_storage.py                           59     44    25%   12-25, 28-30, 34-45, 49-58, 62-66, 72-74
+app/services/weeek.py                                    455    412     9%   10-13, 28-118, 122-140, 144-157, 161-174, 178-191, 195-208, 212-225, 229-242, 246-259, 263-276, 280-293, 297-313, 317-329, 333-346, 350-362, 366-379, 383-396, 400-413, 417-430, 434-447, 451-465, 469-482, 486-500, 504-520, 524-537, 541-554, 558-570, 574-587, 591-603, 607-620, 624-637, 641-653, 657-670, 674-686, 690-702, 706-745
+app/utils/__init__.py                                      0      0   100%
+app/utils/catalog.py                                       9      9     0%   1-22
+app/utils/errors.py                                       78     32    59%   28-32, 38, 44-56, 67-69, 73-78, 82-86, 138-139
+app/utils/rabbitmq.py                                     19     13    32%   9-29
+app/utils/security.py                                     20      2    90%   15, 19
+app/utils/telegram_auth.py                                15     11    27%   10-30
+integrations/__init__.py                                   0      0   100%
+integrations/takprodam/__init__.py                         5      0   100%
+integrations/takprodam/client.py                          57     36    37%   32-33, 36, 42-65, 74-106
+integrations/takprodam/models.py                          14      0   100%
+integrations/takprodam/normalizer.py                      74     27    64%   17, 23-25, 28-40, 50-56, 63, 89, 98
+integrations/takprodam/search.py                          14      3    79%   20-22
+integrations/takprodam/sync_client.py                     30     30     0%   1-68
+models/__init__.py                                         4      4     0%   1-5
+models/event.py                                           19     19     0%   1-33
+models/quiz_run.py                                        16     16     0%   1-29
+models/recommendation_run.py                              18     18     0%   1-31
+recommendations/__init__.py                                0      0   100%
+recommendations/age_segment.py                            15      3    80%   9, 13, 20
+recommendations/cache.py                                  59     20    66%   13-20, 38-39, 49, 54, 57-64
+recommendations/candidate_collector.py                    84      8    90%   18, 26-27, 31, 47, 52, 74, 88
+recommendations/mappers.py                                 5      5     0%   1-9
+recommendations/models.py                                145      0   100%
+recommendations/query_generator.py                       132      9    93%   14, 56, 84, 90, 105-109
+recommendations/query_rules_loader.py                     17      6    65%   12-15, 18, 22
+recommendations/ranker_v1.py                             176     25    86%   69, 87-88, 90-91, 93, 110, 112-114, 129-131, 134, 159, 162, 176-181, 206-209, 267, 273
+repositories/__init__.py                                   0      0   100%
+repositories/recommendations.py                           21     21     0%   1-68
+routes/__init__.py                                         0      0   100%
+routes/analytics.py                                      187    160    14%   18-20, 48-76, 98-193, 212-268, 285-321, 335-400, 424-476
+routes/internal.py                                       344    216    37%   22, 31-33, 52-56, 75-76, 87, 111-127, 139-140, 152-172, 183-216, 225-235, 244-246, 255-257, 265-354, 365-371, 381-396, 404-405, 413-415, 422-424, 445-447, 459-461, 482-483, 491-495, 503-508, 515-517, 525-543, 552-562, 570-574, 583-587, 596-598, 607-609, 617-619, 628-630, 636-680
+routes/public.py                                          65      8    88%   30-36, 159-164
+routes/recipients.py                                      68     19    72%   66-68, 77-83, 93-103, 113-121
+routes/recommendations.py                                 83     37    55%   21-25, 45-46, 50-53, 68-73, 84-85, 90-110, 122-123, 127-133
+routes/weeek.py                                          168    127    24%   38-42, 57-104, 114-179, 187-204, 213-227, 236-245, 248-254, 257-263, 266-280
+services/__init__.py                                       0      0   100%
+services/gifty_scraper/__init__.py                         0      0   100%
+services/gifty_scraper/base_spider.py                     26     26     0%   1-42
+services/gifty_scraper/items.py                           21     21     0%   6-29
+services/gifty_scraper/metrics.py                          4      4     0%   1-17
+services/gifty_scraper/middlewares.py                     34     34     0%   6-100
+services/gifty_scraper/pipelines.py                       53     53     0%   1-83
+services/gifty_scraper/settings.py                        16     16     0%   10-97
+services/gifty_scraper/spiders/__init__.py                 0      0   100%
+services/gifty_scraper/spiders/detmir.py                 107    107     0%   1-196
+services/gifty_scraper/spiders/group_price.py             49     49     0%   1-97
+services/gifty_scraper/spiders/inteltoys.py               33     33     0%   1-66
+services/gifty_scraper/spiders/kassir.py                  67     67     0%   1-175
+services/gifty_scraper/spiders/letu.py                    39     39     0%   1-88
+services/gifty_scraper/spiders/mrgeek.py                  23     23     0%   1-34
+services/gifty_scraper/spiders/mvideo.py                 148    148     0%   1-340
+services/gifty_scraper/spiders/nashi_podarki.py           38     38     0%   1-80
+services/gifty_scraper/spiders/vseigrushki.py             50     50     0%   1-94
+services/run_worker.py                                   166    166     0%   1-254
+services/telegram_bot/__init__.py                          0      0   100%
+services/telegram_bot/app/__init__.py                      0      0   100%
+services/telegram_bot/app/client.py                      175    175     0%   1-234
+services/telegram_bot/app/main.py                       1095   1095     0%   1-1759
+services/telegram_bot/app/strings.py                       1      1     0%   1
+tests/conftest.py                                         31      6    81%   14, 30-32, 39-40, 44
+tests/db/conftest.py                                      32      4    88%   18, 23, 28, 37
+tests/db/test_recipient_persistence.py                    93     49    47%   19-25, 34-45, 56-60, 69-92, 101-143, 152-175, 184-200
+tests/db_postgres/conftest.py                            135     20    85%   23, 37-39, 57, 63, 68, 72-74, 82, 124, 134, 140, 142, 151, 176-183, 192-193
+tests/db_postgres/test_catalog_repository.py              56     22    61%   40-50, 62-69, 81, 84-90, 102-112, 124, 127-136
+tests/integrations/takprodam/test_normalizer.py           37      1    97%   6
+tests/llm/__init__.py                                      0      0   100%
+tests/llm/conftest.py                                    138     65    53%   18, 35, 40, 45, 51, 57-63, 74-75, 78-94, 97, 100, 103-106, 119-121, 133, 144, 156, 159, 162, 175, 183-195, 200, 205, 210-228, 233
+tests/llm/reporting.py                                   123     59    52%   16-19, 55-58, 61-64, 67-70, 73-76, 79-82, 110-149
+tests/llm/scenarios.py                                    23      7    70%   20-26
+tests/llm/test_dialogue_flow_llm.py                      103     76    26%   17-19, 33-120, 130-150, 159-173, 179-192, 204-248
+tests/llm/test_products_llm.py                            47     32    32%   27-111
+tests/llm/test_providers_smoke.py                         36      5    86%   30-32, 58-59
+tests/recommendations/conftest.py                         73      7    90%   61-62, 75, 79, 83, 91, 121
+tests/recommendations/test_api_validation.py              27      1    96%   9
+tests/recommendations/test_candidate_collector.py         66      1    98%   6
+tests/recommendations/test_dialogue_actions.py            43      1    98%   9
+tests/recommendations/test_dialogue_logic.py              42      1    98%   9
+tests/recommendations/test_dialogue_manager.py            52      0   100%
+tests/recommendations/test_discovery_e2e.py               78     11    86%   17, 20, 162-170, 175-178
+tests/recommendations/test_query_generator.py             63      1    98%   6
+tests/recommendations/test_ranker_v1.py                   32      1    97%   7
+tests/recommendations/test_recommendation_service.py      38      0   100%
+tests/recommendations/test_stability.py                   68      1    99%   7
+tests/routes/test_public_investor_contact.py              76      0   100%
+tests/routes/test_public_partner_contact.py               62      0   100%
+tests/test_parsing_internal_e2e.py                        84      4    95%   19, 23, 27, 35
+tests/test_parsing_scheduler_e2e.py                       81     32    60%   27, 35, 82-84, 92-114, 130-170
+tests/test_pkce.py                                         7      0   100%
+tests/test_security_cookies.py                            18      0   100%
+tests/test_state_store.py                                 16      0   100%
+update_db.py                                              10     10     0%   1-13
+------------------------------------------------------------------------------------
+TOTAL                                                   9195   5080    45%
+=========================== short test summary info ============================
+FAILED tests/llm/test_providers_smoke.py::test_llm_provider_smoke - Failed: L...
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_init_session_tracks[Lego + Coffee + Travel]
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_init_session_tracks[Wide Topic: Music]
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_init_session_tracks[Narrow Topic: Vinyl 70s]
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_init_session_tracks[Complex Mix]
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_classify_topic_wide - Att...
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_personalized_probe - Attr...
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_topic_hints - AttributeEr...
+ERROR tests/llm/test_dialogue_flow_llm.py::test_llm_interaction_persists - At...
+======== 1 failed, 69 passed, 4 skipped, 12 warnings, 8 errors in 5.44s ========

@@ -1,0 +1,10 @@
+# Configuration for test execution
+# Set to false to skip the entire group of tests
+
+test_groups:
+  recommendations: true
+  routes: true
+  auth: true
+  integrations: true
+  security: true
+  ai_intelligence: true  # Expensive tests set to false by default

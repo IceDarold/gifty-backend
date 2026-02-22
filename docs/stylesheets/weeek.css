@@ -1,0 +1,425 @@
+/* Weeek Card Redesign */
+.weeek-tracker-container {
+    margin: 20px 0;
+}
+
+.weeek-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+/* ... existing styles ... */
+
+.weeek-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+}
+
+.weeek-tab-btn {
+    padding: 6px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--md-typeset-table-color);
+    background: var(--md-code-bg-color);
+    color: var(--md-typeset-color);
+    cursor: pointer;
+    font-size: 0.85em;
+    transition: all 0.2s;
+}
+
+.weeek-tab-btn:hover {
+    background: var(--md-typeset-table-color);
+}
+
+.weeek-tab-btn.active {
+    background: var(--md-accent-fg-color);
+    color: white;
+    border-color: var(--md-accent-fg-color);
+}
+
+.weeek-header-actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.weeek-open-link {
+    font-size: 0.85em;
+    color: var(--md-accent-fg-color);
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 5px;
+}
+
+.weeek-open-link:hover {
+    text-decoration: underline;
+}
+
+.weeek-progress-bar {
+    height: 8px;
+    width: 100%;
+    background-color: rgba(0, 0, 0, 0.1);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+
+.weeek-progress-fill {
+    height: 100%;
+    background-color: var(--md-accent-fg-color);
+    transition: width 0.5s ease-in-out;
+}
+
+.weeek-task-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    list-style: none;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.weeek-task-card {
+    background: var(--md-code-bg-color);
+    border: 1px solid var(--md-typeset-table-color);
+    border-radius: 8px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    min-height: 140px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+    /* Subtle shadow */
+    transition: transform 0.2s, box-shadow 0.2s;
+    position: relative;
+}
+
+.weeek-task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.08);
+}
+
+.weeek-card-header {
+    margin-bottom: 8px;
+}
+
+.weeek-task-id {
+    font-size: 0.75em;
+    color: var(--md-typeset-color--light);
+    background: rgba(0, 0, 0, 0.05);
+    padding: 2px 6px;
+    border-radius: 4px;
+    display: inline-block;
+}
+
+.weeek-card-title {
+    font-weight: 500;
+    font-size: 1em;
+    margin-top: 8px;
+    line-height: 1.4;
+    color: var(--md-typeset-color);
+}
+
+.weeek-card-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: auto;
+    padding-top: 12px;
+}
+
+.weeek-assignee-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 1px solid var(--md-code-bg-color);
+    margin-right: -8px;
+    /* Stack overlap */
+}
+
+.weeek-assignees {
+    display: flex;
+    align-items: center;
+}
+
+.weeek-no-assignee {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background-color: var(--md-typeset-table-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7em;
+    color: var(--md-typeset-color--light);
+}
+
+.weeek-card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 0.8em;
+    color: var(--md-typeset-color--light);
+    margin-top: 12px;
+}
+
+.weeek-tag {
+    font-size: 0.75em;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background-color: var(--md-accent-fg-color--transparent);
+    color: var(--md-accent-fg-color);
+    font-weight: 500;
+}
+
+.weeek-check-circle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 2px solid var(--md-typeset-table-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.weeek-check-circle.checked {
+    background-color: #4caf50;
+    border-color: #4caf50;
+    color: white;
+}
+
+.weeek-check-circle::after {
+    content: "✓";
+    font-size: 0.7em;
+    opacity: 0;
+}
+
+.weeek-check-circle.checked::after {
+    opacity: 1;
+}
+
+.weeek-task-card.completed {
+    opacity: 0.6;
+    filter: grayscale(0.5);
+    background-color: rgba(0, 0, 0, 0.02);
+}
+
+.weeek-task-card.completed .weeek-card-title {
+    text-decoration: line-through;
+}
+
+/* Expansion Logic */
+.weeek-list-wrapper {
+    position: relative;
+    transition: max-height 0.5s ease-in-out;
+    overflow: hidden;
+}
+
+.weeek-list-wrapper.collapsed {
+    max-height: 170px;
+    /* Limit to approx 1 card height */
+}
+
+.weeek-list-mask {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 80px;
+    background: linear-gradient(to bottom, transparent, var(--md-code-bg-color));
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    cursor: pointer;
+    z-index: 5;
+    transition: background 0.2s, opacity 0.2s;
+}
+
+.weeek-list-mask:hover {
+    background: linear-gradient(to bottom, transparent, var(--md-code-bg-color) 80%, var(--md-typeset-table-color));
+}
+
+.weeek-show-more-btn {
+    background: var(--md-accent-fg-color);
+    color: white;
+    border: none;
+    padding: 6px 16px;
+    border-radius: 20px;
+    font-size: 0.85em;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* Loading State */
+.weeek-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    color: var(--md-typeset-color--light);
+    gap: 10px;
+}
+
+.weeek-loading-spinner {
+    width: 30px;
+    height: 30px;
+    border: 3px solid var(--md-typeset-table-color);
+    border-top: 3px solid var(--md-accent-fg-color);
+    border-radius: 50%;
+    animation: weeek-spin 1s linear infinite;
+}
+
+@keyframes weeek-spin {
+    0% {
+        transform: rotate(0deg);
+    }
+
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Modal Styles */
+.weeek-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
+    z-index: 5000;
+    /* High z-index to sit on top of everything */
+    display: none;
+    /* Hidden by default */
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.weeek-modal-overlay.open {
+    display: flex;
+}
+
+.weeek-modal-card {
+    background: var(--md-default-bg-color);
+    width: 100%;
+    max-width: 600px;
+    /* Narrower */
+    min-height: 500px;
+    /* Taller/Larger feel */
+    border-radius: 8px;
+    /* Slightly sharper */
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+    border: 1px solid var(--md-typeset-table-color);
+    color: var(--md-typeset-color);
+    display: flex;
+    flex-direction: column;
+}
+
+.weeek-modal-close {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    font-size: 2em;
+    cursor: pointer;
+    line-height: 1;
+    color: var(--md-typeset-color--light);
+    z-index: 10;
+}
+
+.weeek-modal-header {
+    padding: 32px 32px 10px 32px;
+    border-bottom: 1px solid var(--md-typeset-table-color);
+}
+
+.weeek-modal-title {
+    font-size: 1.8em;
+    /* 2em might be too big, 1.8 is good */
+    font-weight: 700;
+    line-height: 1.3;
+    margin-bottom: 20px;
+    margin-top: 10px;
+}
+
+.weeek-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 24px 32px 32px 32px;
+    /* Added top padding */
+}
+
+.weeek-modal-sidebar {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 30px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--md-typeset-table-color);
+    font-size: 1em;
+    /* Increased */
+}
+
+.weeek-prop-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.weeek-prop-label {
+    color: var(--md-typeset-color--light);
+    font-size: 0.85em;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    font-weight: 600;
+}
+
+.weeek-prop-value {
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    font-size: 1.05em;
+}
+
+.weeek-modal-main {
+    font-size: 1.1em;
+    line-height: 1.6;
+}
+
+.weeek-action-btn {
+    display: block;
+    /* Full width btn maybe? Or standard */
+    text-align: center;
+    padding: 12px 20px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: 600;
+    transition: opacity 0.2s;
+    background: var(--md-code-bg-color);
+    /* Light background */
+    color: var(--md-accent-fg-color) !important;
+    border: 1px solid var(--md-typeset-table-color);
+    margin-top: 10px;
+    width: 100%;
+}
+
+.weeek-action-btn:hover {
+    background: var(--md-typeset-table-color);
+}

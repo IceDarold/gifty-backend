@@ -1,0 +1,69 @@
+name: Deploy Production
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest pytest-asyncio pytest-mock pyyaml httpx
+
+      - name: Run Pytest
+        env:
+          DATABASE_URL: "sqlite+aiosqlite:///:memory:"
+          REDIS_URL: "redis://localhost:6379"
+          TESTING: "true"
+        run: |
+          pytest --verbose
+
+  deploy:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Copy files to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          source: "app,alembic,deploy,integrations,routes,scripts,services,recommendations,requirements.txt,docker-compose.yml,Dockerfile,alembic.ini,README.md,make_migrations.sh,configs,ai_workers,apps,mkdocs.yml"
+          target: "/opt/giftiai-api/gifty-backend"
+          rm: false
+          timeout: 120s
+          debug: true
+
+      - name: Execute deployment script
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.PROD_SSH_HOST }}
+          username: ${{ secrets.PROD_SSH_USER }}
+          key: ${{ secrets.PROD_SSH_KEY }}
+          port: ${{ secrets.PROD_SSH_PORT }}
+          command_timeout: 60m
+          envs: PROD_ENV
+          script: |
+            cd /opt/giftiai-api/gifty-backend
+            echo "${{ secrets.PROD_ENV_FILE }}" > .env
+            chmod +x scripts/deploy.sh
+            ./scripts/deploy.sh
