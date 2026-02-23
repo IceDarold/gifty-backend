@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, fetchSourceProducts, deleteSourceProducts, forceRunSource, updateSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage, sendTestNotification, runAllSpiders, runSingleSpider, fetchWorkers, fetchQueueStats, fetchCatalogProducts, fetchQueueTasks, fetchQueueHistory, fetchQueueRunDetails } from '@/lib/api';
+import { fetchStats, fetchHealth, fetchScraping, fetchSources, fetchSourceDetails, fetchSourceProducts, deleteSourceProducts, forceRunSource, updateSource, fetchTrends, syncSources, connectWeeek, fetchSubscriber, subscribeTopic, unsubscribeTopic, setLanguage, sendTestNotification, runAllSpiders, runSingleSpider, fetchWorkers, fetchQueueStats, fetchCatalogProducts, fetchQueueTasks, fetchQueueHistory, fetchQueueRunDetails, fetchDiscoveredCategories, activateDiscoveredCategories } from '@/lib/api';
 
 
 export function useDashboardData(chatId?: number) {
@@ -26,6 +26,12 @@ export function useDashboardData(chatId?: number) {
     const sources = useQuery({
         queryKey: ['sources'],
         queryFn: fetchSources,
+        refetchInterval: 30000,
+    });
+
+    const discoveredCategories = useQuery({
+        queryKey: ['discovered-categories'],
+        queryFn: () => fetchDiscoveredCategories(200),
         refetchInterval: 30000,
     });
 
@@ -118,11 +124,20 @@ export function useDashboardData(chatId?: number) {
         },
     });
 
+    const activateCategoriesMutation = useMutation({
+        mutationFn: (ids: number[]) => activateDiscoveredCategories(ids),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['sources'] });
+            queryClient.invalidateQueries({ queryKey: ['discovered-categories'] });
+        },
+    });
+
     return {
         stats,
         health,
         scraping,
         sources,
+        discoveredCategories,
         trends,
         workers,
         queue,
@@ -146,6 +161,8 @@ export function useDashboardData(chatId?: number) {
         isRunningOne: runSingleSpiderMutation.isPending,
         deleteData: deleteSourceMutation.mutate,
         isDeleting: deleteSourceMutation.isPending,
+        activateDiscoveredCategories: activateCategoriesMutation.mutateAsync,
+        isActivatingDiscoveredCategories: activateCategoriesMutation.isPending,
         isLoading: stats.isLoading || health.isLoading || scraping.isLoading || sources.isLoading || subscriber.isLoading,
         isError: stats.isError || health.isError || scraping.isError || sources.isError
     };

@@ -20,34 +20,52 @@ interface ScraperData {
     };
 }
 
+interface DiscoveredCategoryData {
+    id: number;
+    site_key: string;
+    url: string;
+    name?: string | null;
+    parent_url?: string | null;
+    state: string;
+    promoted_source_id?: number | null;
+    created_at?: string | null;
+}
+
 interface ScrapersViewProps {
     sources?: ScraperData[];
+    discoveredCategories?: DiscoveredCategoryData[];
     onOpenDetail: (id: number) => void;
     onRunOne: (id: number) => void;
     onDeleteData: (id: number) => void;
     onRunAll: () => void;
+    onActivateDiscoveredCategories: (ids: number[]) => Promise<any>;
     onSync: () => void;
     isSyncing: boolean;
     isRunningAll: boolean;
     isRunningOne: boolean;
+    isActivatingDiscoveredCategories: boolean;
     isDeleting: boolean;
 }
 
 export function ScrapersView({
     sources,
+    discoveredCategories,
     onOpenDetail,
     onRunOne,
     onDeleteData,
     onRunAll,
+    onActivateDiscoveredCategories,
     onSync,
     isSyncing,
     isRunningAll,
     isRunningOne,
+    isActivatingDiscoveredCategories,
     isDeleting
 }: ScrapersViewProps) {
     const { t, language } = useLanguage();
     const locale = language === 'ru' ? ru : enUS;
     const [actionId, setActionId] = useState<number | null>(null);
+    const [selectedCategoryIds, setSelectedCategoryIds] = useState<number[]>([]);
 
     if (!sources || sources.length === 0) {
         return (
@@ -111,6 +129,21 @@ export function ScrapersView({
             onDeleteData(id);
         }
     };
+
+    const toggleCategorySelection = (id: number, checked: boolean) => {
+        setSelectedCategoryIds((prev) => {
+            if (checked) return prev.includes(id) ? prev : [...prev, id];
+            return prev.filter((v) => v !== id);
+        });
+    };
+
+    const activateSelectedCategories = async () => {
+        if (selectedCategoryIds.length === 0) return;
+        await onActivateDiscoveredCategories(selectedCategoryIds);
+        setSelectedCategoryIds([]);
+    };
+
+    const backlog = Array.isArray(discoveredCategories) ? discoveredCategories : [];
 
     return (
         <div className="px-4 pb-24 space-y-4">
@@ -217,6 +250,70 @@ export function ScrapersView({
                                                 <ChevronRight size={14} />
                                             </button>
                                         </div>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div className="card overflow-hidden border border-white/5 shadow-xl">
+                <div className="p-4 border-b border-white/5 bg-white/5 flex items-center justify-between gap-3">
+                    <div>
+                        <h3 className="font-black text-sm uppercase tracking-wider">Discovered Categories</h3>
+                        <p className="text-[10px] opacity-50">{backlog.length} awaiting promotion</p>
+                    </div>
+                    <button
+                        onClick={activateSelectedCategories}
+                        disabled={isActivatingDiscoveredCategories || selectedCategoryIds.length === 0}
+                        className="bg-[var(--tg-theme-button-color)] text-white px-3 py-2 rounded-xl text-xs font-bold flex items-center gap-2 disabled:opacity-50"
+                    >
+                        {isActivatingDiscoveredCategories ? <Loader2 size={14} className="animate-spin" /> : <TrendingUp size={14} />}
+                        Promote Selected ({selectedCategoryIds.length})
+                    </button>
+                </div>
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <thead className="bg-white/5 text-[10px] uppercase font-black text-[var(--tg-theme-hint-color)]">
+                            <tr>
+                                <th className="p-3">Pick</th>
+                                <th className="p-3">Category</th>
+                                <th className="p-3">Site</th>
+                                <th className="p-3">Discovered</th>
+                                <th className="p-3">State</th>
+                            </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                            {backlog.length === 0 && (
+                                <tr>
+                                    <td className="p-4 text-xs text-[var(--tg-theme-hint-color)]" colSpan={5}>
+                                        No pending discovered categories.
+                                    </td>
+                                </tr>
+                            )}
+                            {backlog.map((cat) => (
+                                <tr key={cat.id} className="hover:bg-white/5 transition-colors">
+                                    <td className="p-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedCategoryIds.includes(cat.id)}
+                                            onChange={(e) => toggleCategorySelection(cat.id, e.target.checked)}
+                                            className="h-4 w-4"
+                                        />
+                                    </td>
+                                    <td className="p-3">
+                                        <div className="flex flex-col">
+                                            <span className="font-semibold text-sm">{cat.name || "Untitled category"}</span>
+                                            <span className="text-[10px] opacity-50 truncate max-w-[340px]">{cat.url}</span>
+                                        </div>
+                                    </td>
+                                    <td className="p-3 text-xs uppercase opacity-75">{cat.site_key}</td>
+                                    <td className="p-3 text-xs opacity-75">{formatTimeAgo(cat.created_at || null)}</td>
+                                    <td className="p-3">
+                                        <span className="px-2 py-1 rounded-lg text-[10px] font-bold bg-amber-500/15 text-amber-300 border border-amber-400/30">
+                                            {cat.state}
+                                        </span>
                                     </td>
                                 </tr>
                             ))}

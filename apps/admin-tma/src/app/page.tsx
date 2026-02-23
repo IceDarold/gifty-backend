@@ -50,7 +50,7 @@ export default function Home() {
     const chatId = tma?.user?.id || tma?.authUser?.id;
 
     const {
-        stats, health, scraping, sources, trends, workers, queue, subscriber,
+        stats, health, scraping, sources, trends, workers, queue, subscriber, discoveredCategories,
         syncSpiders, isSyncing, isLoading,
         forceRun, isForceRunning,
         toggleSourceActive, updateSource, isUpdatingSource,
@@ -59,7 +59,8 @@ export default function Home() {
         sendTestNotification, isSendingTest,
         runAll, isRunningAll,
         runOne, isRunningOne,
-        deleteData, isDeleting
+        deleteData, isDeleting,
+        activateDiscoveredCategories, isActivatingDiscoveredCategories
     } = useDashboardData(chatId);
 
     const catalogLimit = 20;
@@ -225,6 +226,7 @@ export default function Home() {
                 return (
                     <ScrapersView
                         sources={sources.data}
+                        discoveredCategories={discoveredCategories.data}
                         onSync={handleSync}
                         onOpenDetail={(id) => setSelectedSourceId(id)}
                         isSyncing={isSyncing}
@@ -234,6 +236,8 @@ export default function Home() {
                         isRunningOne={isRunningOne}
                         onDeleteData={(id) => deleteData(id)}
                         isDeleting={isDeleting}
+                        onActivateDiscoveredCategories={(ids) => activateDiscoveredCategories(ids)}
+                        isActivatingDiscoveredCategories={isActivatingDiscoveredCategories}
                     />
                 );
             case "catalog":
