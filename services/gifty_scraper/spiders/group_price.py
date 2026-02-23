@@ -3,9 +3,10 @@ from gifty_scraper.items import CategoryItem
 
 
 class GroupPriceSpider(GiftyBaseSpider):
-    name = "groupprice"
+    name = "group_price"
     allowed_domains = ["groupprice.ru"]
-    site_key = "groupprice"
+    site_key = "group_price"
+
     
     def parse_discovery(self, response):
         """
@@ -45,11 +46,10 @@ class GroupPriceSpider(GiftyBaseSpider):
 
         for url, name in found_hubs.items():
             # Yield CategoryItem to be saved as a new ParsingSource
-            yield CategoryItem(
+            yield self.create_category(
                 name=name,
                 url=url,
-                parent_url=response.url,
-                site_key=self.site_key
+                parent_url=response.url
             )
 
     def parse_catalog(self, response):
@@ -89,7 +89,7 @@ class GroupPriceSpider(GiftyBaseSpider):
                 }
             )
 
-        if self.strategy in ["deep", "discovery"]:
+        if self.strategy == "deep":
             next_page = response.css("a.__ajax-pagination::attr(href)").get()
             if not next_page:
                 next_page = response.css("nav.pagy a[rel='next']::attr(href)").get()

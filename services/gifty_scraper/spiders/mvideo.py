@@ -34,57 +34,43 @@ class MVideoSpider(GiftyBaseSpider):
         'COOKIES_ENABLED': True
     }
 
-    def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
-        # Default to "all categories" if no URL provided
-        if not url:
-            url = "https://www.mvideo.ru/vse-kategorii"
-        super(MVideoSpider, self).__init__(url=url, strategy=strategy, source_id=source_id, *args, **kwargs)
-
     def start_requests(self):
-        url = getattr(self, 'url', "https://www.mvideo.ru/smartfony-i-svyaz-10/smartfony-205")
+        if not self.url:
+            self.url = "https://www.mvideo.ru/vse-kategorii"
+        
+        # We must visit the landing page first to initialize session/cookies
+        # This helps with BFF API calls
+        self.logger.info("Initializing session by visiting homepage...")
         yield scrapy.Request(
-            url, 
-            callback=self.parse_catalog,
-            dont_filter=True,
-            headers={
-                'Referer': 'https://www.google.com/',
-                'Sec-Fetch-Mode': 'navigate',
-                'Sec-Fetch-Site': 'cross-site',
-                'Upgrade-Insecure-Requests': '1'
-            }
+            "https://www.mvideo.ru/",
+            callback=self.parse_homepage,
+            dont_filter=True
+        )
+
+    def parse_homepage(self, response):
+        """Once cookies are set, go to the actual requested URL"""
+        self.logger.info("Session initialized. Going to target URL: %s", self.url)
+        yield scrapy.Request(
+            self.url,
+            callback=self.parse,
+            dont_filter=True
         )
 
     def parse_catalog(self, response):
         """
         Parses the catalog page. Use __NEXT_DATA__ for initial products and POST API for pagination.
         """
+        self.log_progress(f"Starting parsing: {response.url}")
         category_id = None
         
-        # DEBUG: Save full response to inspect
-        with open("last_response.html", "w", encoding="utf-8") as f:
-            f.write(response.text)
-            
         match = re.search(r'-(\d+)$', response.url.rstrip('/'))
         if not match:
              match = re.search(r'"categoryId":"(\d+)"', response.text)
         
-        # Debug: Check what page we actually landed on
-        page_title = response.css('title::text').get()
-        self.logger.info(f"Page Title: {page_title}")
-        self.logger.info(f"Body snippet: {response.text[:500]}")
-        
-        if match:
-            category_id = match.group(1)
-            self.logger.info(f"Found category ID: {category_id}. Using BFF v2 API (GET)...")
-            
-            # API v2 endpoint found in source: products/v2/search
-            # Analysis of 'd' function in JS suggests GET with query params
-            
         if match:
              category_id = match.group(1)
              self.logger.info(f"Found category ID: {category_id}. Using BFF v2 API (GET)...")
-             # ... (API logic remains the same)
-             # Verified working params: categoryIds (plural), GET method
+             
              params = {
                  "categoryIds": category_id,
                  "offset": "0",
@@ -107,32 +93,35 @@ class MVideoSpider(GiftyBaseSpider):
                  }
              )
         else:
-            self.logger.warning("No category ID found. Trying discovery.")
-            yield from self.parse_discovery(response)
+            self.logger.warning("No category ID found in %s", response.url)
 
     def parse_discovery(self, response):
         """
         Custom discovery for M.Video category structure.
-        Looks for links in the 'vse-kategorii' page or similar hub pages.
+        Yields CategoryItem for each found category link.
         """
+        self.log_progress(f"Starting discovery: {response.url}")
         self.logger.info("Starting discovery on: %s", response.url)
         
-        links = response.css('a::attr(href)').getall()
-        unique_links = set()
+        # Try to find links with text in common category patterns
+        links = response.css(self.category_selector)
         
+        found_count = 0
         for link in links:
-            url = response.urljoin(link)
+            url = response.urljoin(link.css('::attr(href)').get())
+            name = link.css('::text').get() or link.css('span::text').get()
+            
+            if name:
+                name = name.strip()
             
             # Filter for category-like URLs
-            # e.g., /smartfony-i-svyaz-10, /televizory-audio-video-hi-fi-1
-            # They usually end in digits and are not product details
-            if re.search(r'-[\d]+', url) and '/products/' not in url and 'vse-kategorii' not in url:
-                unique_links.add(url)
+            if url and re.search(r'-[\d]+$', url.rstrip('/')) and '/products/' not in url:
+                found_count += 1
+                self.log_progress(f"Found category: {name}")
+                yield self.create_category(url=url, name=name)
                 
-        self.logger.info(f"Found {len(unique_links)} potential category links.")
-        
-        for url in unique_links:
-            yield response.follow(url, self.parse_catalog)
+        self.log_progress(f"Discovery complete. Found {found_count} categories.")
+        self.logger.info(f"Discovery found {found_count} potential categories.")
 
     def parse_api_error(self, failure):
         self.logger.error(f"API Request Failed: {failure.type} {failure.value}")
@@ -226,6 +215,8 @@ class MVideoSpider(GiftyBaseSpider):
                 name = item.get('name')
                 image = item.get('image')
                 if image and not image.startswith('http'):
+                    if not image.startswith('/'):
+                        image = f"/{image}"
                     image = f"https://static.mvideo.ru{image}"
                     
                 parsed_products[p_id] = {
@@ -281,6 +272,7 @@ class MVideoSpider(GiftyBaseSpider):
                 if str(p_id) in price_map:
                     item_data['price'] = str(price_map[str(p_id)])
                 
+                self.log_progress(f"Parsed: {item_data['title']} - {item_data['price']} RUB")
                 yield self.create_product(**item_data)
                 
         except Exception as e:
