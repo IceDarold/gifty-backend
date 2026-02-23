@@ -166,7 +166,7 @@ class DetmirSpider(GiftyBaseSpider):
             )
 
         # Pagination
-        if self.strategy in ["deep", "discovery"]:
+        if self.strategy == "deep":
             # Extract current page from URL
             current_page = 1
             page_match = re.search(r'page=(\d+)', response.url)
