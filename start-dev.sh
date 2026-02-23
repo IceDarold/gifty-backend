@@ -12,6 +12,7 @@ LOG_DIR="${LOG_DIR:-/tmp/gifty-dev}"
 NEXT_LOG="$LOG_DIR/admin-tma.log"
 NGROK_LOG="$LOG_DIR/ngrok.log"
 ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env}"
+DB_MODE="${DB_MODE:-auto}" # auto|local|remote
 
 mkdir -p "$LOG_DIR"
 
@@ -49,32 +50,97 @@ update_env_webapp_url() {
   fi
 }
 
-require_cmd ssh
 require_cmd docker
 require_cmd npm
 require_cmd curl
 require_cmd python3
 require_cmd nc
 
+print_usage() {
+  cat <<EOF
+Usage: ./start-dev.sh [--db local|remote|auto]
+
+Options:
+  --db MODE    DB mode:
+               local  - use local Postgres (no SSH tunnel)
+               remote - use remote Postgres via SSH tunnel
+               auto   - detect by DATABASE_URL in .env (default)
+EOF
+}
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --db)
+      DB_MODE="${2:-}"
+      shift 2
+      ;;
+    --db=*)
+      DB_MODE="${1#*=}"
+      shift
+      ;;
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1"
+      print_usage
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$DB_MODE" = "auto" ]; then
+  if [ -f "$ENV_FILE" ] && grep -q '@host\.docker\.internal:5433/' "$ENV_FILE"; then
+    DB_MODE="remote"
+  else
+    DB_MODE="local"
+  fi
+fi
+
+if [ "$DB_MODE" != "local" ] && [ "$DB_MODE" != "remote" ]; then
+  echo "Invalid --db value: $DB_MODE (expected: local|remote|auto)"
+  exit 1
+fi
+
 if ! docker compose version >/dev/null 2>&1; then
   echo "docker compose is required"
   exit 1
 fi
 
-echo "[1/5] SSH tunnel: localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT}"
-pkill -f "ssh.*-L ${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" 2>/dev/null || true
-ssh -f -N \
-  -o ServerAliveInterval=60 \
-  -o ServerAliveCountMax=10 \
-  -o ExitOnForwardFailure=yes \
-  -L "${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" \
-  "$SSH_ALIAS"
+if [ "$DB_MODE" = "remote" ]; then
+  require_cmd ssh
+  echo "[1/5] SSH tunnel: localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT}"
+  pkill -f "ssh.*-L ${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" 2>/dev/null || true
 
-if wait_port "localhost" "$DB_LOCAL_PORT" 10; then
-  echo "SSH tunnel is up"
+  # Fail fast if SSH alias is not reachable non-interactively (prevents hanging on password/passphrase prompt).
+  if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$SSH_ALIAS" "exit 0" >/dev/null 2>&1; then
+    echo "SSH non-interactive check failed for alias '$SSH_ALIAS'."
+    echo "Fix:"
+    echo "  1) ensure alias exists in ~/.ssh/config"
+    echo "  2) ensure key auth works: ssh-add --apple-use-keychain ~/.ssh/<key>"
+    echo "  3) first-time host key: ssh ${SSH_ALIAS}"
+    exit 1
+  fi
+
+  ssh -f -N \
+    -o BatchMode=yes \
+    -o ConnectTimeout=10 \
+    -o StrictHostKeyChecking=accept-new \
+    -o ServerAliveInterval=60 \
+    -o ServerAliveCountMax=10 \
+    -o ExitOnForwardFailure=yes \
+    -L "${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" \
+    "$SSH_ALIAS"
+
+  if wait_port "localhost" "$DB_LOCAL_PORT" 10; then
+    echo "SSH tunnel is up"
+  else
+    echo "Failed to open SSH tunnel on localhost:${DB_LOCAL_PORT}"
+    exit 1
+  fi
 else
-  echo "Failed to open SSH tunnel on localhost:${DB_LOCAL_PORT}"
-  exit 1
+  echo "[1/5] DB mode: local (SSH tunnel skipped)"
 fi
 
 echo "[2/5] Docker services"
@@ -130,6 +196,10 @@ echo "Dev environment ready"
 echo "Dashboard:     $NGROK_URL"
 echo "Local admin:   http://localhost:${ADMIN_TMA_PORT}"
 echo "Local API:     http://localhost:8000"
-echo "DB tunnel:     localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT}"
+if [ "$DB_MODE" = "remote" ]; then
+  echo "DB mode:       remote (tunnel localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT})"
+else
+  echo "DB mode:       local"
+fi
 echo "Next log:      $NEXT_LOG"
 echo "Ngrok log:     $NGROK_LOG"
