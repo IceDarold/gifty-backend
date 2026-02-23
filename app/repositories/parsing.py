@@ -8,7 +8,7 @@ from sqlalchemy import select, update, and_, func, case
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ParsingSource, CategoryMap, ParsingRun
+from app.models import ParsingSource, CategoryMap, ParsingRun, ParsingHub, DiscoveredCategory
 
 logger = logging.getLogger(__name__)
 
@@ -197,30 +197,46 @@ class ParsingRepository:
 
     async def sync_spiders(self, available_spiders: List[str]) -> List[str]:
         """
-        Synchronizes the list of spiders from the scraper with the database.
-        Returns a list of NEW spider keys that were not in the database.
+        Synchronizes spiders with discovery hubs and keeps runtime hub sources for compatibility.
         """
-        stmt = select(ParsingSource.site_key)
-        result = await self.session.execute(stmt)
-        existing_keys = set(result.scalars().all())
+        hub_stmt = select(ParsingHub.site_key)
+        hub_result = await self.session.execute(hub_stmt)
+        existing_hub_keys = set(hub_result.scalars().all())
         
         new_spiders = []
         for spider_key in available_spiders:
-            if spider_key not in existing_keys:
-                # Add new inactive source
-                new_source = ParsingSource(
-                    site_key=spider_key,
-                    url=f"https://{spider_key}.placeholder", # Needs to be filled
-                    type="hub",
-                    strategy="discovery",
-                    is_active=False,
-                    config={"is_new": True, "note": "Automatically detected, please configure"}
+            if spider_key not in existing_hub_keys:
+                self.session.add(
+                    ParsingHub(
+                        site_key=spider_key,
+                        url=f"https://{spider_key}.placeholder",
+                        strategy="discovery",
+                        is_active=False,
+                        status="waiting",
+                        config={"is_new": True, "note": "Automatically detected, please configure"},
+                    )
                 )
-                self.session.add(new_source)
                 new_spiders.append(spider_key)
+
+            # Runtime compatibility: keep one hub source entry for manual run/detail screens.
+            src_stmt = select(ParsingSource).where(
+                and_(ParsingSource.site_key == spider_key, ParsingSource.type == "hub")
+            )
+            src_res = await self.session.execute(src_stmt)
+            existing_source = src_res.scalar_one_or_none()
+            if not existing_source:
+                self.session.add(
+                    ParsingSource(
+                        site_key=spider_key,
+                        url=f"https://{spider_key}.placeholder",
+                        type="hub",
+                        strategy="discovery",
+                        is_active=False,
+                        config={"is_new": True, "note": "Runtime mirror of parsing_hubs"},
+                    )
+                )
         
-        if new_spiders:
-            await self.session.commit()
+        await self.session.commit()
             
         return new_spiders
 
@@ -543,40 +559,137 @@ class ParsingRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def count_discovered_today(self) -> int:
-        """Counts how many sources were discovered/activated today."""
-        stmt = select(func.count(ParsingSource.id)).where(
+    async def get_hub_by_site_key(self, site_key: str) -> Optional[ParsingHub]:
+        stmt = select(ParsingHub).where(ParsingHub.site_key == site_key)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_discovered_category_by_site_url(self, site_key: str, url: str) -> Optional[DiscoveredCategory]:
+        stmt = select(DiscoveredCategory).where(
             and_(
-                ParsingSource.status != "discovered", # already activated
-                ParsingSource.created_at >= func.now() - timedelta(days=1)
+                DiscoveredCategory.site_key == site_key,
+                DiscoveredCategory.url == url,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def upsert_discovered_category(self, data: dict) -> DiscoveredCategory:
+        site_key = data["site_key"]
+        url = data["url"]
+        category = await self.get_discovered_category_by_site_url(site_key, url)
+
+        if category:
+            for key, value in data.items():
+                if hasattr(category, key) and value is not None:
+                    setattr(category, key, value)
+            await self.session.flush()
+            return category
+
+        category = DiscoveredCategory(**data)
+        self.session.add(category)
+        await self.session.flush()
+        return category
+
+    async def promote_discovered_category(self, category_id: int) -> Optional[ParsingSource]:
+        stmt = select(DiscoveredCategory).where(DiscoveredCategory.id == category_id)
+        result = await self.session.execute(stmt)
+        category = result.scalar_one_or_none()
+        if not category:
+            return None
+
+        src_stmt = select(ParsingSource).where(
+            and_(
+                ParsingSource.site_key == category.site_key,
+                ParsingSource.url == category.url,
+                ParsingSource.type == "list",
+            )
+        )
+        src_res = await self.session.execute(src_stmt)
+        source = src_res.scalar_one_or_none()
+
+        if source is None:
+            source = ParsingSource(
+                url=category.url,
+                type="list",
+                site_key=category.site_key,
+                strategy="deep",
+                priority=50,
+                refresh_interval_hours=24,
+                is_active=True,
+                status="waiting",
+                category_id=category.id,
+                config={
+                    "discovery_name": category.name,
+                    "parent_url": category.parent_url,
+                    "discovered_category_id": category.id,
+                },
+            )
+            self.session.add(source)
+            await self.session.flush()
+        else:
+            source.is_active = True
+            source.status = "waiting"
+            source.category_id = category.id
+            cfg = dict(source.config or {})
+            if category.name:
+                cfg["discovery_name"] = category.name
+            if category.parent_url:
+                cfg["parent_url"] = category.parent_url
+            cfg["discovered_category_id"] = category.id
+            source.config = cfg
+            await self.session.flush()
+
+        category.state = "promoted"
+        category.promoted_source_id = source.id
+        await self.session.flush()
+        return source
+
+    async def get_discovered_categories(self, limit: int = 50, states: Optional[List[str]] = None) -> List[DiscoveredCategory]:
+        stmt = select(DiscoveredCategory)
+        if states:
+            stmt = stmt.where(DiscoveredCategory.state.in_(states))
+        stmt = stmt.order_by(DiscoveredCategory.created_at.desc()).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def count_promoted_categories_today(self) -> int:
+        stmt = select(func.count(DiscoveredCategory.id)).where(
+            and_(
+                DiscoveredCategory.state == "promoted",
+                DiscoveredCategory.updated_at >= func.now() - timedelta(days=1),
             )
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
+    async def count_discovered_today(self) -> int:
+        """Backward-compatible alias: number of promoted categories for last 24h."""
+        return await self.count_promoted_categories_today()
+
     async def get_discovered_sources(self, limit: int = 50) -> List[ParsingSource]:
-        """Fetches inactive 'discovered' sources from the backlog."""
-        stmt = (
-            select(ParsingSource)
-            .where(ParsingSource.status == "discovered")
-            .order_by(ParsingSource.priority.desc(), ParsingSource.created_at.asc())
-            .limit(limit)
-        )
+        """
+        Backward-compatible alias:
+        returns promoted runtime sources for new backlog semantics.
+        Prefer get_discovered_categories() in new code.
+        """
+        categories = await self.get_discovered_categories(limit=limit, states=["new"])
+        source_ids = [c.promoted_source_id for c in categories if c.promoted_source_id]
+        if not source_ids:
+            return []
+        stmt = select(ParsingSource).where(ParsingSource.id.in_(source_ids))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
     async def activate_sources(self, source_ids: List[int]):
-        """Activates sources from the backlog."""
+        """Backward-compatible alias: promotes discovered_categories by their ids."""
         if not source_ids:
-            return
-        stmt = (
-            update(ParsingSource)
-            .where(ParsingSource.id.in_(source_ids))
-            .values(
-                is_active=True,
-                status="waiting",
-                next_sync_at=func.now()
-            )
-        )
-        await self.session.execute(stmt)
+            return 0
+        promoted = 0
+        for category_id in source_ids:
+            source = await self.promote_discovered_category(category_id)
+            if source:
+                source.next_sync_at = func.now()
+                promoted += 1
         await self.session.commit()
+        return promoted

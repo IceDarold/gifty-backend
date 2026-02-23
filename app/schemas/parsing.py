@@ -95,3 +95,19 @@ class ParsingSourceUpdate(BaseModel):
     refresh_interval_hours: Optional[int] = None
     is_active: Optional[bool] = None
     config: Optional[dict[str, Any]] = None
+
+
+class DiscoveredCategorySchema(BaseModel):
+    id: int
+    hub_id: Optional[int] = None
+    site_key: str
+    url: str
+    name: Optional[str] = None
+    parent_url: Optional[str] = None
+    state: str
+    promoted_source_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

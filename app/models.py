@@ -225,7 +225,65 @@ class ParsingSource(TimestampMixin, Base):
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
     status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
+    category_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("discovered_categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
+class ParsingHub(TimestampMixin, Base):
+    """
+    Доменные хабы парсинга (discovery roots), отделены от runtime sources.
+    """
+    __tablename__ = "parsing_hubs"
+    __table_args__ = (
+        UniqueConstraint("site_key", name="uq_parsing_hubs_site_key"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    site_key: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    strategy: Mapped[str] = mapped_column(String, server_default="discovery")
+    refresh_interval_hours: Mapped[int] = mapped_column(sa.Integer, server_default="24")
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
+    status: Mapped[str] = mapped_column(String, server_default="waiting", index=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
+class DiscoveredCategory(TimestampMixin, Base):
+    """
+    Результаты discovery-фазы. Промоутятся в parsing_sources для runtime.
+    """
+    __tablename__ = "discovered_categories"
+    __table_args__ = (
+        UniqueConstraint("site_key", "url", name="uq_discovered_categories_site_url"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    hub_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_hubs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    site_key: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    parent_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    state: Mapped[str] = mapped_column(String, server_default="new", index=True)  # new, promoted, rejected, inactive
+    promoted_source_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    meta: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class ParsingRun(TimestampMixin, Base):

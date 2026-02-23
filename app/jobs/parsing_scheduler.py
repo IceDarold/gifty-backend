@@ -40,6 +40,11 @@ async def run_parsing_scheduler():
                 await repo.set_queued(source.id)
             else:
                 logger.error(f"Failed to queue task for source {source.id}")
+                await repo.update_parsing_run(
+                    run.id,
+                    status="error",
+                    error_message="Failed to publish task to RabbitMQ in scheduler",
+                )
 
         await session.commit()
     

@@ -87,7 +87,7 @@ async def submit_scoring_results(
     await db.commit()
     return {"status": "ok", "updated": count}
 
-from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate
+from app.schemas.parsing import IngestBatchRequest, ParsingSourceSchema, ParsingSourceCreate, DiscoveredCategorySchema
 from app.services.ingestion import IngestionService
 
 @router.get("/monitoring", summary="Агрегированный мониторинг по сайтам")
@@ -269,6 +269,11 @@ async def force_run_parser(
         await db.commit()
         return {"status": "ok", "message": "Task queued for immediate execution"}
     else:
+        await repo.update_parsing_run(
+            run.id,
+            status="error",
+            error_message="Failed to publish task to RabbitMQ in force-run",
+        )
         raise HTTPException(status_code=500, detail="Failed to publish task to queue")
 
 @router.post("/sources/{source_id}/toggle", summary="Включить/выключить парсер")
@@ -382,7 +387,7 @@ async def get_parsing_source_details(
         # config['discovery_name'] might match Product.category
         cat_name = source.config.get("discovery_name")
         if cat_name:
-             total_items = await repo.get_category_products_count(source.site_key, cat_name)
+             total_items = await repo.get_total_category_products_count(source.site_key, cat_name)
         else:
              total_items = 0
 
@@ -501,24 +506,27 @@ async def sync_spiders_endpoint(
     
     return {"status": "ok", "new_spiders": new_spiders}
 
-@router.get("/sources/backlog", response_model=List[ParsingSourceSchema], summary="Получить список обнаруженных источников (бэклог)")
+@router.get("/sources/backlog", response_model=List[DiscoveredCategorySchema], summary="Получить список discovery-категорий (бэклог)")
 async def get_discovery_backlog(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    return await repo.get_discovered_sources(limit=limit)
+    return await repo.get_discovered_categories(limit=limit, states=["new"])
 
-@router.post("/sources/backlog/activate", summary="Массовая активация источников из бэклога")
+@router.post("/sources/backlog/activate", summary="Промоут категорий из discovery-бэклога в runtime sources")
 async def activate_backlog_sources(
-    source_ids: List[int] = Body(..., embed=True),
+    payload: dict = Body(default={}),
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    await repo.activate_sources(source_ids)
-    return {"status": "ok", "activated_count": len(source_ids)}
+    category_ids = payload.get("category_ids") or []
+    legacy_source_ids = payload.get("source_ids") or []
+    ids = category_ids or legacy_source_ids
+    activated_count = await repo.activate_sources(ids)
+    return {"status": "ok", "activated_count": activated_count}
 
 @router.get("/sources/backlog/stats", summary="Статистика обнаружения за 24ч")
 async def get_backlog_stats(
@@ -526,8 +534,9 @@ async def get_backlog_stats(
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    count = await repo.count_discovered_today()
-    return {"discovered_today": count}
+    promoted_today = await repo.count_promoted_categories_today()
+    backlog_size = len(await repo.get_discovered_categories(limit=1000, states=["new"]))
+    return {"promoted_today": promoted_today, "backlog_size": backlog_size}
 
 @router.post("/sources/run-all", summary="Запустить все активные парсеры")
 async def run_all_spiders_endpoint(
@@ -536,15 +545,35 @@ async def run_all_spiders_endpoint(
 ):
     repo = ParsingRepository(db)
     sources = await repo.get_all_active_sources()
+    from app.utils.rabbitmq import publish_parsing_task
     
-    count = 0
+    queued_count = 0
+    failed_count = 0
     for source in sources:
-        # Mark as queued in DB
-        await repo.set_queued(source.id)
-        await repo.create_parsing_run(source_id=source.id, status="queued")
-        count += 1
+        run = await repo.create_parsing_run(source_id=source.id, status="queued")
+        task = {
+            "source_id": source.id,
+            "run_id": run.id,
+            "url": source.url,
+            "site_key": source.site_key,
+            "type": source.type,
+            "strategy": source.strategy,
+            "config": source.config,
+        }
+
+        success = publish_parsing_task(task)
+        if success:
+            await repo.set_queued(source.id)
+            queued_count += 1
+        else:
+            await repo.update_parsing_run(
+                run.id,
+                status="error",
+                error_message="Failed to publish task to RabbitMQ in run-all",
+            )
+            failed_count += 1
         
-    return {"status": "ok", "queued": count}
+    return {"status": "ok", "queued": queued_count, "failed": failed_count}
 
 @router.delete("/sources/{source_id}/data", summary="Удалить все товары источника")
 async def clear_source_data_endpoint(
@@ -1010,6 +1039,7 @@ async def get_queue_history(
     stmt = (
         select(ParsingRun, ParsingSource)
         .join(ParsingSource, ParsingRun.source_id == ParsingSource.id)
+        .where(ParsingRun.status.in_(("completed", "error")))
         .order_by(ParsingRun.created_at.desc())
         .limit(max(1, min(limit, 500)))
     )

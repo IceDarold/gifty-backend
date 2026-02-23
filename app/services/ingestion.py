@@ -98,49 +98,43 @@ class IngestionService:
         return count
 
     async def ingest_categories(self, categories: List[ScrapedCategory], activation_quota: int = 50):
-        """Discovers new ParsingSources. Activates some, puts others in backlog."""
+        """Stores discovery output in discovered_categories and promotes part of it to parsing_sources."""
         if not categories:
             return 0
             
-        # Count how many we already activated today
-        activated_today = await self.parsing_repo.count_discovered_today()
+        # Count how many were already promoted in last 24h
+        activated_today = await self.parsing_repo.count_promoted_categories_today()
         remaining_quota = max(0, activation_quota - activated_today)
 
         count = 0
+        promoted_count = 0
         for i, cat in enumerate(categories):
             clean_url = normalize_url(cat.url)
-            
-            # If within quota, status is 'waiting', else 'discovered' (backlog)
-            # hub (list) sources are activated by default if within quota
-            is_within_quota = (i < remaining_quota)
-            status = "waiting" if is_within_quota else "discovered"
-            is_active = True if is_within_quota else False
 
-            # Check if source already exists
-            existing = await self.parsing_repo.get_source_by_url(clean_url)
-            if existing:
-                continue
-
-            source_data = {
-                "url": clean_url,
+            hub = await self.parsing_repo.get_hub_by_site_key(cat.site_key)
+            discovered_data = {
+                "hub_id": hub.id if hub else None,
                 "site_key": cat.site_key,
-                "type": "list", 
-                "strategy": "deep", 
-                "priority": 50,
-                "refresh_interval_hours": 24,
-                "is_active": is_active,
-                "status": status,
-                "config": {
-                    "discovery_name": cat.name,
-                    "parent_url": cat.parent_url,
-                    "discovered_at": datetime.utcnow().isoformat()
-                }
+                "url": clean_url,
+                "name": cat.name,
+                "parent_url": cat.parent_url,
+                "state": "new",
+                "meta": {
+                    "discovered_at": datetime.utcnow().isoformat(),
+                },
             }
             try:
-                await self.parsing_repo.upsert_source(source_data)
+                discovered = await self.parsing_repo.upsert_discovered_category(discovered_data)
                 count += 1
+
+                if i < remaining_quota and discovered.state != "promoted":
+                    source = await self.parsing_repo.promote_discovered_category(discovered.id)
+                    if source:
+                        source.next_sync_at = datetime.utcnow()
+                        promoted_count += 1
             except Exception as e:
                 logger.error(f"Failed to upsert discovered source {clean_url}: {e}")
         
         await self.db.commit()
+        logger.info(f"Discovery ingest: discovered={count}, promoted={promoted_count}")
         return count
