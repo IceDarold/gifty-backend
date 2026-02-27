@@ -66,6 +66,10 @@ class ParsingSourceSchema(BaseModel):
     last_run_new: Optional[int] = Field(0, description="New items from last run")
     history: Optional[List[ParsingRunSchema]] = Field(None, description="Recent execution history")
     aggregate_history: Optional[List[ParsingAggregateHistorySchema]] = Field(None, description="Daily aggregate history for hub sources")
+    related_sources: Optional[List[dict[str, Any]]] = Field(
+        None,
+        description="Related category/list sources for hub view, including discovered backlog categories",
+    )
 
     class Config:
         from_attributes = True

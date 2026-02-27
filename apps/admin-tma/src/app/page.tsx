@@ -1,22 +1,26 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
-import { Brain, HeartPulse, LayoutDashboard, ListChecks, Loader2, Package, RefreshCcw, Settings, Zap } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Brain, HeartPulse, LayoutDashboard, Loader2, Package, ScrollText, Settings, Workflow, Zap } from "lucide-react";
 import { DashboardHeader } from "@/components/DashboardHeader";
 import { StatsGrid } from "@/components/StatsGrid";
 import { SpiderList } from "@/components/SpiderList";
 import { SpiderDetail } from "@/components/SpiderDetail";
 import { UsageChart } from "@/components/UsageChart";
 import { SettingsView } from "@/components/SettingsView";
-import { ScrapersView } from "@/components/ScrapersView";
 import { Intelligence } from "@/components/Intelligence";
 import { InfraPanel } from "@/components/InfraPanel";
 import { HealthView } from "@/components/HealthView";
 import { CatalogView } from "@/components/CatalogView";
-import { QueueView } from "@/components/QueueView";
-import { useCatalogProducts, useDashboardData, useQueueHistory, useQueueTasks } from "@/hooks/useDashboard";
+import { LogsView } from "@/components/LogsView";
+import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
+import { FrontendRoutingView } from "@/components/frontend/FrontendRoutingView";
+import { useCatalogProducts, useDashboardData } from "@/hooks/useDashboard";
+import { OperationsView } from "@/components/operations/OperationsView";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTMA } from "@/components/TMAProvider";
+import { getOpsStreamUrl } from "@/lib/api";
+import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 
 const AVAILABLE_SPIDERS = [
     "detmir", "group_price", "inteltoys", "kassir",
@@ -25,6 +29,18 @@ const AVAILABLE_SPIDERS = [
 const SIDEBAR_EXPANDED_WIDTH = 264;
 const SIDEBAR_COLLAPSED_WIDTH = 78;
 const SIDEBAR_DRAG_TOGGLE_THRESHOLD = 64;
+
+type NavItem = {
+    key: string;
+    label: string;
+    icon: React.ReactNode;
+    strong?: boolean;
+};
+
+type NavSection = {
+    title: string;
+    items: NavItem[];
+};
 
 const parseLatency = (healthData: any): number => {
     if (typeof healthData?.api_latency_ms === "number") return healthData.api_latency_ms;
@@ -37,20 +53,23 @@ const parseLatency = (healthData: any): number => {
 };
 
 export default function Home() {
-    const [activeTab, setActiveTab] = useState("dashboard");
+    const [activeTab, setActiveTab] = useState("ops");
     const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
     const [isSidebarDragging, setIsSidebarDragging] = useState(false);
     const [selectedSourceId, setSelectedSourceId] = useState<number | null>(null);
+    const [selectedSourceInitial, setSelectedSourceInitial] = useState<{ name?: string; slug?: string; url?: string } | null>(null);
     const [catalogSearch, setCatalogSearch] = useState("");
     const [catalogPage, setCatalogPage] = useState(0);
+    const [catalogPendingNewItems, setCatalogPendingNewItems] = useState(0);
     const dragStateRef = useRef({ startX: 0, startCollapsed: false });
 
     const tma = useTMA();
     const { t } = useLanguage();
+    const opsRuntimeSettings = useOpsRuntimeSettings();
     const chatId = tma?.user?.id || tma?.authUser?.id;
 
     const {
-        stats, health, scraping, sources, trends, workers, queue, subscriber, discoveredCategories,
+        stats, health, scraping, sources, trends, workers, queue, subscriber,
         syncSpiders, isSyncing, isLoading,
         forceRun, isForceRunning,
         toggleSourceActive, updateSource, isUpdatingSource,
@@ -59,24 +78,54 @@ export default function Home() {
         sendTestNotification, isSendingTest,
         runAll, isRunningAll,
         runOne, isRunningOne,
-        deleteData, isDeleting,
-        activateDiscoveredCategories, isActivatingDiscoveredCategories
+        merchants, updateMerchant, isUpdatingMerchant
     } = useDashboardData(chatId);
 
     const catalogLimit = 20;
     const catalogOffset = catalogPage * catalogLimit;
     const catalogQuery = useCatalogProducts(catalogLimit, catalogOffset, catalogSearch);
-    const queueTasksQuery = useQueueTasks(100);
-    const queueHistoryQuery = useQueueHistory(100);
+
+    useEffect(() => {
+        if (activeTab !== "catalog") return;
+        let source: EventSource | null = null;
+
+        try {
+            source = new EventSource(getOpsStreamUrl());
+        } catch {
+            return;
+        }
+
+        const handleCatalogUpdated = (event: MessageEvent) => {
+            try {
+                const payload = event.data ? JSON.parse(event.data) : {};
+                const incoming = Number(payload?.new_items || 0);
+                if (!Number.isFinite(incoming) || incoming <= 0) return;
+                setCatalogPendingNewItems((prev) => prev + incoming);
+            } catch {
+                // Ignore malformed SSE payloads.
+            }
+        };
+
+        source.addEventListener("catalog.updated", handleCatalogUpdated);
+
+        return () => {
+            source?.removeEventListener("catalog.updated", handleCatalogUpdated);
+            source?.close();
+        };
+    }, [activeTab]);
 
     const heroLatency = useMemo(() => parseLatency(health.data), [health.data]);
     const sidebarWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;
+    const openSourceDetail = (id: number, initial?: { name?: string; slug?: string; url?: string }) => {
+        setSelectedSourceId(id);
+        setSelectedSourceInitial(initial ?? null);
+    };
 
     const handleSync = () => {
         syncSpiders(AVAILABLE_SPIDERS);
     };
 
-    const navSections = [
+    const navSections: NavSection[] = [
         {
             title: "Stats",
             items: [
@@ -97,14 +146,9 @@ export default function Home() {
             title: "Parsing",
             items: [
                 {
-                    key: "scrapers",
-                    label: "Scrapers",
-                    icon: <RefreshCcw size={20} className={activeTab === "scrapers" ? "animate-pulse" : ""} />,
-                },
-                {
-                    key: "queue",
-                    label: "Queue",
-                    icon: <ListChecks size={20} />,
+                    key: "ops",
+                    label: "Operations",
+                    icon: <Workflow size={20} />,
                 },
             ],
         },
@@ -127,13 +171,23 @@ export default function Home() {
                     icon: <HeartPulse size={20} />,
                 },
                 {
+                    key: "logs",
+                    label: "Logs",
+                    icon: <ScrollText size={20} />,
+                },
+                {
+                    key: "frontend",
+                    label: "Frontend",
+                    icon: <Zap size={20} />,
+                },
+                {
                     key: "settings",
                     label: "Settings",
                     icon: <Settings size={20} fill={activeTab === "settings" ? "currentColor" : "none"} />,
                 },
             ],
         },
-    ] as const;
+    ];
 
     const stopDraggingSidebar = () => {
         setIsSidebarDragging(false);
@@ -176,7 +230,7 @@ export default function Home() {
     };
 
     const renderContent = () => {
-        if (isLoading && activeTab !== "settings" && activeTab !== "catalog") {
+        if (isLoading && activeTab !== "settings" && activeTab !== "catalog" && activeTab !== "ops") {
             return (
                 <div className="flex flex-col items-center justify-center py-24 gap-4">
                     <Loader2 className="animate-spin text-[var(--tg-theme-button-color)]" size={32} />
@@ -189,6 +243,31 @@ export default function Home() {
             case "dashboard":
                 return (
                     <>
+                        <div className="px-4 pt-4">
+                            <ApiServerErrorBanner
+                                errors={[
+                                    stats.error,
+                                    health.error,
+                                    scraping.error,
+                                    sources.error,
+                                    trends.error,
+                                    workers.error,
+                                    queue.error,
+                                ]}
+                                onRetry={async () => {
+                                    await Promise.allSettled([
+                                        stats.refetch(),
+                                        health.refetch(),
+                                        scraping.refetch(),
+                                        sources.refetch(),
+                                        trends.refetch(),
+                                        workers.refetch(),
+                                        queue.refetch(),
+                                    ]);
+                                }}
+                                title="Dashboard API временно недоступен"
+                            />
+                        </div>
                         <div className="px-4 pt-4">
                             <div className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border border-white/20 bg-[linear-gradient(120deg,#1a8fe0_0%,#276db6_45%,#1a4e87_100%)]">
                                 <div className="relative z-10">
@@ -213,7 +292,7 @@ export default function Home() {
                         <SpiderList
                             sources={sources.data?.slice(0, 3)}
                             onSync={handleSync}
-                            onOpenDetail={(id) => setSelectedSourceId(id)}
+                            onOpenDetail={(id) => openSourceDetail(id)}
                             isSyncing={isSyncing}
                             onRunAll={runAll}
                             isRunningAll={isRunningAll}
@@ -222,66 +301,106 @@ export default function Home() {
                         />
                     </>
                 );
-            case "scrapers":
+            case "ops":
                 return (
-                    <ScrapersView
-                        sources={sources.data}
-                        discoveredCategories={discoveredCategories.data}
-                        onSync={handleSync}
-                        onOpenDetail={(id) => setSelectedSourceId(id)}
-                        isSyncing={isSyncing}
-                        onRunAll={runAll}
-                        isRunningAll={isRunningAll}
-                        onRunOne={runOne}
-                        isRunningOne={isRunningOne}
-                        onDeleteData={(id) => deleteData(id)}
-                        isDeleting={isDeleting}
-                        onActivateDiscoveredCategories={(ids) => activateDiscoveredCategories(ids)}
-                        isActivatingDiscoveredCategories={isActivatingDiscoveredCategories}
-                    />
+                    <OperationsView onOpenSourceDetails={(id, initial) => openSourceDetail(id, initial)} />
                 );
             case "catalog":
                 return (
-                    <CatalogView
-                        data={catalogQuery.data}
-                        isLoading={catalogQuery.isLoading || catalogQuery.isFetching}
-                        search={catalogSearch}
-                        page={catalogPage}
-                        onSearchChange={(value) => {
-                            setCatalogSearch(value);
-                            setCatalogPage(0);
-                        }}
-                        onPageChange={setCatalogPage}
-                        onRefresh={() => catalogQuery.refetch()}
-                    />
+                    <>
+                        <div className="px-4 pt-4">
+                            <ApiServerErrorBanner
+                                errors={[catalogQuery.error]}
+                                onRetry={async () => {
+                                    await catalogQuery.refetch();
+                                }}
+                                title="Catalog API временно недоступен"
+                            />
+                        </div>
+                        <CatalogView
+                            data={catalogQuery.data}
+                            isLoading={catalogQuery.isLoading || catalogQuery.isFetching}
+                            pendingNewItems={catalogPendingNewItems}
+                            search={catalogSearch}
+                            page={catalogPage}
+                            onSearchChange={(value) => {
+                                setCatalogSearch(value);
+                                setCatalogPage(0);
+                            }}
+                            onPageChange={setCatalogPage}
+                            onRefresh={() => {
+                                void catalogQuery.refetch().finally(() => {
+                                    setCatalogPendingNewItems(0);
+                                });
+                            }}
+                            onApplyNewItems={() => {
+                                void catalogQuery.refetch().finally(() => {
+                                    setCatalogPendingNewItems(0);
+                                });
+                            }}
+                        />
+                    </>
                 );
             case "intelligence":
                 return <Intelligence />;
             case "health":
-                return <HealthView health={health.data} workers={workers.data} queue={queue.data} />;
-            case "queue":
                 return (
-                    <QueueView
-                        queue={queue.data}
-                        tasksData={queueTasksQuery.data}
-                        isLoadingTasks={queueTasksQuery.isLoading || queueTasksQuery.isFetching}
-                        historyData={queueHistoryQuery.data}
-                        isLoadingHistory={queueHistoryQuery.isLoading || queueHistoryQuery.isFetching}
-                    />
+                    <>
+                        <div className="px-4 pt-4">
+                            <ApiServerErrorBanner
+                                errors={[health.error, workers.error, queue.error]}
+                                onRetry={async () => {
+                                    await Promise.allSettled([
+                                        health.refetch(),
+                                        workers.refetch(),
+                                        queue.refetch(),
+                                    ]);
+                                }}
+                                title="Health API временно недоступен"
+                            />
+                        </div>
+                        <HealthView health={health.data} workers={workers.data} queue={queue.data} />
+                    </>
                 );
             case "settings":
                 return (
-                    <SettingsView
-                        chatId={chatId}
-                        subscriber={subscriber.data}
-                        onConnectWeeek={(token) => connectWeeek({ token })}
-                        isConnectingWeeek={isConnectingWeeek}
-                        toggleSubscription={(topic, active) => toggleSubscription({ topic, active })}
-                        setBackendLanguage={(lang) => setBackendLanguage(lang)}
-                        onSendTestNotification={(topic) => sendTestNotification(topic)}
-                        isSendingTest={isSendingTest}
-                    />
+                    <>
+                        <div className="px-4 pt-4">
+                            <ApiServerErrorBanner
+                                errors={[subscriber.error]}
+                                onRetry={async () => {
+                                    await subscriber.refetch();
+                                }}
+                                title="Settings API временно недоступен"
+                            />
+                        </div>
+                        <SettingsView
+                            chatId={chatId}
+                            subscriber={subscriber.data}
+                            onConnectWeeek={(token) => connectWeeek({ token })}
+                            isConnectingWeeek={isConnectingWeeek}
+                            toggleSubscription={(topic, active) => toggleSubscription({ topic, active })}
+                            setBackendLanguage={(lang) => setBackendLanguage(lang)}
+                            onSendTestNotification={(topic) => sendTestNotification(topic)}
+                            isSendingTest={isSendingTest}
+                            runtimeSettings={opsRuntimeSettings.data}
+                            runtimeSettingsLoading={opsRuntimeSettings.isLoading}
+                            runtimeSettingsError={opsRuntimeSettings.error}
+                            onUpdateRuntimeSettings={opsRuntimeSettings.updateSettings}
+                            onRestoreRuntimeSettingsDefaults={opsRuntimeSettings.restoreDefaults}
+                            isUpdatingRuntimeSettings={opsRuntimeSettings.isUpdating}
+                            merchants={merchants.data}
+                            merchantsLoading={merchants.isLoading}
+                            merchantsError={merchants.error}
+                            onUpdateMerchant={updateMerchant}
+                            isUpdatingMerchant={isUpdatingMerchant}
+                        />
+                    </>
                 );
+            case "logs":
+                return <LogsView />;
+            case "frontend":
+                return <FrontendRoutingView />;
             default:
                 return null;
         }
@@ -301,11 +420,15 @@ export default function Home() {
             {selectedSourceId && (
                 <SpiderDetail
                     sourceId={selectedSourceId}
-                    onClose={() => setSelectedSourceId(null)}
+                    initialSource={selectedSourceInitial || undefined}
+                    onClose={() => {
+                        setSelectedSourceId(null);
+                        setSelectedSourceInitial(null);
+                    }}
                     onForceRun={(id, strategy) => forceRun({ id, strategy })}
                     onToggleActive={(id, active) => toggleSourceActive({ id, active })}
                     onUpdateSource={(id, updates) => updateSource({ id, updates })}
-                    onOpenSource={(id) => setSelectedSourceId(id)}
+                    onOpenSource={(id) => openSourceDetail(id)}
                     isForceRunning={isForceRunning}
                     isUpdatingSource={isUpdatingSource}
                 />

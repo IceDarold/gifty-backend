@@ -383,8 +383,8 @@ class ParsingRepository:
 
     async def get_total_products_count(self, site_key: str) -> int:
         from app.models import Product, ParsingSource, ParsingRun
-        # Approximate count based on gift_id prefix
-        stmt = select(func.count()).select_from(Product).where(Product.gift_id.like(f"{site_key}:%"))
+        # Approximate count based on product_id prefix
+        stmt = select(func.count()).select_from(Product).where(Product.product_id.like(f"{site_key}:%"))
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
@@ -510,16 +510,78 @@ class ParsingRepository:
         return result.scalar() or 0
 
     async def get_total_category_products_count(self, site_key: str, category_name: str) -> int:
-        from app.models import Product
-        # Try to match by category name stored in Product.category
-        stmt = select(func.count()).select_from(Product).where(
-            and_(
-                Product.gift_id.like(f"{site_key}:%"),
-                Product.category == category_name
+        from app.models import DiscoveredCategory, ProductCategoryLink
+        # Prefer discovered_categories linkage if possible; fallback remains approximate by name.
+        cat = (
+            await self.session.execute(
+                select(DiscoveredCategory).where(
+                    DiscoveredCategory.site_key == site_key,
+                    DiscoveredCategory.name == category_name,
+                )
             )
-        )
+        ).scalar_one_or_none()
+        if not cat:
+            return 0
+        stmt = select(func.count()).select_from(ProductCategoryLink).where(ProductCategoryLink.discovered_category_id == cat.id)
         result = await self.session.execute(stmt)
         return result.scalar() or 0
+
+    async def get_or_create_merchant(self, site_key: str):
+        from app.models import Merchant
+        key = str(site_key or "").strip()
+        if not key:
+            return None
+
+        existing = (
+            await self.session.execute(select(Merchant).where(Merchant.site_key == key))
+        ).scalar_one_or_none()
+        if existing:
+            return existing
+
+        merchant = Merchant(site_key=key, name=key)
+        self.session.add(merchant)
+        await self.session.flush()
+        return merchant
+
+    async def upsert_product_category_links(
+        self,
+        *,
+        product_ids: set[str],
+        discovered_category_id: int,
+        source_id: int,
+        run_id: int | None = None,
+    ) -> int:
+        from sqlalchemy.dialects.postgresql import insert
+        from app.models import ProductCategoryLink
+
+        if not product_ids:
+            return 0
+        now = datetime.now()
+        rows = [
+            {
+                "product_id": pid,
+                "discovered_category_id": int(discovered_category_id),
+                "source_id": int(source_id),
+                "last_run_id": int(run_id) if run_id else None,
+                "first_seen_at": now,
+                "last_seen_at": now,
+                "seen_count": 1,
+            }
+            for pid in product_ids
+        ]
+        stmt = insert(ProductCategoryLink).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            index_elements=[ProductCategoryLink.product_id, ProductCategoryLink.discovered_category_id],
+            set_={
+                "source_id": stmt.excluded.source_id,
+                "last_run_id": stmt.excluded.last_run_id,
+                "last_seen_at": stmt.excluded.last_seen_at,
+                "seen_count": ProductCategoryLink.seen_count + 1,
+                "updated_at": func.now(),
+            },
+        )
+        res = await self.session.execute(stmt)
+        return res.rowcount or 0
 
     async def get_source_daily_history(self, source_id: int, limit_days: int = 15):
         from app.models import ParsingRun

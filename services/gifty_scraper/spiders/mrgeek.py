@@ -2,10 +2,10 @@ import scrapy
 from gifty_scraper.base_spider import GiftyBaseSpider
 from gifty_scraper.items import CategoryItem
 
-class MrGeekSpider(GiftyBaseSpider):
-    name = "mrgeek"
-    allowed_domains = ["mrgeek.ru"]
-    site_key = "mrgeek"
+class Spider(GiftyBaseSpider):
+    name = ""
+    allowed_domains = [".ru"]
+    site_key = ""
 
     def parse_catalog(self, response):
         self.logger.info(f"Parsing catalog: {response.url}")
@@ -102,8 +102,8 @@ class MrGeekSpider(GiftyBaseSpider):
             product_url=response.url,
             price=price,
             image_url=image_url if image_url else None,
-            merchant="MrGeek",
-            raw_data={"source": "scrapy_mrgeek_product_page"}
+            merchant="",
+            raw_data={"source": "scrapy__product_page"}
         )
 
     def parse_discovery(self, response):

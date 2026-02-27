@@ -5,13 +5,16 @@ import { Brain, CreditCard, Layers, Zap, ArrowRight, Activity, Loader2 } from 'l
 import { useQuery } from '@tanstack/react-query';
 import { fetchIntelligence } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { ApiServerErrorBanner } from '@/components/ApiServerErrorBanner';
+import { useOpsRuntimeSettings } from '@/contexts/OpsRuntimeSettingsContext';
 
 export function Intelligence() {
     const { t } = useLanguage();
-    const { data: stats, isLoading, error } = useQuery({
+    const { getIntervalMs } = useOpsRuntimeSettings();
+    const { data: stats, isLoading, error, refetch } = useQuery({
         queryKey: ['intelligence'],
         queryFn: () => fetchIntelligence(7),
-        refetchInterval: 300000, // 5 mins
+        refetchInterval: (query) => (query.state.error ? false : getIntervalMs('intelligence.summary_ms', 300000)),
     });
 
     if (isLoading) return (
@@ -21,7 +24,19 @@ export function Intelligence() {
         </div>
     );
 
-    if (error || !stats) return <div className="p-10 text-center text-red-500">Failed to load AI intelligence data</div>;
+    if (error || !stats) {
+        return (
+            <div className="px-4 py-6">
+                <ApiServerErrorBanner
+                    errors={[error]}
+                    onRetry={async () => {
+                        await refetch();
+                    }}
+                    title="AI Intelligence API временно недоступен"
+                />
+            </div>
+        );
+    }
 
     const { metrics, providers, latency_heatmap } = stats;
 

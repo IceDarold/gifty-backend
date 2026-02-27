@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from typing import List
 from datetime import datetime, timedelta
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
@@ -16,8 +16,10 @@ from app.schemas.public import (
     PartnerContactCreate, 
     NewsletterSubscribe
 )
+from app.schemas.frontend import FrontendConfigRequest, FrontendConfigResponse
 from app.redis_client import get_redis
 from app.services.notifications import NotificationService, get_notification_service
+from app.services.frontend_routing import FrontendRoutingService
 
 router = APIRouter(prefix="/api/v1/public", tags=["Public"])
 logger = logging.getLogger(__name__)
@@ -162,3 +164,57 @@ async def newsletter_subscribe(
     message = f"📧 *New Newsletter Subscription*: {data.email}"
     await notifications.notify(topic="newsletter", message=message, data=data.model_dump())
     return {"ok": True}
+
+
+@router.get("/frontend-config", response_model=FrontendConfigResponse)
+async def get_frontend_config(
+    request: Request,
+    response: Response,
+    host: str | None = None,
+    path: str = "/",
+    country: str | None = None,
+    redis: Redis = Depends(get_redis),
+    db: AsyncSession = Depends(get_db),
+):
+    request_host = host or request.headers.get("host") or ""
+    sticky_raw = request.cookies.get(FrontendRoutingService.STICKY_COOKIE_NAME)
+    sticky_release_id = None
+    if sticky_raw and sticky_raw.isdigit():
+        sticky_release_id = int(sticky_raw)
+
+    query_params = dict(request.query_params)
+    query_params.pop("host", None)
+    query_params.pop("path", None)
+    query_params.pop("country", None)
+
+    service = FrontendRoutingService(db=db, redis=redis)
+    resolved = await service.resolve_config(
+        FrontendConfigRequest(
+            host=request_host,
+            path=path,
+            query_params=query_params,
+            country=country,
+            sticky_release_id=sticky_release_id,
+        )
+    )
+
+    cache_ttl = int(resolved["cache_ttl"])
+    response.headers["Cache-Control"] = f"public, max-age={cache_ttl}"
+    if resolved["sticky_enabled"]:
+        response.set_cookie(
+            key=FrontendRoutingService.STICKY_COOKIE_NAME,
+            value=str(resolved["release_id"]),
+            max_age=int(resolved["sticky_ttl_seconds"]),
+            httponly=True,
+            samesite="lax",
+            secure=True,
+            path="/",
+        )
+
+    return FrontendConfigResponse(
+        target_url=resolved["target_url"],
+        release_id=resolved["release_id"],
+        cache_ttl=resolved["cache_ttl"],
+        sticky_key=resolved["sticky_key"],
+        flags=resolved["flags"],
+    )

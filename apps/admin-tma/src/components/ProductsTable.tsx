@@ -54,7 +54,7 @@ export function ProductsTable({ products, total, isLoading, onLoadMore, hasMore 
 
             <div className="space-y-3">
                 {products.map((product) => (
-                    <div key={product.gift_id} className="glass card p-3 flex gap-4 group hover:border-blue-500/30 transition-all">
+                    <div key={product.product_id ?? product.gift_id} className="glass card p-3 flex gap-4 group hover:border-blue-500/30 transition-all">
                         {/* Image */}
                         <div className="w-16 h-16 rounded-xl bg-[var(--tg-theme-secondary-bg-color)] overflow-hidden flex-shrink-0 relative border border-white/5 shadow-inner">
                             {product.image_url ? (
@@ -97,6 +97,13 @@ export function ProductsTable({ products, total, isLoading, onLoadMore, hasMore 
                                             {product.category}
                                         </div>
                                     )}
+                                    {!product.category && product.scraped_category?.name ? (
+                                        <div className="flex items-center gap-1 text-[8px] px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-200 font-bold uppercase tracking-wider">
+                                            <Tag size={8} />
+                                            {String(product.scraped_category.name)}
+                                            {Number(product.scraped_categories_count || 0) > 1 ? ` +${Number(product.scraped_categories_count || 0) - 1}` : ""}
+                                        </div>
+                                    ) : null}
                                 </div>
                             </div>
 
@@ -107,7 +114,7 @@ export function ProductsTable({ products, total, isLoading, onLoadMore, hasMore 
                                 </div>
                                 <div className="flex items-center gap-1">
                                     <Globe size={8} />
-                                    <span className="truncate max-w-[60px]">{product.merchant || product.gift_id.split(':')[0]}</span>
+                                    <span className="truncate max-w-[60px]">{product.merchant || (product.product_id ?? product.gift_id)?.split(':')[0]}</span>
                                 </div>
                             </div>
                         </div>
