@@ -26,6 +26,10 @@ services:
       REDIS_URL: "redis://redis:6379/0"
       RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
       LLM_PROXY_URL: "socks5://host.docker.internal:3128"
+      # Tracing (Tempo via OpenTelemetry Collector)
+      OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-gifty-api}"
 
   postgres:
     image: pgvector/pgvector:pg17
@@ -106,6 +110,9 @@ services:
       DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
       REDIS_URL: "redis://redis:6379/0"
       RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
+      OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
+      OTEL_SERVICE_NAME: "${OTEL_SCHEDULER_SERVICE_NAME:-gifty-scheduler}"
 
   prometheus:
     image: prom/prometheus:v2.54.1
@@ -140,6 +147,45 @@ services:
       - ./deploy/monitoring/promtail-config.yml:/etc/promtail/config.yml
     command: -config.file=/etc/promtail/config.yml
 
+  node-exporter:
+    image: prom/node-exporter:v1.8.2
+    restart: unless-stopped
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/host"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/host:ro,rslave
+
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:v0.49.1
+    restart: unless-stopped
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:rw
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+
+  tempo:
+    image: grafana/tempo:2.6.1
+    restart: unless-stopped
+    command: ["-config.file=/etc/tempo/tempo.yml"]
+    volumes:
+      - ./deploy/monitoring/tempo-config.yml:/etc/tempo/tempo.yml:ro
+      - tempo_data:/var/tempo
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.96.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yml"]
+    volumes:
+      - ./deploy/monitoring/otel-collector-config.yml:/etc/otelcol/config.yml:ro
+    depends_on:
+      - tempo
+
   grafana:
     image: grafana/grafana-oss:11.4.0
     restart: unless-stopped
@@ -157,6 +203,7 @@ services:
     depends_on:
       - prometheus
       - loki
+      - tempo
 
   telegram-bot:
     build:
@@ -183,3 +230,4 @@ volumes:
   rabbitmqdata:
   prometheus_data:
   grafana_data:
+  tempo_data:

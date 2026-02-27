@@ -23,6 +23,13 @@ from prometheus_fastapi_instrumentator import Instrumentator
 
 settings = get_settings()
 
+from app.observability.tracing import configure_tracing, get_otel_config, instrument_fastapi
+
+_otel = get_otel_config()
+if _otel:
+    _service_name, _otlp_endpoint = _otel
+    configure_tracing(_service_name, _otlp_endpoint)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -66,6 +73,8 @@ app = FastAPI(
     docs_url=None, 
     redoc_url=None
 )
+
+instrument_fastapi(app)
 
 @app.get("/docs", include_in_schema=False)
 async def scalar_html():
@@ -118,4 +127,3 @@ async def health() -> dict:
 
 
 Instrumentator().instrument(app).expose(app)
-
