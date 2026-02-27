@@ -1,0 +1,99 @@
+{
+  "id": null,
+  "uid": "gifty-containers-overview",
+  "title": "Gifty Containers Overview (cAdvisor)",
+  "tags": ["gifty", "containers", "cadvisor"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "datasource",
+        "type": "datasource",
+        "label": "Datasource",
+        "query": "prometheus",
+        "current": {
+          "text": "Prometheus",
+          "value": "Prometheus"
+        }
+      },
+      {
+        "name": "container",
+        "type": "query",
+        "label": "Container",
+        "datasource": "$datasource",
+        "definition": "label_values(container_last_seen, name)",
+        "query": {
+          "query": "label_values(container_last_seen, name)",
+          "refId": "StdVar"
+        },
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "type": "timeseries",
+      "title": "CPU usage by container (cores)",
+      "gridPos": { "x": 0, "y": 0, "w": 18, "h": 10 },
+      "datasource": "$datasource",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(12, sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"$container\", image!=\"\"}[2m])))",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "cores", "decimals": 3 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "right" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Memory working set by container",
+      "gridPos": { "x": 0, "y": 10, "w": 18, "h": 10 },
+      "datasource": "$datasource",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(12, sum by (name) (container_memory_working_set_bytes{name=~\"$container\", image!=\"\"}))",
+          "legendFormat": "{{name}}"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "bytes", "decimals": 2 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "right" } }
+    },
+    {
+      "type": "timeseries",
+      "title": "Network RX/TX (bytes/s)",
+      "gridPos": { "x": 0, "y": 20, "w": 18, "h": 10 },
+      "datasource": "$datasource",
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "topk(12, sum by (name) (rate(container_network_receive_bytes_total{name=~\"$container\"}[2m])))",
+          "legendFormat": "{{name}} rx"
+        },
+        {
+          "refId": "B",
+          "expr": "topk(12, sum by (name) (rate(container_network_transmit_bytes_total{name=~\"$container\"}[2m])))",
+          "legendFormat": "{{name}} tx"
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "Bps", "decimals": 1 }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "right" } }
+    }
+  ]
+}
+

@@ -1,0 +1,13 @@
+apiVersion: 1
+
+providers:
+  - name: "gifty"
+    orgId: 1
+    folder: "Gifty"
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/gifty
+      foldersFromFilesStructure: false
+
