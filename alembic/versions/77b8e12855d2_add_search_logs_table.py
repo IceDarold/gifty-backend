@@ -8,7 +8,6 @@ Create Date: 2026-02-18 16:45:00.000000
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
-from sqlalchemy.exc import ProgrammingError
 
 # revision identifiers, used by Alembic.
 revision = '77b8e12855d2'
@@ -49,15 +48,15 @@ def upgrade():
             sa.PrimaryKeyConstraint("id"),
         )
 
-    # Indexes: best-effort; tolerate existing.
-    for idx_name, cols in (
-        (op.f("ix_search_logs_hypothesis_id"), ["hypothesis_id"]),
-        (op.f("ix_search_logs_session_id"), ["session_id"]),
-    ):
-        try:
-            op.create_index(idx_name, "search_logs", cols, unique=False)
-        except ProgrammingError:
-            pass
+    # Indexes: do NOT attempt to create if already present.
+    # Important: we must avoid raising any SQL error inside the migration transaction
+    # (Postgres would mark the whole transaction as aborted).
+    if "search_logs" in existing_tables:
+        existing_search_logs_indexes = {i.get("name") for i in insp.get_indexes("search_logs")}
+        if "ix_search_logs_hypothesis_id" not in existing_search_logs_indexes:
+            op.create_index("ix_search_logs_hypothesis_id", "search_logs", ["hypothesis_id"], unique=False)
+        if "ix_search_logs_session_id" not in existing_search_logs_indexes:
+            op.create_index("ix_search_logs_session_id", "search_logs", ["session_id"], unique=False)
 
     if "hypothesis_product_links" not in existing_tables:
         op.create_table(
@@ -74,14 +73,17 @@ def upgrade():
             sa.PrimaryKeyConstraint("id"),
         )
 
-    for idx_name, cols in (
-        (op.f("ix_hypothesis_product_links_gift_id"), ["gift_id"]),
-        (op.f("ix_hypothesis_product_links_hypothesis_id"), ["hypothesis_id"]),
-    ):
-        try:
-            op.create_index(idx_name, "hypothesis_product_links", cols, unique=False)
-        except ProgrammingError:
-            pass
+    if "hypothesis_product_links" in existing_tables:
+        existing_hpl_indexes = {i.get("name") for i in insp.get_indexes("hypothesis_product_links")}
+        if "ix_hypothesis_product_links_gift_id" not in existing_hpl_indexes:
+            op.create_index("ix_hypothesis_product_links_gift_id", "hypothesis_product_links", ["gift_id"], unique=False)
+        if "ix_hypothesis_product_links_hypothesis_id" not in existing_hpl_indexes:
+            op.create_index(
+                "ix_hypothesis_product_links_hypothesis_id",
+                "hypothesis_product_links",
+                ["hypothesis_id"],
+                unique=False,
+            )
 
 def downgrade():
     bind = op.get_bind()
@@ -89,26 +91,18 @@ def downgrade():
     existing_tables = set(insp.get_table_names())
 
     if "hypothesis_product_links" in existing_tables:
-        for idx_name in (
-            op.f("ix_hypothesis_product_links_gift_id"),
-            op.f("ix_hypothesis_product_links_hypothesis_id"),
-        ):
-            try:
-                op.drop_index(idx_name, table_name="hypothesis_product_links")
-            except ProgrammingError:
-                pass
-        try:
-            op.drop_table("hypothesis_product_links")
-        except ProgrammingError:
-            pass
+        # Drop indexes if they exist (best-effort).
+        existing_hpl_indexes = {i.get("name") for i in insp.get_indexes("hypothesis_product_links")}
+        if "ix_hypothesis_product_links_gift_id" in existing_hpl_indexes:
+            op.drop_index("ix_hypothesis_product_links_gift_id", table_name="hypothesis_product_links")
+        if "ix_hypothesis_product_links_hypothesis_id" in existing_hpl_indexes:
+            op.drop_index("ix_hypothesis_product_links_hypothesis_id", table_name="hypothesis_product_links")
+        op.drop_table("hypothesis_product_links")
 
     if "search_logs" in existing_tables:
-        for idx_name in (op.f("ix_search_logs_session_id"), op.f("ix_search_logs_hypothesis_id")):
-            try:
-                op.drop_index(idx_name, table_name="search_logs")
-            except ProgrammingError:
-                pass
-        try:
-            op.drop_table("search_logs")
-        except ProgrammingError:
-            pass
+        existing_search_logs_indexes = {i.get("name") for i in insp.get_indexes("search_logs")}
+        if "ix_search_logs_session_id" in existing_search_logs_indexes:
+            op.drop_index("ix_search_logs_session_id", table_name="search_logs")
+        if "ix_search_logs_hypothesis_id" in existing_search_logs_indexes:
+            op.drop_index("ix_search_logs_hypothesis_id", table_name="search_logs")
+        op.drop_table("search_logs")
