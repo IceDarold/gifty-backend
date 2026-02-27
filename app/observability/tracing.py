@@ -50,7 +50,8 @@ def instrument_fastapi(app) -> None:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     # Safe to call multiple times.
-    FastAPIInstrumentor.instrument_app(app)
+    excluded_urls = os.getenv("OTEL_EXCLUDED_URLS", r"^/health$|^/metrics$")
+    FastAPIInstrumentor.instrument_app(app, excluded_urls=excluded_urls)
 
 
 def get_otel_config() -> Optional[tuple[str, str]]:
@@ -59,4 +60,3 @@ def get_otel_config() -> Optional[tuple[str, str]]:
     service_name = os.getenv("OTEL_SERVICE_NAME", "gifty-api")
     otlp_endpoint = os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
     return service_name, otlp_endpoint
-
