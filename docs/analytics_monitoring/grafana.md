@@ -32,7 +32,9 @@ Add this inside the `server { server_name api.giftyai.ru; ... }` block:
 ```nginx
 # Grafana under /grafana/
 location /grafana/ {
-  proxy_pass http://127.0.0.1:3000/;
+  # Important: no trailing slash here, otherwise nginx will strip `/grafana/`
+  # and Grafana will get stuck in a redirect loop.
+  proxy_pass http://127.0.0.1:3000;
 
   proxy_set_header Host $host;
   proxy_set_header X-Real-IP $remote_addr;
@@ -45,7 +47,7 @@ location /grafana/ {
 
 # Grafana Live (websocket)
 location /grafana/api/live/ {
-  proxy_pass http://127.0.0.1:3000/api/live/;
+  proxy_pass http://127.0.0.1:3000;
 
   proxy_http_version 1.1;
   proxy_set_header Upgrade $http_upgrade;
