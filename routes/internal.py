@@ -10,7 +10,7 @@ import re
 import hashlib
 import logging
 from pydantic import BaseModel, Field
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, REGISTRY
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
@@ -74,13 +74,44 @@ OPS_CLIENT_INTERVAL_DEFAULTS: dict[str, int] = {
     "catalog.revalidate_ms": 30000,
 }
 
-ops_aggregator_runs_total = Counter("ops_aggregator_runs_total", "Total ops aggregator runs")
-ops_aggregator_run_duration_ms = Histogram("ops_aggregator_run_duration_ms", "Duration of ops aggregator run in milliseconds")
-ops_snapshot_cache_hits_total = Counter("ops_snapshot_cache_hits_total", "Ops snapshot cache hits")
-ops_snapshot_cache_misses_total = Counter("ops_snapshot_cache_misses_total", "Ops snapshot cache misses")
-ops_snapshot_stale_served_total = Counter("ops_snapshot_stale_served_total", "Ops stale snapshots served")
-ops_snapshot_refresh_errors_total = Counter("ops_snapshot_refresh_errors_total", "Ops snapshot refresh errors")
-ops_settings_updates_total = Counter("ops_settings_updates_total", "Ops runtime settings updates")
+def _get_or_create_collector(name: str, factory):
+    # During tests the module can be imported in multiple ways (app.main imports routes.internal,
+    # and some tests import routes.internal directly). Avoid duplicate registration errors by reusing
+    # existing collectors in the default REGISTRY.
+    existing = getattr(REGISTRY, "_names_to_collectors", {}).get(name)  # type: ignore[attr-defined]
+    if existing is not None:
+        return existing
+    return factory()
+
+
+ops_aggregator_runs_total = _get_or_create_collector(
+    "ops_aggregator_runs_total",
+    lambda: Counter("ops_aggregator_runs_total", "Total ops aggregator runs"),
+)
+ops_aggregator_run_duration_ms = _get_or_create_collector(
+    "ops_aggregator_run_duration_ms",
+    lambda: Histogram("ops_aggregator_run_duration_ms", "Duration of ops aggregator run in milliseconds"),
+)
+ops_snapshot_cache_hits_total = _get_or_create_collector(
+    "ops_snapshot_cache_hits_total",
+    lambda: Counter("ops_snapshot_cache_hits_total", "Ops snapshot cache hits"),
+)
+ops_snapshot_cache_misses_total = _get_or_create_collector(
+    "ops_snapshot_cache_misses_total",
+    lambda: Counter("ops_snapshot_cache_misses_total", "Ops snapshot cache misses"),
+)
+ops_snapshot_stale_served_total = _get_or_create_collector(
+    "ops_snapshot_stale_served_total",
+    lambda: Counter("ops_snapshot_stale_served_total", "Ops stale snapshots served"),
+)
+ops_snapshot_refresh_errors_total = _get_or_create_collector(
+    "ops_snapshot_refresh_errors_total",
+    lambda: Counter("ops_snapshot_refresh_errors_total", "Ops snapshot refresh errors"),
+)
+ops_settings_updates_total = _get_or_create_collector(
+    "ops_settings_updates_total",
+    lambda: Counter("ops_settings_updates_total", "Ops runtime settings updates"),
+)
 logger = logging.getLogger("ops_runtime")
 OPS_SNAPSHOT_REFRESH_LOCK_PREFIX = "ops:snapshot:refresh_lock:"
 OPS_SETTINGS_UPDATE_RATE_LIMIT_MS = 1000

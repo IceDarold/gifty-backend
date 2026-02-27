@@ -11,7 +11,7 @@ from typing import Any, Optional
 from urllib.parse import urlparse
 
 import httpx
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, REGISTRY
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,22 +20,32 @@ from app.schemas.frontend import FrontendConfigRequest, FrontendConfigResponse
 
 logger = logging.getLogger(__name__)
 
-frontend_config_requests_total = Counter(
+def _get_or_create_collector(name: str, factory):
+    existing = getattr(REGISTRY, "_names_to_collectors", {}).get(name)  # type: ignore[attr-defined]
+    if existing is not None:
+        return existing
+    return factory()
+
+
+frontend_config_requests_total = _get_or_create_collector(
     "frontend_config_requests_total",
-    "Total frontend routing config requests",
+    lambda: Counter("frontend_config_requests_total", "Total frontend routing config requests"),
 )
-frontend_config_cache_hits_total = Counter(
+frontend_config_cache_hits_total = _get_or_create_collector(
     "frontend_config_cache_hits_total",
-    "Frontend routing cache hits",
+    lambda: Counter("frontend_config_cache_hits_total", "Frontend routing cache hits"),
 )
-frontend_config_fallback_total = Counter(
+frontend_config_fallback_total = _get_or_create_collector(
     "frontend_config_fallback_total",
-    "Frontend routing fallback usage count",
+    lambda: Counter("frontend_config_fallback_total", "Frontend routing fallback usage count"),
 )
-frontend_config_resolution_latency_ms = Histogram(
+frontend_config_resolution_latency_ms = _get_or_create_collector(
     "frontend_config_resolution_latency_ms",
-    "Frontend routing resolution latency in milliseconds",
-    buckets=(1, 3, 5, 10, 20, 50, 100, 200, 500),
+    lambda: Histogram(
+        "frontend_config_resolution_latency_ms",
+        "Frontend routing resolution latency in milliseconds",
+        buckets=(1, 3, 5, 10, 20, 50, 100, 200, 500),
+    ),
 )
 
 
