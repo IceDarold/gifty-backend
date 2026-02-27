@@ -7,9 +7,9 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "gifty-backend"
+  - job_name: "gifty-api"
     static_configs:
-      - targets: ["backend:8000"]
+      - targets: ["api:8000"]
     metrics_path: "/metrics"
 
   - job_name: "rabbitmq"
