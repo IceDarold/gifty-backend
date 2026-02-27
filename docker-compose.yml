@@ -148,7 +148,8 @@ services:
     environment:
       # Serve behind nginx at https://<domain>/grafana/
       GF_SERVER_DOMAIN: ${GRAFANA_DOMAIN:-api.giftyai.ru}
-      GF_SERVER_ROOT_URL: "%(protocol)s://%(domain)s/grafana/"
+      # Do NOT use %(protocol)s here: Grafana will default to http and create a redirect loop behind nginx+TLS.
+      GF_SERVER_ROOT_URL: "https://%(domain)s/grafana/"
       GF_SERVER_SERVE_FROM_SUB_PATH: "true"
     volumes:
       - grafana_data:/var/lib/grafana
