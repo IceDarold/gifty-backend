@@ -22,14 +22,15 @@ async def test_run_parsing_scheduler_success():
     # Mock context manager and other dependencies
     with patch("app.jobs.parsing_scheduler.get_session_context") as mock_ctx:
         mock_ctx.return_value.__aenter__.return_value = AsyncMock()
-        with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
-            with patch("app.jobs.parsing_scheduler.publish_parsing_task", return_value=True) as mock_publish:
+        with patch("app.jobs.parsing_scheduler._is_scheduler_paused", new=AsyncMock(return_value=False)):
+            with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
+                with patch("app.jobs.parsing_scheduler.publish_parsing_task", return_value=True) as mock_publish:
                 
-                await run_parsing_scheduler()
+                    await run_parsing_scheduler()
                 
-                mock_repo.get_due_sources.assert_called_once_with(limit=20)
-                mock_publish.assert_called_once()
-                mock_repo.set_queued.assert_called_once_with(1)
+                    mock_repo.get_due_sources.assert_called_once_with(limit=20)
+                    mock_publish.assert_called_once()
+                    mock_repo.set_queued.assert_called_once_with(1)
 
 @pytest.mark.asyncio
 async def test_run_parsing_scheduler_empty():
@@ -38,13 +39,14 @@ async def test_run_parsing_scheduler_empty():
     
     with patch("app.jobs.parsing_scheduler.get_session_context") as mock_ctx:
         mock_ctx.return_value.__aenter__.return_value = AsyncMock()
-        with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
-            with patch("app.jobs.parsing_scheduler.publish_parsing_task") as mock_publish:
+        with patch("app.jobs.parsing_scheduler._is_scheduler_paused", new=AsyncMock(return_value=False)):
+            with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
+                with patch("app.jobs.parsing_scheduler.publish_parsing_task") as mock_publish:
                 
-                await run_parsing_scheduler()
+                    await run_parsing_scheduler()
                 
-                mock_repo.get_due_sources.assert_called_once()
-                mock_publish.assert_not_called()
+                    mock_repo.get_due_sources.assert_called_once()
+                    mock_publish.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_activate_discovered_sources():

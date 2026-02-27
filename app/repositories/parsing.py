@@ -144,6 +144,48 @@ class ParsingRepository:
         await self.session.refresh(source)
         return source
 
+    async def get_or_create_discovered_category(
+        self,
+        *,
+        site_key: str,
+        url: str,
+        name: str | None = None,
+        parent_url: str | None = None,
+    ):
+        """
+        Ensures a discovered_categories row exists for this (site_key, url).
+        Used to satisfy the invariant: parsing_sources(type='list') requires category_id.
+        """
+        from app.models import DiscoveredCategory
+
+        stmt = select(DiscoveredCategory).where(
+            and_(DiscoveredCategory.site_key == site_key, DiscoveredCategory.url == url)
+        )
+        existing = (await self.session.execute(stmt)).scalar_one_or_none()
+        if existing:
+            # Best-effort enrichment.
+            changed = False
+            if name and not existing.name:
+                existing.name = name
+                changed = True
+            if parent_url and not existing.parent_url:
+                existing.parent_url = parent_url
+                changed = True
+            if changed:
+                await self.session.flush()
+            return existing
+
+        cat = DiscoveredCategory(
+            site_key=site_key,
+            url=url,
+            name=name,
+            parent_url=parent_url,
+            state="new",
+        )
+        self.session.add(cat)
+        await self.session.flush()
+        return cat
+
     async def get_source_by_id(self, source_id: int) -> Optional[ParsingSource]:
         stmt = select(ParsingSource).where(ParsingSource.id == source_id)
         result = await self.session.execute(stmt)

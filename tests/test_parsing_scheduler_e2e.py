@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector
 
 from app.db import Base
-from app.models import ParsingSource, ParsingRun, CategoryMap, Product
+from app.models import ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, Merchant, ProductCategoryLink
 from app.repositories.parsing import ParsingRepository
 from app.jobs.parsing_scheduler import run_parsing_scheduler
 from app.repositories.catalog import PostgresCatalogRepository
@@ -36,8 +36,11 @@ async def sqlite_db_session(tmp_path):
             Base.metadata.create_all,
             tables=[
                 ParsingSource.__table__,
+                DiscoveredCategory.__table__,
+                ProductCategoryLink.__table__,
                 ParsingRun.__table__,
                 CategoryMap.__table__,
+                Merchant.__table__,
                 Product.__table__
             ],
         )
@@ -53,6 +56,12 @@ async def sqlite_db_session(tmp_path):
 async def test_parsing_scheduler_flow(sqlite_db_session):
     repo = ParsingRepository(sqlite_db_session)
     
+    # Create discovered category to satisfy list-source invariant.
+    cat = DiscoveredCategory(site_key="test_site", url="https://test.com/cat", name="Test Category")
+    sqlite_db_session.add(cat)
+    await sqlite_db_session.commit()
+    await sqlite_db_session.refresh(cat)
+
     # 1. Create a source that is "due" for sync (next_sync_at in the past)
     due_source = ParsingSource(
         site_key="test_site",
@@ -61,7 +70,8 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
         strategy="deep",
         is_active=True,
         next_sync_at=datetime.utcnow() - timedelta(hours=1),
-        status="waiting"
+        status="waiting",
+        category_id=cat.id,
     )
     # 2. Create a source that is NOT due (next_sync_at in the future)
     future_source = ParsingSource(
@@ -71,7 +81,8 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
         strategy="deep",
         is_active=True,
         next_sync_at=datetime.utcnow() + timedelta(hours=1),
-        status="waiting"
+        status="waiting",
+        category_id=cat.id,
     )
     sqlite_db_session.add_all([due_source, future_source])
     await sqlite_db_session.commit()
@@ -92,7 +103,8 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
         mock_ctx.return_value = AsyncContextManagerMock()
         
         with patch("app.jobs.parsing_scheduler.publish_parsing_task", mock_publish):
-            await run_parsing_scheduler()
+            with patch("app.jobs.parsing_scheduler._is_scheduler_paused", new=AsyncMock(return_value=False)):
+                await run_parsing_scheduler()
 
     # 4. Assertions
     # Check RabbitMQ publish call
@@ -117,13 +129,19 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
 async def test_scraper_ingestion_with_stats(sqlite_db_session):
     from app.services.ingestion import IngestionService
     
+    cat = DiscoveredCategory(site_key="mrgeek", url="https://mrgeek.ru/cat", name="Cat")
+    sqlite_db_session.add(cat)
+    await sqlite_db_session.commit()
+    await sqlite_db_session.refresh(cat)
+
     # Create a source
     source = ParsingSource(
         site_key="mrgeek",
         url="https://mrgeek.ru/cat",
         type="list",
         is_active=True,
-        status="running"
+        status="running",
+        category_id=cat.id,
     )
     sqlite_db_session.add(source)
     await sqlite_db_session.commit()

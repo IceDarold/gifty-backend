@@ -157,7 +157,26 @@ class IngestionService:
             # Check if source already exists
             existing = await self.parsing_repo.get_source_by_url(clean_url)
             if existing:
+                # Backfill missing category_id linkage if needed (new invariant).
+                if existing.type == "list" and not getattr(existing, "category_id", None):
+                    discovered = await self.parsing_repo.get_or_create_discovered_category(
+                        site_key=cat.site_key,
+                        url=clean_url,
+                        name=cat.name,
+                        parent_url=cat.parent_url,
+                    )
+                    existing.category_id = discovered.id
+                    if existing.is_active:
+                        discovered.state = "promoted"
+                        discovered.promoted_source_id = existing.id
                 continue
+
+            discovered = await self.parsing_repo.get_or_create_discovered_category(
+                site_key=cat.site_key,
+                url=clean_url,
+                name=cat.name,
+                parent_url=cat.parent_url,
+            )
 
             source_data = {
                 "url": clean_url,
@@ -168,6 +187,7 @@ class IngestionService:
                 "refresh_interval_hours": 24,
                 "is_active": is_active,
                 "status": status,
+                "category_id": discovered.id,
                 "config": {
                     "discovery_name": cat.name,
                     "parent_url": cat.parent_url,
@@ -175,7 +195,10 @@ class IngestionService:
                 }
             }
             try:
-                await self.parsing_repo.upsert_source(source_data)
+                src = await self.parsing_repo.upsert_source(source_data)
+                if is_active:
+                    discovered.state = "promoted"
+                    discovered.promoted_source_id = src.id
                 count += 1
             except Exception as e:
                 logger.error(f"Failed to upsert discovered source {clean_url}: {e}")

@@ -10,7 +10,7 @@ from pgvector.sqlalchemy import Vector
 
 from app.main import app
 from app.db import get_db, Base, get_redis
-from app.models import ParsingSource, ParsingRun, CategoryMap, Product
+from app.models import ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, ParsingHub, Merchant
 from app.services.notifications import get_notification_service
 
 # --- SQLite Compiles for Postgres Dialects ---
@@ -36,8 +36,11 @@ async def sqlite_db_session(tmp_path):
             Base.metadata.create_all,
             tables=[
                 ParsingSource.__table__,
+                ParsingHub.__table__,
+                DiscoveredCategory.__table__,
                 ParsingRun.__table__,
                 CategoryMap.__table__,
+                Merchant.__table__,
                 Product.__table__
             ],
         )
