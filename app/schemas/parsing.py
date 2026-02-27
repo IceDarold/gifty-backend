@@ -25,7 +25,26 @@ class IngestBatchRequest(BaseModel):
     items: List[ScrapedProduct] = Field(..., description="Список собранных товаров")
     categories: List[ScrapedCategory] = Field(default_factory=list, description="Список найденных категорий (для discovery)")
     source_id: int = Field(..., description="Идентификатор источника задачи")
+    run_id: Optional[int] = Field(None, description="ID запуска в parsing_runs для обновления статуса")
     stats: dict[str, Any] = Field(default_factory=dict, description="Техническая статистика парсинга (время, ошибки)")
+
+class ParsingRunSchema(BaseModel):
+    id: int
+    source_id: int
+    status: str
+    items_scraped: int
+    items_new: int
+    error_message: Optional[str] = None
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+class ParsingAggregateHistorySchema(BaseModel):
+    date: datetime
+    items_new: int
+    items_scraped: int
+    status: str = "completed"
 
 class ParsingSourceSchema(BaseModel):
     id: int
@@ -40,12 +59,17 @@ class ParsingSourceSchema(BaseModel):
     is_active: bool
     status: str
     config: Optional[dict[str, Any]] = None
-    created_at: Optional[datetime] = None  # Add created_at
+    created_at: Optional[datetime] = None
     
     # Extra stats fields (filled manually by route)
     total_items: Optional[int] = Field(0, description="Total products in catalog")
     last_run_new: Optional[int] = Field(0, description="New items from last run")
-    history: Optional[List[dict]] = Field(None, description="Recent run history")
+    history: Optional[List[ParsingRunSchema]] = Field(None, description="Recent execution history")
+    aggregate_history: Optional[List[ParsingAggregateHistorySchema]] = Field(None, description="Daily aggregate history for hub sources")
+    related_sources: Optional[List[dict[str, Any]]] = Field(
+        None,
+        description="Related category/list sources for hub view, including discovered backlog categories",
+    )
 
     class Config:
         from_attributes = True
@@ -75,3 +99,19 @@ class ParsingSourceUpdate(BaseModel):
     refresh_interval_hours: Optional[int] = None
     is_active: Optional[bool] = None
     config: Optional[dict[str, Any]] = None
+
+
+class DiscoveredCategorySchema(BaseModel):
+    id: int
+    hub_id: Optional[int] = None
+    site_key: str
+    url: str
+    name: Optional[str] = None
+    parent_url: Optional[str] = None
+    state: str
+    promoted_source_id: Optional[int] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        from_attributes = True

@@ -36,17 +36,35 @@ class CatalogRepository(ABC):
         pass
 
     @abstractmethod
-    async def get_products_without_llm_score(self, limit: int = 100) -> list[Product]:
-        pass
-
-    @abstractmethod
-    async def save_llm_scores(self, scores: list[dict]) -> int:
-        pass
-
-
-    @abstractmethod
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
         """Mark products NOT in seen_ids as is_active=False. Returns count of modified rows."""
+        pass
+
+    @abstractmethod
+    async def delete_products_by_site(self, site_key: str) -> int:
+        """Hard delete all products for a specific site."""
+        pass
+
+    @abstractmethod
+    async def get_products(
+        self, 
+        limit: int = 50, 
+        offset: int = 0, 
+        is_active: Optional[bool] = None,
+        merchant: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> Sequence[Product]:
+        pass
+
+    @abstractmethod
+    async def count_products(
+        self, 
+        is_active: Optional[bool] = None,
+        merchant: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> int:
         pass
 
 
@@ -63,15 +81,15 @@ class PostgresCatalogRepository(CatalogRepository):
         stmt = insert(Product).values(products)
         
         # On conflict do update
-        # We update everything except created_at (and gift_id obviously)
+        # We update everything except created_at (and product_id obviously)
         update_dict = {
             col.name: col
             for col in stmt.excluded
-            if col.name not in ("created_at", "gift_id")
+            if col.name not in ("created_at", "product_id")
         }
         
         stmt = stmt.on_conflict_do_update(
-            index_elements=[Product.gift_id],
+            index_elements=[Product.product_id],
             set_=update_dict
         )
 
@@ -89,7 +107,7 @@ class PostgresCatalogRepository(CatalogRepository):
 
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
         """
-        Mark all products NOT in the provided set of gift_ids as inactive.
+        Mark all products NOT in the provided set of product_ids as inactive.
         Used for soft-delete during full sync.
         """
         if not seen_ids:
@@ -99,7 +117,7 @@ class PostgresCatalogRepository(CatalogRepository):
             
         stmt = (
             update(Product)
-            .where(Product.gift_id.notin_(seen_ids))
+            .where(Product.product_id.notin_(seen_ids))
             .where(Product.is_active.is_(True))
             .values(is_active=False, updated_at=func.now())
         )
@@ -107,8 +125,14 @@ class PostgresCatalogRepository(CatalogRepository):
         result = await self.session.execute(stmt)
         return result.rowcount
 
+    async def delete_products_by_site(self, site_key: str) -> int:
+        """Hard delete all products for a specific site."""
+        stmt = sa.delete(Product).where(Product.product_id.like(f"{site_key}:%"))
+        result = await self.session.execute(stmt)
+        return result.rowcount
+
     async def get_active_products_count(self) -> int:
-        query = select(func.count(Product.gift_id)).where(Product.is_active.is_(True))
+        query = select(func.count(Product.product_id)).where(Product.is_active.is_(True))
         result = await self.session.execute(query)
         return result.scalar() or 0
 
@@ -129,7 +153,7 @@ class PostgresCatalogRepository(CatalogRepository):
             .outerjoin(
                 pe,
                 and_(
-                    p.gift_id == pe.gift_id,
+                    p.product_id == pe.product_id,
                     pe.model_version == model_version
                 )
             )
@@ -137,7 +161,7 @@ class PostgresCatalogRepository(CatalogRepository):
                 and_(
                     p.is_active.is_(True),
                     or_(
-                        pe.gift_id.is_(None),
+                        pe.product_id.is_(None),
                         pe.content_hash != p.content_hash
                     )
                 )
@@ -167,7 +191,7 @@ class PostgresCatalogRepository(CatalogRepository):
 
         stmt = stmt.on_conflict_do_update(
             index_elements=[
-                ProductEmbedding.gift_id,
+                ProductEmbedding.product_id,
                 ProductEmbedding.model_name,
                 ProductEmbedding.model_version
             ],
@@ -198,7 +222,7 @@ class PostgresCatalogRepository(CatalogRepository):
         stmt = (
             select(Product)
             .join(ProductEmbedding, and_(
-                Product.gift_id == ProductEmbedding.gift_id,
+                Product.product_id == ProductEmbedding.product_id,
                 ProductEmbedding.model_name == target_model
             ))
         )
@@ -240,59 +264,45 @@ class PostgresCatalogRepository(CatalogRepository):
                 return []
             raise e
 
-    async def get_products_without_llm_score(self, limit: int = 100) -> list[Product]:
-        """
-        Fetch products that don't have an LLM gift score yet.
-        """
-        stmt = (
-            select(Product)
-            .where(
-                and_(
-                    Product.is_active.is_(True),
-                    Product.llm_gift_score.is_(None)
-                )
-            )
-            .order_by(Product.updated_at.desc()) # Or some other priority
-            .limit(limit)
-        )
+    async def get_products(
+        self, 
+        limit: int = 50, 
+        offset: int = 0, 
+        is_active: Optional[bool] = None,
+        merchant: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> Sequence[Product]:
+        stmt = select(Product)
+        if is_active is not None:
+            stmt = stmt.where(Product.is_active == is_active)
+        if merchant:
+            stmt = stmt.where(Product.merchant == merchant)
+        if category:
+            stmt = stmt.where(Product.category == category)
+        if search:
+            stmt = stmt.where(Product.title.ilike(f"%{search}%"))
         
+        stmt = stmt.order_by(Product.updated_at.desc()).offset(offset).limit(limit)
         result = await self.session.execute(stmt)
-        return list(result.scalars().all())
+        return result.scalars().all()
 
-    async def save_llm_scores(self, scores: list[dict]) -> int:
-        """
-        Update product rows with LLM scores and reasoning.
-        scores list should contain dicts: {'gift_id': str, 'llm_gift_score': float, 'llm_gift_reasoning': str, ...}
-        Uses batch update (UPSERT) for efficiency.
-        """
-        if not scores:
-            return 0
+    async def count_products(
+        self, 
+        is_active: Optional[bool] = None,
+        merchant: Optional[str] = None,
+        category: Optional[str] = None,
+        search: Optional[str] = None
+    ) -> int:
+        stmt = select(func.count(Product.product_id))
+        if is_active is not None:
+            stmt = stmt.where(Product.is_active == is_active)
+        if merchant:
+            stmt = stmt.where(Product.merchant == merchant)
+        if category:
+            stmt = stmt.where(Product.category == category)
+        if search:
+            stmt = stmt.where(Product.title.ilike(f"%{search}%"))
             
-        # Add timestamp to all items
-        now = datetime.now()
-        for s in scores:
-            s["llm_scored_at"] = now
-            s["b_gift_id"] = s["gift_id"]
-
-        # Use session.execute with bindparam for batch update
-        # This is more robust as it doesn't require all columns for INSERT
-        from sqlalchemy import bindparam
-        
-        stmt = (
-            sa.update(Product)
-            .where(Product.gift_id == bindparam("b_gift_id"))
-            .values(
-                llm_gift_score=bindparam("llm_gift_score"),
-                llm_gift_reasoning=bindparam("llm_gift_reasoning"),
-                llm_scored_at=bindparam("llm_scored_at"),
-                updated_at=func.now()
-            )
-            .execution_options(synchronize_session=None)
-        )
-        
-        result = await self.session.execute(stmt, scores)
-        # For bulk updates, rowcount might not be directly available on IteratorResult
-        try:
-            return result.rowcount
-        except AttributeError:
-            return len(scores)
+        result = await self.session.execute(stmt)
+        return result.scalar() or 0

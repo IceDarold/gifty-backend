@@ -5,9 +5,10 @@ from datetime import datetime
 from typing import Optional, List
 
 import sqlalchemy as sa
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func, Boolean, Float, Numeric
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, CheckConstraint, func, Boolean, Float, Numeric
 from sqlalchemy.dialects.postgresql import JSONB, UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import synonym
 from sqlalchemy.ext.compiler import compiles
 from pgvector.sqlalchemy import Vector
 
@@ -168,7 +169,9 @@ class Product(TimestampMixin, Base):
     """
     __tablename__ = "products"
 
-    gift_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    product_id: Mapped[str] = mapped_column(Text, primary_key=True)
+    # Backward-compat alias used by older code/tests.
+    gift_id = synonym("product_id")
     title: Mapped[str] = mapped_column(Text, nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[Optional[float]] = mapped_column(sa.Numeric, nullable=True)
@@ -182,13 +185,19 @@ class Product(TimestampMixin, Base):
     content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     content_hash: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
-    # LLM Scoring
-    llm_gift_score: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True, index=True)
-    llm_gift_reasoning: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_gift_vector: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
-    llm_scoring_model: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_scoring_version: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
-    llm_scored_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Convenience denormalization: allows fast filtering without parsing product_id prefix.
+    site_key: Mapped[Optional[str]] = mapped_column(Text, nullable=True, index=True)
+
+
+class Merchant(TimestampMixin, Base):
+    __tablename__ = "merchants"
+    __table_args__ = (UniqueConstraint("site_key", name="uq_merchants_site_key"),)
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    site_key: Mapped[str] = mapped_column(Text, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    base_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    meta: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class ProductEmbedding(TimestampMixin, Base):
@@ -198,7 +207,8 @@ class ProductEmbedding(TimestampMixin, Base):
     """
     __tablename__ = "product_embeddings"
 
-    gift_id: Mapped[str] = mapped_column(Text, ForeignKey("products.gift_id", ondelete="CASCADE"), primary_key=True)
+    product_id: Mapped[str] = mapped_column(Text, ForeignKey("products.product_id", ondelete="CASCADE"), primary_key=True)
+    gift_id = synonym("product_id")
     model_name: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
     model_version: Mapped[str] = mapped_column(Text, nullable=False, primary_key=True)
     dim: Mapped[int] = mapped_column(sa.Integer, nullable=False)
@@ -207,12 +217,46 @@ class ProductEmbedding(TimestampMixin, Base):
     embedded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class ProductCategoryLink(TimestampMixin, Base):
+    __tablename__ = "product_category_links"
+
+    product_id: Mapped[str] = mapped_column(
+        Text,
+        ForeignKey("products.product_id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    discovered_category_id: Mapped[int] = mapped_column(
+        sa.Integer,
+        ForeignKey("discovered_categories.id", ondelete="CASCADE"),
+        primary_key=True,
+        index=True,
+    )
+    source_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    last_run_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_runs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    seen_count: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="1")
+
+
 class ParsingSource(TimestampMixin, Base):
     """
     Реестр источников для парсинга (магазинов и категорий).
     Управляет расписанием и стратегией сбора данных.
     """
     __tablename__ = "parsing_sources"
+    __table_args__ = (
+        CheckConstraint("type <> 'list' OR category_id IS NOT NULL", name="ck_parsing_sources_list_requires_category"),
+    )
 
     id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
     url: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
@@ -225,7 +269,66 @@ class ParsingSource(TimestampMixin, Base):
     next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
     is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
     status: Mapped[str] = mapped_column(String, server_default="waiting", index=True) # waiting, running, error, broken
+    category_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("discovered_categories.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
     config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
+class ParsingHub(TimestampMixin, Base):
+    """
+    Доменные хабы парсинга (discovery roots), отделены от runtime sources.
+    """
+    __tablename__ = "parsing_hubs"
+    __table_args__ = (
+        UniqueConstraint("site_key", name="uq_parsing_hubs_site_key"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    site_key: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    strategy: Mapped[str] = mapped_column(String, server_default="discovery")
+    refresh_interval_hours: Mapped[int] = mapped_column(sa.Integer, server_default="24")
+    last_synced_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_sync_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, index=True)
+    status: Mapped[str] = mapped_column(String, server_default="waiting", index=True)
+    config: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+
+class DiscoveredCategory(TimestampMixin, Base):
+    """
+    Результаты discovery-фазы. Промоутятся в parsing_sources для runtime.
+    """
+    __tablename__ = "discovered_categories"
+    __table_args__ = (
+        UniqueConstraint("site_key", "url", name="uq_discovered_categories_site_url"),
+        CheckConstraint("state <> 'promoted' OR promoted_source_id IS NOT NULL", name="ck_discovered_categories_promoted_has_source"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    hub_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_hubs.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    site_key: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    url: Mapped[str] = mapped_column(Text, nullable=False)
+    name: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    parent_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    state: Mapped[str] = mapped_column(String, server_default="new", index=True)  # new, promoted, rejected, inactive
+    promoted_source_id: Mapped[Optional[int]] = mapped_column(
+        sa.Integer,
+        ForeignKey("parsing_sources.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+    meta: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class ParsingRun(TimestampMixin, Base):
@@ -242,6 +345,7 @@ class ParsingRun(TimestampMixin, Base):
     items_new: Mapped[int] = mapped_column(sa.Integer, default=0)
     error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     duration_seconds: Mapped[Optional[float]] = mapped_column(sa.Float, nullable=True)
+    logs: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
 
 class CategoryMap(TimestampMixin, Base):
@@ -459,3 +563,100 @@ class LLMLog(TimestampMixin, Base):
     # A/B Testing
     experiment_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     variant_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+
+
+class FrontendApp(TimestampMixin, Base):
+    __tablename__ = "frontend_apps"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, nullable=False, index=True)
+
+
+class FrontendRelease(TimestampMixin, Base):
+    __tablename__ = "frontend_releases"
+    __table_args__ = (
+        UniqueConstraint("app_id", "version", name="uq_frontend_releases_app_version"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    app_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("frontend_apps.id", ondelete="CASCADE"), nullable=False, index=True)
+    version: Mapped[str] = mapped_column(String, nullable=False)
+    target_url: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(String, nullable=False, server_default="draft", index=True)
+    health_status: Mapped[str] = mapped_column(String, nullable=False, server_default="unknown", index=True)
+    flags: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    validated_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class FrontendProfile(TimestampMixin, Base):
+    __tablename__ = "frontend_profiles"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    key: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    name: Mapped[str] = mapped_column(String, nullable=False)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, nullable=False, index=True)
+
+
+class FrontendRule(TimestampMixin, Base):
+    __tablename__ = "frontend_rules"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    profile_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("frontend_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
+    priority: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="100")
+    host_pattern: Mapped[str] = mapped_column(String, nullable=False, server_default="*")
+    path_pattern: Mapped[str] = mapped_column(String, nullable=False, server_default="/*")
+    query_conditions: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    target_release_id: Mapped[int] = mapped_column(sa.Integer, ForeignKey("frontend_releases.id", ondelete="RESTRICT"), nullable=False, index=True)
+    flags_override: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, server_default="true", default=True, nullable=False, index=True)
+
+
+class FrontendRuntimeState(Base):
+    __tablename__ = "frontend_runtime_state"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
+    active_profile_id: Mapped[Optional[int]] = mapped_column(sa.Integer, ForeignKey("frontend_profiles.id", ondelete="SET NULL"), nullable=True)
+    fallback_release_id: Mapped[Optional[int]] = mapped_column(sa.Integer, ForeignKey("frontend_releases.id", ondelete="SET NULL"), nullable=True)
+    sticky_enabled: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default="true")
+    sticky_ttl_seconds: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="1800")
+    cache_ttl_seconds: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="15")
+    updated_by: Mapped[Optional[int]] = mapped_column(sa.BigInteger, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class FrontendAllowedHost(TimestampMixin, Base):
+    __tablename__ = "frontend_allowed_hosts"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    host: Mapped[str] = mapped_column(String, nullable=False, unique=True, index=True)
+    is_active: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, default=True, server_default="true", index=True)
+
+
+class FrontendAuditLog(Base):
+    __tablename__ = "frontend_audit_log"
+
+    id: Mapped[int] = mapped_column(sa.BigInteger, primary_key=True, autoincrement=True)
+    actor_id: Mapped[Optional[int]] = mapped_column(sa.BigInteger, nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    entity_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    entity_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    before: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    after: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+
+
+class OpsRuntimeState(Base):
+    __tablename__ = "ops_runtime_state"
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True)
+    scheduler_paused: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default="false")
+    settings_version: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="1")
+    ops_aggregator_enabled: Mapped[bool] = mapped_column(sa.Boolean, nullable=False, server_default="true")
+    ops_aggregator_interval_ms: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="2000")
+    ops_snapshot_ttl_ms: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="10000")
+    ops_stale_max_age_ms: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default="60000")
+    ops_client_intervals: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    updated_by: Mapped[Optional[int]] = mapped_column(sa.BigInteger, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())

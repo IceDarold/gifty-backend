@@ -10,6 +10,7 @@ import psutil
 import socket
 import signal
 from datetime import datetime
+from urllib.parse import urlencode
 from prometheus_client import start_http_server, Counter, Gauge
 
 # Configure logging
@@ -20,14 +21,17 @@ logging.basicConfig(
 logger = logging.getLogger("ScraperWorker")
 
 # Environment variables
-RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost:5672/")
+RABBITMQ_URL = os.getenv("RABBITMQ_URL", "amqp://guest:guest@rabbitmq:5672/")
 REDIS_URL = os.getenv("REDIS_URL", "redis://redis:6379/0")
-INTERNAL_API_BASE_URL = os.getenv("CORE_API_URL", "http://api:8000/api/v1/internal/ingest-batch").rsplit('/', 1)[0]
+INTERNAL_API_BASE_URL = os.getenv("CORE_API_URL", "http://api:8000/api/v1/internal/ingest-batch")
+if "/ingest-batch" in INTERNAL_API_BASE_URL:
+    INTERNAL_API_BASE_URL = INTERNAL_API_BASE_URL.rsplit('/', 1)[0]
 INTERNAL_API_TOKEN = os.getenv("INTERNAL_API_TOKEN", "default_internal_token")
 MAX_CONCURRENT_TASKS = int(os.getenv("MAX_CONCURRENT_TASKS", "4"))
 METRICS_PORT = int(os.getenv("METRICS_PORT", "9410"))
 SUBPROCESS_TIMEOUT = int(os.getenv("SUBPROCESS_TIMEOUT", "3600")) # 1 hour default
 MEMORY_THRESHOLD_PCT = 85.0
+WORKER_HEARTBEAT_INTERVAL_SEC = float(os.getenv("WORKER_HEARTBEAT_INTERVAL_SEC", "10"))
 
 # Metrics
 TASKS_PROCESSED = Counter('scraper_tasks_total', 'Total tasks processed', ['site_key', 'status'])
@@ -38,9 +42,25 @@ class ScraperWorker:
         self.available_spiders = []
         self.semaphore = asyncio.Semaphore(MAX_CONCURRENT_TASKS)
         self.hostname = socket.gethostname()
+        self.worker_id = f"{self.hostname}:{os.getpid()}"
+        self.started_at = datetime.utcnow().isoformat()
         self.redis_client = None
         self.is_running = True
         self.active_processes = {} # {source_id: process}
+        self.active_tasks = {}  # {source_id: {source_id, run_id, site_key, url, strategy, started_at}}
+        self.tasks_processed_total = 0
+        self.tasks_success_total = 0
+        self.tasks_error_total = 0
+
+    async def is_paused(self) -> bool:
+        if not self.redis_client:
+            return False
+        try:
+            pause_value = await self.redis_client.get(f"worker_pause:{self.worker_id}")
+            return str(pause_value or "").lower() in {"1", "true", "yes", "on"}
+        except Exception as e:
+            logger.error(f"Failed to read pause state: {e}")
+            return False
 
     def get_available_spiders(self):
         """Discovers available Scrapy spiders."""
@@ -58,9 +78,13 @@ class ScraperWorker:
             logger.error(f"Error listing spiders: {e}")
         return []
 
-    async def report_api(self, endpoint, payload):
+    async def report_api(self, endpoint, payload, params=None):
         """Sends status/error reports to the Core API."""
         url = f"{INTERNAL_API_BASE_URL}/{endpoint}"
+        if params:
+            query = urlencode({k: v for k, v in params.items() if v is not None})
+            if query:
+                url = f"{url}?{query}"
         headers = {"X-Internal-Token": INTERNAL_API_TOKEN}
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -76,23 +100,51 @@ class ScraperWorker:
         logger.info("Heartbeat loop started.")
         while self.is_running:
             try:
+                paused = await self.is_paused()
                 mem = psutil.virtual_memory()
                 heartbeat_data = {
                     "hostname": self.hostname,
+                    "started_at": self.started_at,
                     "last_seen": datetime.utcnow().isoformat(),
-                    "status": "online",
+                    "status": "paused" if paused else "online",
                     "concurrent_tasks": CONCURRENT_TASKS._value.get(),
                     "ram_usage_pct": mem.percent,
-                    "pid": os.getpid()
+                    "pid": os.getpid(),
+                    "worker_id": self.worker_id,
+                    "paused": paused,
+                    "active_tasks": list(self.active_tasks.values()),
+                    "tasks_processed_total": self.tasks_processed_total,
+                    "tasks_success_total": self.tasks_success_total,
+                    "tasks_error_total": self.tasks_error_total,
                 }
                 await self.redis_client.set(
-                    f"worker_heartbeat:{self.hostname}",
+                    f"worker_heartbeat:{self.worker_id}",
                     json.dumps(heartbeat_data),
                     ex=60
                 )
+                await self.redis_client.publish(
+                    "ops:events",
+                    json.dumps(
+                        {
+                            "type": "worker.heartbeat",
+                            "payload": {
+                                "worker_id": self.worker_id,
+                                "status": heartbeat_data["status"],
+                                "paused": paused,
+                                "concurrency": heartbeat_data["concurrent_tasks"],
+                                "ram_pct": heartbeat_data["ram_usage_pct"],
+                                "active_tasks": heartbeat_data["active_tasks"],
+                                "tasks_processed_total": self.tasks_processed_total,
+                                "tasks_success_total": self.tasks_success_total,
+                                "tasks_error_total": self.tasks_error_total,
+                                "ts": datetime.utcnow().isoformat(),
+                            },
+                        }
+                    ),
+                )
             except Exception as e:
                 logger.error(f"Heartbeat error: {e}")
-            await asyncio.sleep(30)
+            await asyncio.sleep(WORKER_HEARTBEAT_INTERVAL_SEC)
 
     async def sync_spiders(self):
         """Registers available spiders with the Core API."""
@@ -116,19 +168,33 @@ class ScraperWorker:
 
             CONCURRENT_TASKS.inc()
             source_id = task.get("source_id")
+            run_id = task.get("run_id")
             site_key = task.get("site_key")
             url = task.get("url")
             strategy = task.get("strategy", "deep")
+            self.active_tasks[source_id] = {
+                "source_id": source_id,
+                "run_id": run_id,
+                "site_key": site_key,
+                "url": url,
+                "strategy": strategy,
+                "started_at": datetime.utcnow().isoformat(),
+            }
 
             logger.info(f"Starting spider: {site_key} for {url} (ID: {source_id})")
-            await self.report_api(f"sources/{source_id}/report-status", {"status": "running"})
+            await self.report_api(
+                f"sources/{source_id}/report-status",
+                {"status": "running"},
+                params={"run_id": run_id},
+            )
 
             cwd = "/app" if os.path.exists("/app/scrapy.cfg") else "services" if os.path.exists("services/scrapy.cfg") else "."
             cmd = [
                 "scrapy", "crawl", site_key,
                 "-a", f"url={url}",
                 "-a", f"strategy={strategy}",
-                "-a", f"source_id={source_id}"
+                "-a", f"source_id={source_id}",
+                "-a", f"run_id={run_id or ''}",
             ]
 
             try:
@@ -140,49 +206,78 @@ class ScraperWorker:
                 )
                 self.active_processes[source_id] = process
 
-                # Real-time log capture (last N lines)
+                # Real-time log capture (rolling window for run history details)
                 log_buffer = []
-                async def read_stream(stream, is_stderr=False):
+                async def read_stream(stream):
                     while True:
                         line = await stream.readline()
                         if line:
                             decoded = line.decode().strip()
                             if decoded:
                                 log_buffer.append(decoded)
-                                if len(log_buffer) > 50: log_buffer.pop(0)
+                                if len(log_buffer) > 500:
+                                    log_buffer.pop(0)
                         else:
                             break
 
-                log_task = asyncio.create_task(read_stream(process.stderr, True))
+                stderr_task = asyncio.create_task(read_stream(process.stderr))
+                stdout_task = asyncio.create_task(read_stream(process.stdout))
                 
                 try:
                     await asyncio.wait_for(process.wait(), timeout=SUBPROCESS_TIMEOUT)
                 except asyncio.TimeoutError:
                     logger.error(f"Spider {site_key} timed out after {SUBPROCESS_TIMEOUT}s. Killing...")
                     process.kill()
-                    await self.report_api(f"sources/{source_id}/report-error", {"error": "Subprocess timeout", "is_broken": False})
+                    await self.report_api(
+                        f"sources/{source_id}/report-error",
+                        {"error": "Subprocess timeout", "is_broken": False},
+                        params={"run_id": run_id},
+                    )
                 
-                await log_task
+                await asyncio.gather(stderr_task, stdout_task)
                 
                 last_logs = "\n".join(log_buffer)
-                await self.report_api(f"sources/{source_id}/report-logs", {"logs": last_logs})
+                await self.report_api(
+                    f"sources/{source_id}/report-logs",
+                    {"logs": last_logs},
+                    params={"run_id": run_id},
+                )
 
                 if process.returncode == 0:
                     logger.info(f"Spider {site_key} completed successfully.")
-                    await self.report_api(f"sources/{source_id}/report-status", {"status": "waiting"})
+                    await self.report_api(
+                        f"sources/{source_id}/report-status",
+                        {"status": "waiting"},
+                        params={"run_id": run_id},
+                    )
                     TASKS_PROCESSED.labels(site_key=site_key, status='success').inc()
+                    self.tasks_processed_total += 1
+                    self.tasks_success_total += 1
                 else:
                     err_hint = log_buffer[-1] if log_buffer else "Unknown error"
                     error_msg = f"Scrapy exit code {process.returncode}. Last line: {err_hint}"
                     logger.error(f"Spider {site_key} failed: {error_msg}")
-                    await self.report_api(f"sources/{source_id}/report-error", {"error": error_msg, "is_broken": False})
+                    await self.report_api(
+                        f"sources/{source_id}/report-error",
+                        {"error": error_msg, "is_broken": False},
+                        params={"run_id": run_id},
+                    )
                     TASKS_PROCESSED.labels(site_key=site_key, status='error').inc()
+                    self.tasks_processed_total += 1
+                    self.tasks_error_total += 1
 
             except Exception as e:
                 logger.error(f"Error running subprocess for {site_key}: {e}")
-                await self.report_api(f"sources/{source_id}/report-error", {"error": str(e), "is_broken": False})
+                await self.report_api(
+                    f"sources/{source_id}/report-error",
+                    {"error": str(e), "is_broken": False},
+                    params={"run_id": run_id},
+                )
+                self.tasks_processed_total += 1
+                self.tasks_error_total += 1
             finally:
                 self.active_processes.pop(source_id, None)
+                self.active_tasks.pop(source_id, None)
                 CONCURRENT_TASKS.dec()
 
     async def process_message(self, message: aio_pika.IncomingMessage):
@@ -190,7 +285,10 @@ class ScraperWorker:
         async with message.process():
             try:
                 task = json.loads(message.body.decode())
-                asyncio.create_task(self.run_spider(task))
+                while self.is_running and await self.is_paused():
+                    await asyncio.sleep(1.0)
+                # Await run_spider so the message stays as 'Unacknowledged' while working
+                await self.run_spider(task)
             except Exception as e:
                 logger.error(f"Error decoding task message: {e}")
 

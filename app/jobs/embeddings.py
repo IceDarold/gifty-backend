@@ -61,7 +61,7 @@ async def process_embeddings_job(
             embeddings_data = []
             for product, vector in zip(products, vectors):
                 embeddings_data.append({
-                    "gift_id": product.gift_id,
+                    "product_id": product.product_id,
                     "model_name": actual_model,
                     "model_version": model_version,
                     "dim": len(vector),
