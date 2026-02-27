@@ -26,15 +26,15 @@
       {
         "name": "container",
         "type": "query",
-        "label": "Container",
+        "label": "Container (cgroup)",
         "datasource": "$datasource",
-        "definition": "label_values(container_last_seen, name)",
+        "definition": "label_values(container_last_seen{id=~\".*docker-.*\"}, id)",
         "query": {
-          "query": "label_values(container_last_seen, name)",
+          "query": "label_values(container_last_seen{id=~\".*docker-.*\"}, id)",
           "refId": "StdVar"
         },
         "includeAll": true,
-        "allValue": ".*",
+        "allValue": ".*docker-.*",
         "multi": true,
         "current": {
           "text": "All",
@@ -52,8 +52,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(12, sum by (name) (rate(container_cpu_usage_seconds_total{name=~\"$container\", image!=\"\"}[2m])))",
-          "legendFormat": "{{name}}"
+          "expr": "topk(12, sum by (cid) (label_replace(rate(container_cpu_usage_seconds_total{cpu=\"total\",id=~\"$container\"}[2m]), \"cid\", \"$1\", \"id\", \".*/docker-([0-9a-f]+)\\\\.scope\")))",
+          "legendFormat": "{{cid}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "cores", "decimals": 3 }, "overrides": [] },
@@ -67,8 +67,8 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(12, sum by (name) (container_memory_working_set_bytes{name=~\"$container\", image!=\"\"}))",
-          "legendFormat": "{{name}}"
+          "expr": "topk(12, sum by (cid) (label_replace(container_memory_working_set_bytes{id=~\"$container\"}, \"cid\", \"$1\", \"id\", \".*/docker-([0-9a-f]+)\\\\.scope\")))",
+          "legendFormat": "{{cid}}"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "bytes", "decimals": 2 }, "overrides": [] },
@@ -82,13 +82,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "topk(12, sum by (name) (rate(container_network_receive_bytes_total{name=~\"$container\"}[2m])))",
-          "legendFormat": "{{name}} rx"
+          "expr": "topk(12, sum by (cid) (label_replace(rate(container_network_receive_bytes_total{id=~\"$container\"}[2m]), \"cid\", \"$1\", \"id\", \".*/docker-([0-9a-f]+)\\\\.scope\")))",
+          "legendFormat": "{{cid}} rx"
         },
         {
           "refId": "B",
-          "expr": "topk(12, sum by (name) (rate(container_network_transmit_bytes_total{name=~\"$container\"}[2m])))",
-          "legendFormat": "{{name}} tx"
+          "expr": "topk(12, sum by (cid) (label_replace(rate(container_network_transmit_bytes_total{id=~\"$container\"}[2m]), \"cid\", \"$1\", \"id\", \".*/docker-([0-9a-f]+)\\\\.scope\")))",
+          "legendFormat": "{{cid}} tx"
         }
       ],
       "fieldConfig": { "defaults": { "unit": "Bps", "decimals": 1 }, "overrides": [] },
@@ -96,4 +96,3 @@
     }
   ]
 }
-
