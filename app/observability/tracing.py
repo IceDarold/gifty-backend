@@ -50,7 +50,13 @@ def instrument_fastapi(app) -> None:
     from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
 
     # Safe to call multiple times.
-    excluded_urls = os.getenv("OTEL_EXCLUDED_URLS", r"^/health$|^/metrics$")
+    # NOTE: In practice OpenTelemetry matches this regex against a URL-like string
+    # (can be just the path or the full URL depending on middleware/version).
+    # Keep the default robust by matching both forms via a suffix match.
+    excluded_urls = os.getenv(
+        "OTEL_EXCLUDED_URLS",
+        r"(^|.*/)(health|metrics|docs|openapi\.json)$",
+    )
     FastAPIInstrumentor.instrument_app(app, excluded_urls=excluded_urls)
 
 
