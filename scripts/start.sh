@@ -2,7 +2,9 @@
 set -e
 
 echo "Running migrations..."
-alembic upgrade head
+# We intentionally allow multiple Alembic heads in the repo.
+# Use "heads" to upgrade all branches; "head" fails when multiple heads exist.
+alembic upgrade heads
 
 echo "Starting Gunicorn..."
 rm -f /app/gunicorn.ctl 2>/dev/null || true
