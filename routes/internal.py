@@ -1761,18 +1761,39 @@ async def webapp_auth(
         logger.error("Bot token not configured")
         raise HTTPException(status_code=500, detail="Bot token not configured")
         
-    # Dev bypass
-    if settings.env == "dev" and init_data == "dev_user_1821014162":
-        logger.info("Using DEV BYPASS authentication for user 1821014162")
-        user_id = 1821014162
+    init_data = (init_data or "").strip()
+
+    # Dev bypass:
+    # - allow explicit "dev_user_<id>"
+    # - if no init_data provided in dev, fall back to a known dev admin user
+    user_id: int = 0
+    if settings.env == "dev":
+        if not init_data:
+            init_data = "dev_user_1821014162"
+
+        m = re.fullmatch(r"dev_user_(\d+)", init_data)
+        if m:
+            user_id = int(m.group(1))
+            logger.info("Using DEV BYPASS authentication for user %s", user_id)
+        else:
+            if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
+                logger.warning("Invalid init data verification failed")
+                raise HTTPException(status_code=403, detail="Invalid init data")
+
+            from urllib.parse import parse_qsl
+            import json
+
+            params = dict(parse_qsl(init_data))
+            user_data = json.loads(params.get("user", "{}"))
+            user_id = int(user_data.get("id", 0))
     else:
         if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
             logger.warning("Invalid init data verification failed")
             raise HTTPException(status_code=403, detail="Invalid init data")
-            
+
         from urllib.parse import parse_qsl
         import json
-        
+
         params = dict(parse_qsl(init_data))
         user_data = json.loads(params.get("user", "{}"))
         user_id = int(user_data.get("id", 0))
@@ -4519,6 +4540,53 @@ async def stream_ops_events(
         db=db,
     )
 
+    async def event_gen() -> AsyncGenerator[str, None]:
+        import time
+
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
+        last_ping = time.monotonic()
+
+        # Send initial queue snapshot on connect.
+        queue = await _fetch_rabbit_queue_stats()
+        if queue.get("status") == "ok":
+            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "message":
+                    raw = message.get("data")
+                    if isinstance(raw, (bytes, bytearray)):
+                        raw = raw.decode("utf-8", errors="ignore")
+                    try:
+                        decoded = json.loads(raw) if isinstance(raw, str) else {}
+                    except Exception:
+                        decoded = {}
+
+                    event_type = decoded.get("type")
+                    payload = decoded.get("payload") or {}
+                    if event_type:
+                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                now = time.monotonic()
+                if now - last_ping >= 15:
+                    last_ping = now
+                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
+        finally:
+            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
+            await pubsub.close()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 @router.get("/logs/services", summary="List available log services from Loki")
 async def list_log_services(
@@ -4617,53 +4685,6 @@ async def stream_logs(
         except Exception as e:
             err = {"message": f"{type(e).__name__}: {e}", "ts": datetime.now(timezone.utc).isoformat()}
             yield f"event: logs.error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
-
-    return StreamingResponse(
-        event_gen(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-    async def event_gen() -> AsyncGenerator[str, None]:
-        import time
-
-        pubsub = redis.pubsub()
-        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
-        last_ping = time.monotonic()
-
-        # Send initial queue snapshot on connect.
-        queue = await _fetch_rabbit_queue_stats()
-        if queue.get("status") == "ok":
-            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
-
-        try:
-            while True:
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                if message and message.get("type") == "message":
-                    raw = message.get("data")
-                    if isinstance(raw, (bytes, bytearray)):
-                        raw = raw.decode("utf-8", errors="ignore")
-                    try:
-                        decoded = json.loads(raw) if isinstance(raw, str) else {}
-                    except Exception:
-                        decoded = {}
-
-                    event_type = decoded.get("type")
-                    payload = decoded.get("payload") or {}
-                    if event_type:
-                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-                now = time.monotonic()
-                if now - last_ping >= 15:
-                    last_ping = now
-                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
-        finally:
-            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
-            await pubsub.close()
 
     return StreamingResponse(
         event_gen(),
