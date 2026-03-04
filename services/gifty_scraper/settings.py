@@ -95,3 +95,40 @@ ITEM_PIPELINES = {
 
 # Set settings whose default value is deprecated to a future-proof value
 FEED_EXPORT_ENCODING = "utf-8"
+
+# Playwright Settings
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "headless": True,
+}
+
+PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT = 30000
+
+# Optimization: block some requests in Playwright
+def should_abort_request(request):
+    if request.resource_type in ["image", "media", "font", "stylesheet"]:
+        return True
+    
+    blocked_domains = [
+        "google-analytics.com",
+        "yandex.ru",
+        "mc.yandex",
+        "facebook.net",
+        "doubleclick.net",
+        "bidswitch.net",
+        "usedesk.ru",
+        "sbermarketing.ru",
+        "vk.com",
+    ]
+    if any(domain in request.url for domain in blocked_domains):
+        return True
+    
+    return False
+
+PLAYWRIGHT_ABORT_REQUEST = should_abort_request

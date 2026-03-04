@@ -90,6 +90,7 @@ class ParsingErrorReport(BaseModel):
 
 class SpiderSyncRequest(BaseModel):
     available_spiders: List[str]
+    default_urls: Optional[dict[str, str]] = None
 
 class ParsingSourceUpdate(BaseModel):
     url: Optional[str] = None
