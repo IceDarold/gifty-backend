@@ -4519,6 +4519,53 @@ async def stream_ops_events(
         db=db,
     )
 
+    async def event_gen() -> AsyncGenerator[str, None]:
+        import time
+
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
+        last_ping = time.monotonic()
+
+        # Send initial queue snapshot on connect.
+        queue = await _fetch_rabbit_queue_stats()
+        if queue.get("status") == "ok":
+            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "message":
+                    raw = message.get("data")
+                    if isinstance(raw, (bytes, bytearray)):
+                        raw = raw.decode("utf-8", errors="ignore")
+                    try:
+                        decoded = json.loads(raw) if isinstance(raw, str) else {}
+                    except Exception:
+                        decoded = {}
+
+                    event_type = decoded.get("type")
+                    payload = decoded.get("payload") or {}
+                    if event_type:
+                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                now = time.monotonic()
+                if now - last_ping >= 15:
+                    last_ping = now
+                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
+        finally:
+            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
+            await pubsub.close()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 @router.get("/logs/services", summary="List available log services from Loki")
 async def list_log_services(
@@ -4617,53 +4664,6 @@ async def stream_logs(
         except Exception as e:
             err = {"message": f"{type(e).__name__}: {e}", "ts": datetime.now(timezone.utc).isoformat()}
             yield f"event: logs.error\ndata: {json.dumps(err, ensure_ascii=False)}\n\n"
-
-    return StreamingResponse(
-        event_gen(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
-    async def event_gen() -> AsyncGenerator[str, None]:
-        import time
-
-        pubsub = redis.pubsub()
-        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
-        last_ping = time.monotonic()
-
-        # Send initial queue snapshot on connect.
-        queue = await _fetch_rabbit_queue_stats()
-        if queue.get("status") == "ok":
-            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
-
-        try:
-            while True:
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                if message and message.get("type") == "message":
-                    raw = message.get("data")
-                    if isinstance(raw, (bytes, bytearray)):
-                        raw = raw.decode("utf-8", errors="ignore")
-                    try:
-                        decoded = json.loads(raw) if isinstance(raw, str) else {}
-                    except Exception:
-                        decoded = {}
-
-                    event_type = decoded.get("type")
-                    payload = decoded.get("payload") or {}
-                    if event_type:
-                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-                now = time.monotonic()
-                if now - last_ping >= 15:
-                    last_ping = now
-                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
-        finally:
-            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
-            await pubsub.close()
 
     return StreamingResponse(
         event_gen(),
