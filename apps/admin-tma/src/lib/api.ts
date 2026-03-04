@@ -1,34 +1,44 @@
-"use client";
+import axios, { AxiosError } from "axios";
 
-type ServerApiError = Error & {
-  status?: number;
-  payload?: any;
-};
+type Dict = Record<string, unknown>;
 
-const isObject = (value: unknown): value is Record<string, any> =>
-  typeof value === "object" && value !== null;
+const INTERNAL_PREFIX = "/api/v1/internal";
+const ANALYTICS_PREFIX = "/api/v1/analytics";
 
-export const isServerApiError = (err: unknown): err is ServerApiError => {
-  return err instanceof Error && ("status" in err || "payload" in err);
-};
-
-export const getApiErrorStatus = (err: unknown): number | null => {
-  if (!isServerApiError(err)) return null;
-  return typeof err.status === "number" ? err.status : null;
-};
-
-export const getApiErrorMessage = (err: unknown): string => {
-  if (!err) return "Unknown error";
-  if (typeof err === "string") return err;
-  if (err instanceof Error) return err.message || "Error";
-  return "Error";
-};
+const safeWindow = () => (typeof window !== "undefined" ? window : null);
 
 export const getInitDataRaw = (): string => {
+  const w = safeWindow() as any;
+  const raw = w?.Telegram?.WebApp?.initData;
+  if (typeof raw === "string" && raw.trim()) return raw;
+
+  const fromEnv = process.env.NEXT_PUBLIC_TG_INIT_DATA || process.env.NEXT_PUBLIC_TELEGRAM_INIT_DATA || "";
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+
   try {
-    const tg = (window as any)?.Telegram?.WebApp;
-    const initData = tg?.initData;
-    return typeof initData === "string" ? initData : "";
+    const fromStorage = w?.localStorage?.getItem("tg_init_data") || w?.localStorage?.getItem("telegram_init_data");
+    if (typeof fromStorage === "string" && fromStorage.trim()) return fromStorage.trim();
+  } catch {
+    // ignore
+  }
+
+  const isDev = process.env.NODE_ENV === "development" || process.env.NEXT_PUBLIC_ENV === "dev";
+  if (isDev) return "dev_user_1821014162";
+  return "";
+};
+
+const getInternalToken = (): string => {
+  const fromEnv =
+    process.env.NEXT_PUBLIC_INTERNAL_API_TOKEN ||
+    process.env.NEXT_PUBLIC_INTERNAL_TOKEN ||
+    process.env.NEXT_PUBLIC_API_INTERNAL_TOKEN ||
+    "";
+  if (fromEnv && fromEnv.trim()) return fromEnv.trim();
+
+  const w = safeWindow();
+  try {
+    const fromStorage = w?.localStorage?.getItem("internal_api_token") || w?.localStorage?.getItem("internal_token");
+    return (fromStorage && fromStorage.trim()) || "";
   } catch {
     return "";
   }
@@ -36,317 +46,234 @@ export const getInitDataRaw = (): string => {
 
 const buildAuthHeaders = () => {
   const headers: Record<string, string> = {};
-  const initData = getInitDataRaw();
-  if (initData) {
-    headers["X-Tg-Init-Data"] = initData;
-  }
+  const tg = getInitDataRaw();
+  const internal = getInternalToken();
+  if (tg) headers["x-tg-init-data"] = tg;
+  if (internal) headers["x-internal-token"] = internal;
   return headers;
 };
 
-const buildQuery = (params?: Record<string, any>) => {
-  const sp = new URLSearchParams();
-  for (const [key, value] of Object.entries(params || {})) {
-    if (value === undefined || value === null || value === "") continue;
-    if (Array.isArray(value)) {
-      for (const v of value) sp.append(key, String(v));
-      continue;
-    }
-    sp.set(key, String(value));
-  }
-  const qs = sp.toString();
-  return qs ? `?${qs}` : "";
+const client = axios.create({
+  // Use same-origin by default; can be overridden for deployed setups.
+  baseURL: process.env.NEXT_PUBLIC_API_BASE_URL || "",
+  timeout: 20000,
+});
+
+const getJson = async <T = any>(url: string, params?: Dict): Promise<T> => {
+  const res = await client.get<T>(url, { params, headers: buildAuthHeaders() });
+  return res.data as T;
 };
 
-const apiJson = async <T>(
-  path: string,
-  opts?: { method?: string; body?: any; query?: Record<string, any> },
-): Promise<T> => {
-  const query = buildQuery(opts?.query);
-  const res = await fetch(`${path}${query}`, {
-    method: opts?.method || "GET",
-    headers: {
-      "Content-Type": "application/json",
-      ...buildAuthHeaders(),
-    },
-    body: opts?.body !== undefined ? JSON.stringify(opts.body) : undefined,
-  });
-
-  let payload: any = null;
-  try {
-    payload = await res.json();
-  } catch {
-    payload = null;
-  }
-
-  if (!res.ok) {
-    const err: ServerApiError = new Error(
-      (isObject(payload) && typeof payload?.detail === "string" && payload.detail) ||
-        `API error (${res.status})`,
-    );
-    err.status = res.status;
-    err.payload = payload;
-    throw err;
-  }
-
-  return payload as T;
+const postJson = async <T = any>(url: string, data?: any, params?: Dict): Promise<T> => {
+  const res = await client.post<T>(url, data ?? {}, { params, headers: buildAuthHeaders() });
+  return res.data as T;
 };
 
+const putJson = async <T = any>(url: string, data?: any, params?: Dict): Promise<T> => {
+  const res = await client.put<T>(url, data ?? {}, { params, headers: buildAuthHeaders() });
+  return res.data as T;
+};
+
+const patchJson = async <T = any>(url: string, data?: any, params?: Dict): Promise<T> => {
+  const res = await client.patch<T>(url, data ?? {}, { params, headers: buildAuthHeaders() });
+  return res.data as T;
+};
+
+const deleteJson = async <T = any>(url: string, params?: Dict): Promise<T> => {
+  const res = await client.delete<T>(url, { params, headers: buildAuthHeaders() });
+  return res.data as T;
+};
+
+const withQuery = (path: string, params: Record<string, string | number | boolean | undefined | null>) => {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v === undefined || v === null) continue;
+    qs.set(k, String(v));
+  }
+  const s = qs.toString();
+  return s ? `${path}?${s}` : path;
+};
+
+const pickAuthQuery = () => {
+  const tg = getInitDataRaw();
+  if (tg) return { tg_init_data: tg };
+  const internal = getInternalToken();
+  if (internal) return { internal_token: internal };
+  return {};
+};
+
+export const isServerApiError = (err: unknown): err is AxiosError => axios.isAxiosError(err);
+
+export const getApiErrorStatus = (err: unknown): number | null => {
+  if (!axios.isAxiosError(err)) return null;
+  const status = err.response?.status;
+  return typeof status === "number" ? status : null;
+};
+
+export const getApiErrorMessage = (err: unknown): string => {
+  if (!axios.isAxiosError(err)) return "Unknown error";
+  const data: any = err.response?.data;
+  const detail = data?.detail ?? data?.message;
+  if (typeof detail === "string" && detail.trim()) return detail;
+  if (typeof err.message === "string" && err.message.trim()) return err.message;
+  return "Request failed";
+};
+
+export const isSseDisabled = (): boolean => {
+  const env = process.env.NEXT_PUBLIC_DISABLE_SSE;
+  if (typeof env === "string" && env.trim()) {
+    const normalized = env.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  }
+  const w = safeWindow() as any;
+  return !w || typeof w.EventSource !== "function";
+};
+
+// --- Auth (Telegram mini app) ---
 export const authWithTelegram = async () => {
-  // Server-side verification happens in backend internal router; for admin-tma we just ensure initData exists.
-  const initData = getInitDataRaw();
-  if (!initData) return { ok: false, reason: "missing_init_data" };
-  return { ok: true };
+  const init_data = getInitDataRaw();
+  return postJson(`${INTERNAL_PREFIX}/webapp/auth`, { init_data });
 };
 
-export const getOpsStreamUrl = () => {
-  const base = "/api/v1/internal/ops/stream";
-  if (typeof window === "undefined") return base;
-  const url = new URL(base, window.location.origin);
-  const initData = getInitDataRaw();
-  if (initData) url.searchParams.set("tg_init_data", initData);
-  return url.toString();
-};
+// --- Dashboard ---
+export const fetchStats = () => getJson(`${INTERNAL_PREFIX}/stats`);
+export const fetchHealth = () => getJson(`${INTERNAL_PREFIX}/health`);
+export const fetchScraping = () => getJson(`${ANALYTICS_PREFIX}/scraping`);
+export const fetchSources = () => getJson(`${INTERNAL_PREFIX}/sources`);
+export const fetchSourceDetails = (sourceId: number) => getJson(`${INTERNAL_PREFIX}/sources/${sourceId}`);
+export const fetchSourceProducts = (sourceId: number, limit = 50, offset = 0) =>
+  getJson(`${INTERNAL_PREFIX}/sources/${sourceId}/products`, { limit, offset });
+export const deleteSourceProducts = (sourceId: number) => deleteJson(`${INTERNAL_PREFIX}/sources/${sourceId}/data`);
+export const forceRunSource = (sourceId: number, strategy?: string) =>
+  postJson(`${INTERNAL_PREFIX}/sources/${sourceId}/force-run`, {}, strategy ? { strategy } : undefined);
+export const updateSource = (sourceId: number, updates: Record<string, any>) =>
+  patchJson(`${INTERNAL_PREFIX}/sources/${sourceId}`, updates);
+export const syncSources = (availableSpiders: string[]) =>
+  postJson(`${INTERNAL_PREFIX}/sources/sync-spiders`, { available_spiders: availableSpiders });
+export const fetchSubscriber = (chatId: number) => getJson(`${INTERNAL_PREFIX}/telegram/subscribers/${chatId}`);
+export const subscribeTopic = (chatId: number, topic: string) =>
+  postJson(`${INTERNAL_PREFIX}/telegram/subscribers/${chatId}/subscribe`, {}, { topic });
+export const unsubscribeTopic = (chatId: number, topic: string) =>
+  postJson(`${INTERNAL_PREFIX}/telegram/subscribers/${chatId}/unsubscribe`, {}, { topic });
+export const setLanguage = (chatId: number, language: string) =>
+  postJson(`${INTERNAL_PREFIX}/telegram/subscribers/${chatId}/language`, {}, { language });
 
-export const getLogsStreamUrl = (params?: { service?: string; q?: string; limit?: number }) => {
-  const base = "/api/v1/internal/logs/stream";
-  if (typeof window === "undefined") return `${base}${buildQuery(params as any)}`;
-  const url = new URL(base, window.location.origin);
-  const initData = getInitDataRaw();
-  if (initData) url.searchParams.set("tg_init_data", initData);
-  if (params?.service) url.searchParams.set("service", params.service);
-  if (params?.q) url.searchParams.set("q", params.q);
-  if (params?.limit) url.searchParams.set("limit", String(params.limit));
-  return url.toString();
-};
+// Optional endpoint; keep for UI wiring even if backend route is absent.
+export const sendTestNotification = (topic: string) => postJson(`${INTERNAL_PREFIX}/telegram/test-notification`, {}, { topic });
 
-// ---------------------------
-// Analytics (AI / LLM)
-// ---------------------------
+export const runAllSpiders = () => postJson(`${INTERNAL_PREFIX}/sources/run-all`, {});
+export const runSingleSpider = (sourceId: number) => postJson(`${INTERNAL_PREFIX}/sources/${sourceId}/force-run`, {});
 
-export const fetchIntelligence = async (days: number = 7) => {
-  return apiJson<any>("/api/v1/internal/analytics/intelligence", { query: { days } });
-};
+export const fetchWorkers = () => getJson(`${INTERNAL_PREFIX}/workers`);
+export const fetchQueueStats = () => getJson(`${INTERNAL_PREFIX}/queues/stats`);
+export const fetchQueueTasks = (limit = 50) => getJson(`${INTERNAL_PREFIX}/queues/tasks`, { limit });
+export const fetchQueueHistory = (limit = 100, offset = 0, status?: string) =>
+  getJson(`${INTERNAL_PREFIX}/queues/history`, { limit, offset, status });
+export const fetchQueueRunDetails = (runId: number) => getJson(`${INTERNAL_PREFIX}/queues/history/${runId}`);
 
-export const fetchLLMLogs = async (params?: {
-  days?: number;
-  limit?: number;
-  offset?: number;
-  provider?: string;
-  model?: string;
-  call_type?: string;
-  status?: string;
-  session_id?: string;
-  experiment_id?: string;
-  variant_id?: string;
-}) => {
-  return apiJson<any>("/api/v1/internal/analytics/llm/logs", { query: params as any });
-};
+export const fetchCatalogProducts = (limit = 20, offset = 0, search?: string, merchant?: string) =>
+  getJson(`${INTERNAL_PREFIX}/products`, { limit, offset, search: search || undefined, merchant: merchant || undefined });
 
-export const fetchLLMThroughput = async (params?: {
-  days?: number;
-  bucket?: "minute" | "hour" | "day" | "week";
-  provider?: string;
-  model?: string;
-  call_type?: string;
-  status?: string;
-}) => {
-  return apiJson<any>("/api/v1/internal/analytics/llm/throughput", { query: params as any });
-};
+export const fetchDiscoveredCategories = (limit = 200) => getJson(`${INTERNAL_PREFIX}/sources/backlog`, { limit });
+export const activateDiscoveredCategories = (categoryIds: number[]) =>
+  postJson(`${INTERNAL_PREFIX}/sources/backlog/activate`, { category_ids: categoryIds });
 
-export const fetchLLMBreakdown = async (params?: { days?: number; group_by?: string; limit?: number }) => {
-  return apiJson<any>("/api/v1/internal/analytics/llm/breakdown", { query: params as any });
-};
-
-// ---------------------------
-// Ops runtime
-// ---------------------------
-
-export const fetchOpsRuntimeSettings = async () => apiJson<any>("/api/v1/internal/ops/runtime-settings");
-export const updateOpsRuntimeSettings = async (payload: Record<string, unknown>) =>
-  apiJson<any>("/api/v1/internal/ops/runtime-settings", { method: "PATCH", body: payload });
-
-export const fetchOpsOverview = async () => apiJson<any>("/api/v1/internal/ops/overview");
-export const fetchOpsSites = async () => apiJson<any>("/api/v1/internal/ops/sites");
-export const fetchOpsPipeline = async (siteKey: string) =>
-  apiJson<any>(`/api/v1/internal/ops/sites/${encodeURIComponent(siteKey)}/pipeline`);
-export const fetchOpsActiveRuns = async (limit: number = 200) =>
-  apiJson<any>("/api/v1/internal/ops/runs/active", { query: { limit } });
-export const fetchOpsQueuedRuns = async (limit: number = 200) =>
-  apiJson<any>("/api/v1/internal/ops/runs/queued", { query: { limit } });
-export const fetchOpsRunDetails = async (runId: number) =>
-  apiJson<any>(`/api/v1/internal/ops/runs/${runId}`);
-export const retryOpsRun = async (runId: number) =>
-  apiJson<any>(`/api/v1/internal/ops/runs/${runId}/retry`, { method: "POST", body: {} });
-
-export const fetchOpsSchedulerStats = async () => apiJson<any>("/api/v1/internal/ops/scheduler/stats");
-export const pauseOpsScheduler = async () => apiJson<any>("/api/v1/internal/ops/scheduler/pause", { method: "POST", body: {} });
-export const resumeOpsScheduler = async () => apiJson<any>("/api/v1/internal/ops/scheduler/resume", { method: "POST", body: {} });
-export const pauseOpsWorker = async (workerId: string) =>
-  apiJson<any>(`/api/v1/internal/ops/workers/${encodeURIComponent(workerId)}/pause`, { method: "POST", body: {} });
-export const resumeOpsWorker = async (workerId: string) =>
-  apiJson<any>(`/api/v1/internal/ops/workers/${encodeURIComponent(workerId)}/resume`, { method: "POST", body: {} });
-
-export const fetchOpsItemsTrend = async (params?: { granularity?: string; buckets?: number; force_fresh?: boolean }) =>
-  apiJson<any>("/api/v1/internal/ops/items-trend", { query: params as any });
-export const fetchOpsTasksTrend = async (params?: { granularity?: string; buckets?: number; force_fresh?: boolean }) =>
-  apiJson<any>("/api/v1/internal/ops/tasks-trend", { query: params as any });
-export const fetchOpsSourceItemsTrend = async (sourceId: number, params?: { granularity?: string; buckets?: number; force_fresh?: boolean }) =>
-  apiJson<any>(`/api/v1/internal/ops/sources/${sourceId}/items-trend`, { query: params as any });
-
-export const fetchOpsDiscoveryCategories = async (params?: {
-  site_key?: string;
-  state?: string;
-  q?: string;
-  limit?: number;
-  offset?: number;
-}) => apiJson<any>("/api/v1/internal/ops/discovery/categories", { query: params as any });
-
-export const fetchOpsDiscoveryCategoryDetails = async (categoryId: number) =>
-  apiJson<any>(`/api/v1/internal/ops/discovery/categories/${categoryId}`);
-
-export const promoteOpsDiscovery = async (payload: { category_id: number }) =>
-  apiJson<any>("/api/v1/internal/ops/discovery/promote", { method: "POST", body: payload });
-export const rejectOpsDiscovery = async (payload: { category_id: number }) =>
-  apiJson<any>("/api/v1/internal/ops/discovery/reject", { method: "POST", body: payload });
-export const reactivateOpsDiscovery = async (payload: { category_id: number }) =>
-  apiJson<any>("/api/v1/internal/ops/discovery/reactivate", { method: "POST", body: payload });
-export const runOpsDiscoveryCategoryNow = async (categoryId: number) =>
-  apiJson<any>(`/api/v1/internal/ops/discovery/categories/${categoryId}/run-now`, { method: "POST", body: {} });
-export const runOpsDiscoveryAllForSite = async (payload: { site_key: string }) =>
-  apiJson<any>("/api/v1/internal/ops/discovery/run-all", { method: "POST", body: payload });
-export const runOpsSiteDiscovery = async (siteKey: string) =>
-  apiJson<any>(`/api/v1/internal/ops/sites/${encodeURIComponent(siteKey)}/run-discovery`, { method: "POST", body: {} });
-
-export const bulkUpdateOpsSources = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/ops/sources/bulk-update", { method: "POST", body: payload });
-
-// ---------------------------
-// Logs (Loki)
-// ---------------------------
-
-export const fetchLogServices = async () => apiJson<any>("/api/v1/internal/logs/services");
-export const fetchLogsQuery = async (params?: { service?: string; q?: string; limit?: number; since_seconds?: number }) =>
-  apiJson<any>("/api/v1/internal/logs/query", { query: params as any });
-
-// ---------------------------
-// Parsing sources / dashboard helpers
-// ---------------------------
-
-export const fetchStats = async () => {
-  // Prefer analytics GraphQL stats (KPIs) when available; fallback to parsing stats.
-  try {
-    const gql = await apiJson<any>("/api/v1/analytics/graphql", {
-      method: "POST",
-      body: { query: "query { stats { dau quiz_completion_rate gift_ctr total_sessions last_updated } }" },
-    });
-    return gql?.data?.stats ?? gql?.stats ?? gql;
-  } catch {
-    return apiJson<any>("/api/v1/internal/stats");
-  }
-};
-
-export const fetchTrends = async (days: number = 7) => apiJson<any>("/api/v1/analytics/trends", { query: { days } });
-export const fetchScraping = async () => apiJson<any>("/api/v1/analytics/scraping");
-export const fetchHealth = async () => apiJson<any>("/api/v1/internal/health");
-
-export const fetchSources = async () => apiJson<any>("/api/v1/internal/sources");
-export const fetchSourceDetails = async (id: number) => apiJson<any>(`/api/v1/internal/sources/${id}`);
-export const fetchSourceProducts = async (id: number, limit: number = 50, offset: number = 0, q?: string) =>
-  apiJson<any>(`/api/v1/internal/sources/${id}/products`, { query: { limit, offset, q } });
-export const deleteSourceProducts = async (id: number) =>
-  apiJson<any>(`/api/v1/internal/sources/${id}/data`, { method: "DELETE" });
-export const forceRunSource = async (id: number, strategy?: string) =>
-  apiJson<any>(`/api/v1/internal/sources/${id}/force-run`, { method: "POST", query: { strategy }, body: {} });
-export const updateSource = async (id: number, updates: Record<string, any>) =>
-  apiJson<any>(`/api/v1/internal/sources/${id}`, { method: "PATCH", body: updates });
-export const syncSources = async (spiders: string[]) =>
-  apiJson<any>("/api/v1/internal/sources/sync-spiders", { method: "POST", body: { spiders } });
-export const runAllSpiders = async () => apiJson<any>("/api/v1/internal/sources/run-all", { method: "POST", body: {} });
-export const runSingleSpider = async (id: number) => forceRunSource(id);
-
-export const fetchDiscoveredCategories = async (limit: number = 200) =>
-  apiJson<any>("/api/v1/internal/sources/backlog", { query: { limit } });
-export const activateDiscoveredCategories = async (category_ids: number[]) =>
-  apiJson<any>("/api/v1/internal/sources/backlog/activate", { method: "POST", body: { category_ids } });
-
-// Catalog / queue
-export const fetchQueueStats = async () => apiJson<any>("/api/v1/internal/queues/stats");
-export const fetchQueueTasks = async (limit: number = 50) => apiJson<any>("/api/v1/internal/queues/tasks", { query: { limit } });
-export const fetchQueueHistory = async (limit: number = 50) => apiJson<any>("/api/v1/internal/queues/history", { query: { limit } });
-export const fetchQueueRunDetails = async (runId: string) => apiJson<any>(`/api/v1/internal/queues/history/${encodeURIComponent(runId)}`);
-
-export const fetchWorkers = async () => apiJson<any>("/api/v1/internal/workers");
-
-export const fetchCatalogProducts = async (limit: number = 20, offset: number = 0, q?: string) =>
-  apiJson<any>("/api/v1/internal/products", { query: { limit, offset, search: q } });
+export const connectWeeek = (chatId: number, token: string) =>
+  postJson(`${INTERNAL_PREFIX}/weeek/connect`, { telegram_chat_id: chatId, weeek_api_token: token });
 
 // Merchants
-export const fetchMerchants = async (params?: { limit?: number; offset?: number; q?: string }) =>
-  apiJson<any>("/api/v1/internal/merchants", { query: params as any });
-export const updateMerchant = async (siteKey: string, payload: { name?: string; base_url?: string }) =>
-  apiJson<any>(`/api/v1/internal/merchants/${encodeURIComponent(siteKey)}`, { method: "PATCH", body: payload });
+export const fetchMerchants = (params?: { limit?: number; offset?: number; q?: string }) =>
+  getJson(`${INTERNAL_PREFIX}/merchants`, params);
+export const updateMerchant = (siteKey: string, payload: { name?: string; base_url?: string }) =>
+  patchJson(`${INTERNAL_PREFIX}/merchants/${encodeURIComponent(siteKey)}`, payload);
 
-// Telegram admin subscriptions / settings
-export const fetchSubscriber = async (chatId: number) => apiJson<any>(`/api/v1/internal/telegram/subscribers/${chatId}`);
-export const subscribeTopic = async (chatId: number, topic: string) =>
-  apiJson<any>(`/api/v1/internal/telegram/subscribers/${chatId}/subscribe`, { method: "POST", query: { topic }, body: {} });
-export const unsubscribeTopic = async (chatId: number, topic: string) =>
-  apiJson<any>(`/api/v1/internal/telegram/subscribers/${chatId}/unsubscribe`, { method: "POST", query: { topic }, body: {} });
-export const setLanguage = async (chatId: number, language: string) =>
-  apiJson<any>(`/api/v1/internal/telegram/subscribers/${chatId}/language`, { method: "POST", query: { language }, body: {} });
-export const sendTestNotification = async (topic: string) =>
-  apiJson<any>("/api/v1/internal/telegram/test-notification", { method: "POST", body: { topic } });
+// --- Analytics ---
+export const fetchTrends = (days = 7) => getJson(`${ANALYTICS_PREFIX}/trends`, { days });
+export const fetchIntelligence = (days = 7) => getJson(`${INTERNAL_PREFIX}/analytics/intelligence`, { days });
 
-// Weeek integration (best-effort)
-export const connectWeeek = async (chatId: number, token: string) =>
-  apiJson<any>("/api/v1/internal/weeek/connect", { method: "POST", body: { telegram_chat_id: chatId, weeek_api_token: token } });
+// --- Logs (Loki) ---
+export const fetchLogServices = () => getJson(`${INTERNAL_PREFIX}/logs/services`);
+export const fetchLogsQuery = (params: { service?: string; q?: string; limit?: number; since_seconds?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/logs/query`, params);
+export const getLogsStreamUrl = (params: { service?: string; q?: string; limit?: number }) =>
+  withQuery(`${INTERNAL_PREFIX}/logs/stream`, { ...params, ...pickAuthQuery() });
 
-// Frontend routing control plane
-export const fetchFrontendApps = async () => apiJson<any>("/api/v1/internal/frontend/apps");
-export const createFrontendApp = async (payload: any) => apiJson<any>("/api/v1/internal/frontend/apps", { method: "POST", body: payload });
-export const updateFrontendApp = async (appId: number, payload: any) =>
-  apiJson<any>(`/api/v1/internal/frontend/apps/${appId}`, { method: "PATCH", body: payload });
-export const deleteFrontendApp = async (appId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/apps/${appId}`, { method: "DELETE" });
+// --- Ops stream + snapshots ---
+export const getOpsStreamUrl = () => withQuery(`${INTERNAL_PREFIX}/ops/stream`, pickAuthQuery());
+export const fetchOpsOverview = () => getJson(`${INTERNAL_PREFIX}/ops/overview`);
+export const fetchOpsSites = () => getJson(`${INTERNAL_PREFIX}/ops/sites`);
+export const fetchOpsPipeline = (siteKey: string) => getJson(`${INTERNAL_PREFIX}/ops/sites/${encodeURIComponent(siteKey)}/pipeline`);
+export const fetchOpsActiveRuns = (limit = 200) => getJson(`${INTERNAL_PREFIX}/ops/runs/active`, { limit });
+export const fetchOpsQueuedRuns = (limit = 200) => getJson(`${INTERNAL_PREFIX}/ops/runs/queued`, { limit });
+export const fetchOpsRunDetails = (runId: number) => getJson(`${INTERNAL_PREFIX}/ops/runs/${runId}`);
+export const retryOpsRun = (runId: number) => postJson(`${INTERNAL_PREFIX}/ops/runs/${runId}/retry`, {});
+export const fetchOpsSchedulerStats = () => getJson(`${INTERNAL_PREFIX}/ops/scheduler/stats`);
+export const fetchOpsTasksTrend = (params?: { granularity?: string; buckets?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/ops/tasks-trend`, params);
+export const fetchOpsItemsTrend = (params?: { granularity?: string; buckets?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/ops/items-trend`, params);
+export const fetchOpsSourceItemsTrend = (sourceId: number, params?: { granularity?: string; buckets?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/ops/sources/${sourceId}/items-trend`, params);
 
-export const fetchFrontendReleases = async () => apiJson<any>("/api/v1/internal/frontend/releases");
-export const createFrontendRelease = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/frontend/releases", { method: "POST", body: payload });
-export const updateFrontendRelease = async (releaseId: number, payload: any) =>
-  apiJson<any>(`/api/v1/internal/frontend/releases/${releaseId}`, { method: "PATCH", body: payload });
-export const deleteFrontendRelease = async (releaseId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/releases/${releaseId}`, { method: "DELETE" });
-export const validateFrontendRelease = async (releaseId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/releases/${releaseId}/validate`, { method: "POST", body: {} });
+export const fetchOpsDiscoveryCategories = (params: { site_key?: string; state?: string; q?: string; limit?: number; offset?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/ops/discovery/categories`, params);
+export const fetchOpsDiscoveryCategoryDetails = (categoryId: number) =>
+  getJson(`${INTERNAL_PREFIX}/ops/discovery/categories/${categoryId}`);
+export const promoteOpsDiscovery = (ids: number[]) => postJson(`${INTERNAL_PREFIX}/ops/discovery/promote`, { ids });
+export const rejectOpsDiscovery = (ids: number[]) => postJson(`${INTERNAL_PREFIX}/ops/discovery/reject`, { ids });
+export const reactivateOpsDiscovery = (ids: number[]) => postJson(`${INTERNAL_PREFIX}/ops/discovery/reactivate`, { ids });
+export const runOpsDiscoveryCategoryNow = (categoryId: number) =>
+  postJson(`${INTERNAL_PREFIX}/ops/discovery/categories/${categoryId}/run-now`, {});
+export const runOpsDiscoveryAllForSite = (siteKey: string) =>
+  postJson(`${INTERNAL_PREFIX}/ops/discovery/run-all`, { site_key: siteKey });
+export const runOpsSiteDiscovery = (siteKey: string) =>
+  postJson(`${INTERNAL_PREFIX}/ops/sites/${encodeURIComponent(siteKey)}/run-discovery`, {});
+export const bulkUpdateOpsSources = (payload: Record<string, any>) => postJson(`${INTERNAL_PREFIX}/ops/sources/bulk-update`, payload);
 
-export const fetchFrontendProfiles = async () => apiJson<any>("/api/v1/internal/frontend/profiles");
-export const createFrontendProfile = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/frontend/profiles", { method: "POST", body: payload });
-export const updateFrontendProfile = async (profileId: number, payload: any) =>
-  apiJson<any>(`/api/v1/internal/frontend/profiles/${profileId}`, { method: "PATCH", body: payload });
-export const deleteFrontendProfile = async (profileId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/profiles/${profileId}`, { method: "DELETE" });
+export const pauseOpsWorker = (workerId: string) => postJson(`${INTERNAL_PREFIX}/ops/workers/${encodeURIComponent(workerId)}/pause`, {});
+export const resumeOpsWorker = (workerId: string) => postJson(`${INTERNAL_PREFIX}/ops/workers/${encodeURIComponent(workerId)}/resume`, {});
+export const pauseOpsScheduler = () => postJson(`${INTERNAL_PREFIX}/ops/scheduler/pause`, {});
+export const resumeOpsScheduler = () => postJson(`${INTERNAL_PREFIX}/ops/scheduler/resume`, {});
 
-export const fetchFrontendRules = async () => apiJson<any>("/api/v1/internal/frontend/rules");
-export const createFrontendRule = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/frontend/rules", { method: "POST", body: payload });
-export const updateFrontendRule = async (ruleId: number, payload: any) =>
-  apiJson<any>(`/api/v1/internal/frontend/rules/${ruleId}`, { method: "PATCH", body: payload });
-export const deleteFrontendRule = async (ruleId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/rules/${ruleId}`, { method: "DELETE" });
+export const fetchOpsRuntimeSettings = () => getJson(`${INTERNAL_PREFIX}/ops/runtime-settings`);
+export const updateOpsRuntimeSettings = (payload: Record<string, unknown>) =>
+  putJson(`${INTERNAL_PREFIX}/ops/runtime-settings`, payload);
 
-export const fetchFrontendRuntimeState = async () => apiJson<any>("/api/v1/internal/frontend/runtime-state");
-export const updateFrontendRuntimeState = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/frontend/runtime-state", { method: "PATCH", body: payload });
-export const publishFrontendConfig = async () => apiJson<any>("/api/v1/internal/frontend/publish", { method: "POST", body: {} });
-export const rollbackFrontendConfig = async () => apiJson<any>("/api/v1/internal/frontend/rollback", { method: "POST", body: {} });
+// --- Frontend routing (deployment config) ---
+export const fetchFrontendApps = () => getJson(`${INTERNAL_PREFIX}/frontend/apps`);
+export const createFrontendApp = (payload: Record<string, unknown>) => postJson(`${INTERNAL_PREFIX}/frontend/apps`, payload);
+export const updateFrontendApp = (id: number, payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/apps`, { id, ...payload });
+export const deleteFrontendApp = (id: number) => deleteJson(`${INTERNAL_PREFIX}/frontend/apps/${id}`);
 
-export const fetchFrontendAllowedHosts = async () => apiJson<any>("/api/v1/internal/frontend/allowed-hosts");
-export const createFrontendAllowedHost = async (payload: any) =>
-  apiJson<any>("/api/v1/internal/frontend/allowed-hosts", { method: "POST", body: payload });
-export const updateFrontendAllowedHost = async (hostId: number, payload: any) =>
-  apiJson<any>(`/api/v1/internal/frontend/allowed-hosts/${hostId}`, { method: "PATCH", body: payload });
-export const deleteFrontendAllowedHost = async (hostId: number) =>
-  apiJson<any>(`/api/v1/internal/frontend/allowed-hosts/${hostId}`, { method: "DELETE" });
+export const fetchFrontendReleases = () => getJson(`${INTERNAL_PREFIX}/frontend/releases`);
+export const createFrontendRelease = (payload: Record<string, unknown>) => postJson(`${INTERNAL_PREFIX}/frontend/releases`, payload);
+export const updateFrontendRelease = (id: number, payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/releases`, { id, ...payload });
+export const deleteFrontendRelease = (id: number) => deleteJson(`${INTERNAL_PREFIX}/frontend/releases/${id}`);
+export const validateFrontendRelease = (id: number) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/releases/${id}/validate`, {});
 
-export const fetchFrontendAuditLog = async () => apiJson<any>("/api/v1/internal/frontend/audit-log");
+export const fetchFrontendProfiles = () => getJson(`${INTERNAL_PREFIX}/frontend/profiles`);
+export const createFrontendProfile = (payload: Record<string, unknown>) => postJson(`${INTERNAL_PREFIX}/frontend/profiles`, payload);
+export const updateFrontendProfile = (id: number, payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/profiles`, { id, ...payload });
+export const fetchFrontendRules = () => getJson(`${INTERNAL_PREFIX}/frontend/rules`);
+export const createFrontendRule = (payload: Record<string, unknown>) => postJson(`${INTERNAL_PREFIX}/frontend/rules`, payload);
+export const updateFrontendRule = (id: number, payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/rules`, { id, ...payload });
+export const deleteFrontendRule = (id: number) => deleteJson(`${INTERNAL_PREFIX}/frontend/rules/${id}`);
+
+export const fetchFrontendRuntimeState = () => getJson(`${INTERNAL_PREFIX}/frontend/runtime-state`);
+export const updateFrontendRuntimeState = (payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/runtime-state`, payload);
+
+export const fetchFrontendAllowedHosts = () => getJson(`${INTERNAL_PREFIX}/frontend/allowed-hosts`);
+export const createFrontendAllowedHost = (payload: Record<string, unknown>) => postJson(`${INTERNAL_PREFIX}/frontend/allowed-hosts`, payload);
+export const updateFrontendAllowedHost = (id: number, payload: Record<string, unknown>) =>
+  postJson(`${INTERNAL_PREFIX}/frontend/allowed-hosts`, { id, ...payload });
+export const deleteFrontendAllowedHost = (id: number) => deleteJson(`${INTERNAL_PREFIX}/frontend/allowed-hosts/${id}`);
+
+export const publishFrontendConfig = () => postJson(`${INTERNAL_PREFIX}/frontend/publish`, {});
+export const rollbackFrontendConfig = () => postJson(`${INTERNAL_PREFIX}/frontend/rollback`, {});
+export const fetchFrontendAuditLog = (limit = 100, offset = 0) => getJson(`${INTERNAL_PREFIX}/frontend/audit-log`, { limit, offset });
