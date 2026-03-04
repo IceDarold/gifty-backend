@@ -10,6 +10,7 @@ import {
     fetchOpsSites,
     forceRunSource,
     getOpsStreamUrl,
+    isSseDisabled,
     promoteOpsDiscovery,
     reactivateOpsDiscovery,
     rejectOpsDiscovery,
@@ -269,6 +270,12 @@ export function useOperationsData(initialSiteKey?: string) {
         const connect = () => {
             cleanupTimer();
             setStreamState('connecting');
+
+            if (isSseDisabled()) {
+                setStreamState('disconnected');
+                setStreamError(null);
+                return;
+            }
 
             try {
                 source = new EventSource(getOpsStreamUrl());

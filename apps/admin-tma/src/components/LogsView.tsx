@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Pause, Play, RefreshCcw, Search, Trash2 } from "lucide-react";
-import { fetchLogServices, fetchLogsQuery, getLogsStreamUrl } from "@/lib/api";
+import { fetchLogServices, fetchLogsQuery, getLogsStreamUrl, isSseDisabled } from "@/lib/api";
 
 type LogItem = {
     ts: string;
@@ -89,6 +89,13 @@ export function LogsView() {
     };
 
     const connectStream = () => {
+        if (isSseDisabled()) {
+            esRef.current?.close();
+            esRef.current = null;
+            setError(null);
+            setIsConnecting(false);
+            return;
+        }
         esRef.current?.close();
         esRef.current = null;
 

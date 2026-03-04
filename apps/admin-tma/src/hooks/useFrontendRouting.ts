@@ -48,6 +48,14 @@ export function useFrontendRoutingData() {
   const allowedHosts = useQuery({ queryKey: ['frontend-allowed-hosts'], queryFn: fetchFrontendAllowedHosts });
   const auditLog = useQuery({ queryKey: ['frontend-audit-log'], queryFn: () => fetchFrontendAuditLog(100, 0) });
 
+  // Backend returns {status, items} while UI expects arrays.
+  const appsData = (apps.data as any)?.items ?? apps.data ?? [];
+  const releasesData = (releases.data as any)?.items ?? releases.data ?? [];
+  const profilesData = (profiles.data as any)?.items ?? profiles.data ?? [];
+  const rulesData = (rules.data as any)?.items ?? rules.data ?? [];
+  const allowedHostsData = (allowedHosts.data as any)?.items ?? allowedHosts.data ?? [];
+  const auditLogData = (auditLog.data as any)?.items ?? auditLog.data ?? [];
+
   return {
     apps,
     releases,
@@ -56,6 +64,13 @@ export function useFrontendRoutingData() {
     runtimeState,
     allowedHosts,
     auditLog,
+
+    appsData,
+    releasesData,
+    profilesData,
+    rulesData,
+    allowedHostsData,
+    auditLogData,
 
     createApp: useMutation({
       mutationFn: createFrontendApp,

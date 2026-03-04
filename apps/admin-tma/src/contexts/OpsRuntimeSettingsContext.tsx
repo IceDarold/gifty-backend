@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchOpsRuntimeSettings, getOpsStreamUrl, updateOpsRuntimeSettings } from "@/lib/api";
+import { fetchOpsRuntimeSettings, getOpsStreamUrl, isSseDisabled, updateOpsRuntimeSettings } from "@/lib/api";
 
 export const OPS_CLIENT_INTERVAL_DEFAULTS: Record<string, number> = {
   "ops.overview_ms": 30000,
@@ -64,6 +64,7 @@ export function OpsRuntimeSettingsProvider({ children }: { children: React.React
   });
 
   useEffect(() => {
+    if (isSseDisabled()) return;
     let source: EventSource | null = null;
     try {
       source = new EventSource(getOpsStreamUrl());
