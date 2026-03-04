@@ -2,10 +2,64 @@
   "citilink": {
     "hub_url": "https://www.citilink.ru/catalog/"
   },
+  "colapsar": {
+    "hub_url": "https://colapsar.placeholder"
+  },
+  "detmir": {
+    "hub_url": "https://detmir.placeholder"
+  },
+  "goldenapple": {
+    "hub_url": "https://goldenapple.placeholder"
+  },
+  "group_price": {
+    "hub_url": "https://group_price.placeholder"
+  },
+  "inteltoys": {
+    "hub_url": "https://inteltoys.placeholder"
+  },
+  "kassir": {
+    "hub_url": "https://kassir.placeholder"
+  },
+  "lefutur": {
+    "hub_url": "https://lefutur.placeholder"
+  },
+  "leonardo": {
+    "hub_url": "https://leonardo.placeholder"
+  },
+  "letu": {
+    "hub_url": "https://letu.placeholder"
+  },
+  "mir_kubikov": {
+    "hub_url": "https://mir_kubikov.placeholder"
+  },
   "mvideo": {
     "hub_url": "https://www.mvideo.ru/vse-kategorii"
   },
+  "nashi_podarki": {
+    "hub_url": "https://nashi_podarki.placeholder"
+  },
+  "pichshop": {
+    "hub_url": "https://pichshop.placeholder"
+  },
   "plati_market": {
     "hub_url": "https://plati.market/xml/test_sections.asp?l=ru-RU"
+  },
+  "russianlegacy": {
+    "hub_url": "https://russianlegacy.placeholder"
+  },
+  "sokolov": {
+    "hub_url": "https://sokolov.placeholder"
+  },
+  "sportmaster": {
+    "hub_url": "https://sportmaster.placeholder"
+  },
+  "stockmann": {
+    "hub_url": "https://stockmann.placeholder"
+  },
+  "vseigrushki": {
+    "hub_url": "https://vseigrushki.placeholder"
+  },
+  "mrgeek": {
+    "hub_url": "https://mrgeek.placeholder"
   }
 }
