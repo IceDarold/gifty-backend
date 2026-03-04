@@ -2,12 +2,13 @@
 
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Clock, Filter, RefreshCcw } from "lucide-react";
+import { BarChart3, Clock, Filter, RefreshCcw, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
-import { fetchLLMLogs, fetchLLMThroughput } from "@/lib/api";
+import { fetchLLMBreakdown, fetchLLMLogs, fetchLLMThroughput } from "@/lib/api";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
+import { Modal } from "@/components/frontend/Modal";
 
 type Bucket = "minute" | "hour" | "day" | "week";
 
@@ -36,6 +37,7 @@ export function LLMLogsView() {
   const [provider, setProvider] = useState<string>("");
   const [callType, setCallType] = useState<string>("");
   const [offset, setOffset] = useState<number>(0);
+  const [selected, setSelected] = useState<any | null>(null);
   const limit = 50;
 
   const logsQuery = useQuery({
@@ -74,10 +76,55 @@ export function LLMLogsView() {
     }));
   }, [throughputQuery.data, bucket]);
 
+  const providerBreakdown = useQuery({
+    queryKey: ["llm-breakdown", { days, group_by: "provider" }],
+    queryFn: () => fetchLLMBreakdown({ days, group_by: "provider", limit: 8 }),
+    refetchInterval: (q) => (q.state.error ? false : 120000),
+  });
+
+  const modelBreakdown = useQuery({
+    queryKey: ["llm-breakdown", { days, group_by: "model" }],
+    queryFn: () => fetchLLMBreakdown({ days, group_by: "model", limit: 8 }),
+    refetchInterval: (q) => (q.state.error ? false : 120000),
+  });
+
+  const callTypeBreakdown = useQuery({
+    queryKey: ["llm-breakdown", { days, group_by: "call_type" }],
+    queryFn: () => fetchLLMBreakdown({ days, group_by: "call_type", limit: 10 }),
+    refetchInterval: (q) => (q.state.error ? false : 120000),
+  });
+
+  const statusBreakdown = useQuery({
+    queryKey: ["llm-breakdown", { days, group_by: "status" }],
+    queryFn: () => fetchLLMBreakdown({ days, group_by: "status", limit: 8 }),
+    refetchInterval: (q) => (q.state.error ? false : 120000),
+  });
+
   const total = Number(logsQuery.data?.total || 0);
   const items = Array.isArray(logsQuery.data?.items) ? logsQuery.data.items : [];
   const hasPrev = offset > 0;
   const hasNext = offset + limit < total;
+
+  const formatMoney = (value: any) => {
+    const num = Number(value || 0);
+    if (!Number.isFinite(num)) return "$0.0000";
+    return `$${num.toFixed(4)}`;
+  };
+
+  const formatNum = (value: any) => {
+    const num = Number(value || 0);
+    if (!Number.isFinite(num)) return "0";
+    return num.toLocaleString();
+  };
+
+  const toPrettyJson = (value: any) => {
+    try {
+      if (value === null || value === undefined) return "";
+      return JSON.stringify(value, null, 2);
+    } catch {
+      return String(value ?? "");
+    }
+  };
 
   return (
     <div className="space-y-4 px-4 pb-6 animate-in fade-in duration-300">
@@ -92,7 +139,14 @@ export function LLMLogsView() {
       </div>
 
       <ApiServerErrorBanner
-        errors={[logsQuery.error, throughputQuery.error]}
+        errors={[
+          logsQuery.error,
+          throughputQuery.error,
+          providerBreakdown.error,
+          modelBreakdown.error,
+          callTypeBreakdown.error,
+          statusBreakdown.error,
+        ]}
         onRetry={async () => {
           await Promise.allSettled([logsQuery.refetch(), throughputQuery.refetch()]);
         }}
@@ -107,7 +161,14 @@ export function LLMLogsView() {
           </div>
           <button
             onClick={() => {
-              void Promise.allSettled([logsQuery.refetch(), throughputQuery.refetch()]);
+              void Promise.allSettled([
+                logsQuery.refetch(),
+                throughputQuery.refetch(),
+                providerBreakdown.refetch(),
+                modelBreakdown.refetch(),
+                callTypeBreakdown.refetch(),
+                statusBreakdown.refetch(),
+              ]);
             }}
             className="inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-bold border border-white/10 hover:bg-white/10 active:scale-95 transition-all"
           >
@@ -187,6 +248,121 @@ export function LLMLogsView() {
               className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none"
             />
           </label>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Breakdown: status</h3>
+            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">{days}d</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(statusBreakdown.data?.items || []).map((row: any) => (
+              <button
+                key={String(row.key)}
+                onClick={() => {
+                  setOffset(0);
+                  setStatus(String(row.key || ""));
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
+              >
+                <span className="text-xs font-bold">{String(row.key || "-")}</span>
+                <span className="text-xs text-[var(--tg-theme-hint-color)]">{formatNum(row.requests)}</span>
+              </button>
+            ))}
+            {!statusBreakdown.data?.items?.length ? (
+              <div className="text-xs text-[var(--tg-theme-hint-color)]">No data</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Breakdown: provider</h3>
+            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">{days}d</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(providerBreakdown.data?.items || []).map((row: any) => (
+              <button
+                key={String(row.key)}
+                onClick={() => {
+                  setOffset(0);
+                  setProvider(String(row.key || ""));
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
+              >
+                <div className="flex flex-col items-start">
+                  <span className="text-xs font-bold">{String(row.key || "-")}</span>
+                  <span className="text-[10px] text-[var(--tg-theme-hint-color)]">
+                    {formatMoney(row.total_cost_usd)} · {formatNum(row.total_tokens)} tokens
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--tg-theme-hint-color)]">{formatNum(row.requests)}</span>
+              </button>
+            ))}
+            {!providerBreakdown.data?.items?.length ? (
+              <div className="text-xs text-[var(--tg-theme-hint-color)]">No data</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Breakdown: model</h3>
+            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">{days}d</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(modelBreakdown.data?.items || []).map((row: any) => (
+              <div
+                key={String(row.key)}
+                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2"
+                title={String(row.key || "")}
+              >
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="text-xs font-bold truncate max-w-[260px]">{String(row.key || "-")}</span>
+                  <span className="text-[10px] text-[var(--tg-theme-hint-color)]">
+                    {formatMoney(row.total_cost_usd)} · {Math.round(Number(row.avg_latency_ms || 0))}ms avg
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--tg-theme-hint-color)]">{formatNum(row.requests)}</span>
+              </div>
+            ))}
+            {!modelBreakdown.data?.items?.length ? (
+              <div className="text-xs text-[var(--tg-theme-hint-color)]">No data</div>
+            ) : null}
+          </div>
+        </div>
+
+        <div className="card overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-bold">Breakdown: call type</h3>
+            <span className="text-[10px] text-[var(--tg-theme-hint-color)]">{days}d</span>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(callTypeBreakdown.data?.items || []).map((row: any) => (
+              <button
+                key={String(row.key)}
+                onClick={() => {
+                  setOffset(0);
+                  setCallType(String(row.key || ""));
+                }}
+                className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
+                title={String(row.key || "")}
+              >
+                <div className="flex flex-col items-start min-w-0">
+                  <span className="text-xs font-bold truncate max-w-[260px]">{String(row.key || "-")}</span>
+                  <span className="text-[10px] text-[var(--tg-theme-hint-color)]">
+                    {formatMoney(row.total_cost_usd)} · {formatNum(row.total_tokens)} tokens
+                  </span>
+                </div>
+                <span className="text-xs text-[var(--tg-theme-hint-color)]">{formatNum(row.requests)}</span>
+              </button>
+            ))}
+            {!callTypeBreakdown.data?.items?.length ? (
+              <div className="text-xs text-[var(--tg-theme-hint-color)]">No data</div>
+            ) : null}
+          </div>
         </div>
       </div>
 
@@ -272,7 +448,11 @@ export function LLMLogsView() {
                 const isErr = String(it.status) === "error";
                 const ts = String(it.created_at || "");
                 return (
-                  <tr key={it.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                  <tr
+                    key={it.id}
+                    className="border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer"
+                    onClick={() => setSelected(it)}
+                  >
                     <td className="py-2 pr-3 whitespace-nowrap text-xs">{ts ? formatTsLabel(ts, "minute") : "-"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <span
@@ -310,7 +490,81 @@ export function LLMLogsView() {
           </table>
         </div>
       </div>
+
+      <Modal isOpen={!!selected} onClose={() => setSelected(null)}>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h3 className="text-base font-black truncate">LLM Call Details</h3>
+            <p className="text-[10px] text-[var(--tg-theme-hint-color)] mt-1">
+              {selected?.provider} · {selected?.model} · {selected?.call_type}
+            </p>
+          </div>
+          <button
+            onClick={() => setSelected(null)}
+            className="rounded-xl border border-white/10 bg-white/5 p-2 hover:bg-white/10 transition-colors"
+            aria-label="Close"
+          >
+            <X size={16} className="text-[var(--tg-theme-hint-color)]" />
+          </button>
+        </div>
+
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Meta</div>
+            <div className="mt-2 text-xs space-y-1">
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Time:</span>{" "}
+                <span className="font-bold">{selected?.created_at || "-"}</span>
+              </div>
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Status:</span>{" "}
+                <span className="font-bold">{selected?.status || "ok"}</span>
+              </div>
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Latency:</span>{" "}
+                <span className="font-bold">{Number(selected?.latency_ms || 0)}ms</span>
+              </div>
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Tokens:</span>{" "}
+                <span className="font-bold">{formatNum(selected?.total_tokens)}</span>
+              </div>
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Cost:</span>{" "}
+                <span className="font-bold">{formatMoney(selected?.cost_usd)}</span>
+              </div>
+              <div>
+                <span className="text-[var(--tg-theme-hint-color)]">Provider request id:</span>{" "}
+                <span className="font-bold">{selected?.provider_request_id || "-"}</span>
+              </div>
+              <div className="break-all">
+                <span className="text-[var(--tg-theme-hint-color)]">Prompt hash:</span>{" "}
+                <span className="font-bold">{selected?.prompt_hash || "-"}</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Error</div>
+            <div className="mt-2 text-xs space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[var(--tg-theme-hint-color)]">Type</span>
+                <span className="font-bold">{selected?.error_type || "-"}</span>
+              </div>
+              <div className="text-[10px] text-[var(--tg-theme-hint-color)]">Message</div>
+              <pre className="whitespace-pre-wrap break-words rounded-xl border border-white/10 bg-black/20 p-2 text-[11px] leading-snug">
+                {selected?.error_message || ""}
+              </pre>
+            </div>
+          </div>
+
+          <div className="lg:col-span-2 rounded-2xl border border-white/10 bg-white/5 p-3">
+            <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Params</div>
+            <pre className="mt-2 max-h-[320px] overflow-auto whitespace-pre rounded-xl border border-white/10 bg-black/20 p-2 text-[11px] leading-snug">
+              {toPrettyJson(selected?.params)}
+            </pre>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }
-
