@@ -9,6 +9,8 @@ import redis.asyncio as redis
 import psutil
 import socket
 import signal
+import sys
+import json
 from datetime import datetime
 from urllib.parse import urlencode
 from prometheus_client import start_http_server, Counter, Gauge
@@ -77,6 +79,61 @@ class ScraperWorker:
         except Exception as e:
             logger.error(f"Error listing spiders: {e}")
         return []
+
+    def get_default_spider_urls(self, spider_names: list[str]) -> dict[str, str]:
+        """
+        Reads default URLs from a shared config file.
+
+        We intentionally DO NOT infer defaults from spider code here:
+        for discovery-first flows we want URLs to be explicit and curated
+        (category/hub pages), not "whatever the spider happens to request first".
+        """
+        if not spider_names:
+            return {}
+
+        # Prefer explicit path, fallback to file shipped within services image.
+        raw_path = os.getenv("SPIDER_DEFAULTS_PATH", "gifty_scraper/spider_defaults.json")
+        candidates = [
+            raw_path,
+            os.path.join(os.getcwd(), raw_path),
+            os.path.join(os.getcwd(), "services", raw_path),
+        ]
+        path = next((p for p in candidates if p and os.path.exists(p)), None)
+        if not path:
+            logger.warning(
+                "Spider defaults config not found; set SPIDER_DEFAULTS_PATH. "
+                "Spiders will be registered with placeholder URLs."
+            )
+            return {}
+
+        try:
+            raw = json.loads(open(path, "r", encoding="utf-8").read())
+        except Exception as e:
+            logger.error(f"Failed to load spider defaults from {path}: {e}")
+            return {}
+
+        # Allow both formats:
+        # 1) {"spider": {"hub_url": "..."}, ...}
+        # 2) {"spider": "https://...", ...}
+        defaults: dict[str, str] = {}
+        for name in spider_names:
+            item = raw.get(name) if isinstance(raw, dict) else None
+            url = None
+            if isinstance(item, str):
+                url = item
+            elif isinstance(item, dict):
+                url = item.get("hub_url") or item.get("default_url")
+
+            if isinstance(url, str):
+                url = url.strip()
+                if url.startswith("http"):
+                    defaults[name] = url
+
+        missing = [s for s in spider_names if s not in defaults]
+        if missing:
+            logger.warning("No default hub URLs configured for spiders: %s", ", ".join(sorted(missing)))
+
+        return defaults
 
     async def report_api(self, endpoint, payload, params=None):
         """Sends status/error reports to the Core API."""
@@ -151,7 +208,11 @@ class ScraperWorker:
         self.available_spiders = self.get_available_spiders()
         logger.info(f"Available spiders: {self.available_spiders}")
         if self.available_spiders:
-            await self.report_api("sources/sync-spiders", {"available_spiders": self.available_spiders})
+            default_urls = self.get_default_spider_urls(self.available_spiders)
+            await self.report_api(
+                "sources/sync-spiders",
+                {"available_spiders": self.available_spiders, "default_urls": default_urls},
+            )
 
     async def run_spider(self, task):
         """Executes a single Scrapy crawl in a subprocess with streaming logs."""

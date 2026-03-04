@@ -111,6 +111,7 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
                                                 onClick={() => handleRunOne(spider.id)}
                                                 disabled={isThisRunning || !!isRunningAll}
                                                 title={`Run ${spider.site_key}`}
+                                                data-testid={`spider-run-${spider.id}`}
                                                 className={`p-2 rounded-lg transition-all active:scale-95 flex items-center justify-center
                                                     ${isThisRunning
                                                         ? 'bg-[#5288c1] bg-opacity-20 text-[#5288c1]'
@@ -127,6 +128,7 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
                                         {/* Open detail button */}
                                         <button
                                             onClick={() => onOpenDetail?.(spider.id)}
+                                            data-testid={`spider-open-${spider.id}`}
                                             className="p-2 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] group hover:bg-[var(--tg-theme-button-color)] transition-colors active:scale-95"
                                         >
                                             <ExternalLink size={16} className="text-[var(--tg-theme-hint-color)] group-hover:text-white" />

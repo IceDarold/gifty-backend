@@ -17,6 +17,12 @@ export function FrontendRoutingView() {
     runtimeState,
     allowedHosts,
     auditLog,
+    appsData,
+    releasesData,
+    profilesData,
+    rulesData,
+    allowedHostsData,
+    auditLogData,
     createApp,
     deleteApp,
     createRelease,
@@ -59,8 +65,8 @@ export function FrontendRoutingView() {
       />
 
       <AppsPanel
-        apps={apps.data || []}
-        releases={releases.data || []}
+        apps={appsData}
+        releases={releasesData}
         onCreate={(payload) => createApp.mutateAsync(payload)}
         onDelete={(id) => deleteApp.mutateAsync(id)}
         onCreateRelease={(payload) => createRelease.mutateAsync(payload)}
@@ -71,9 +77,9 @@ export function FrontendRoutingView() {
       />
 
       <ProfilesRulesPanel
-        profiles={profiles.data || []}
-        rules={rules.data || []}
-        releases={releases.data || []}
+        profiles={profilesData}
+        rules={rulesData}
+        releases={releasesData}
         onCreateProfile={(payload) => createProfile.mutateAsync(payload)}
         onCreateRule={(payload) => createRule.mutateAsync(payload)}
         onDeleteRule={(id) => deleteRule.mutateAsync(id)}
@@ -81,20 +87,20 @@ export function FrontendRoutingView() {
 
       <RuntimeStatePanel
         runtimeState={runtimeState.data}
-        profiles={profiles.data || []}
-        releases={releases.data || []}
+        profiles={profilesData}
+        releases={releasesData}
         onUpdateRuntimeState={(payload) => updateRuntimeState.mutateAsync(payload)}
         onPublish={(payload) => publish.mutateAsync(payload)}
         onRollback={() => rollback.mutateAsync({})}
       />
 
       <AllowedHostsPanel
-        hosts={allowedHosts.data || []}
+        hosts={allowedHostsData}
         onCreate={(payload) => createAllowedHost.mutateAsync(payload)}
         onDelete={(id) => deleteAllowedHost.mutateAsync(id)}
       />
 
-      <AuditLogPanel items={auditLog.data || []} />
+      <AuditLogPanel items={auditLogData} />
     </div>
   );
 }

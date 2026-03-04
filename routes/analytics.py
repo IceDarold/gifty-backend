@@ -53,6 +53,7 @@ router = APIRouter(
 @router.get("/stats/trends", summary="Time-series trends data (alias)")
 async def get_analytics_trends(
     days: int = 7,
+    settings: Settings = Depends(get_settings),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
 ):
@@ -61,11 +62,11 @@ async def get_analytics_trends(
     
     # We simulate GraphQL Info context
     class MockInfo:
-        def __init__(self, db, redis):
-            self.context = {"db": db, "redis": redis, "settings": get_settings()}
+        def __init__(self, db, redis, settings):
+            self.context = {"db": db, "redis": redis, "settings": settings}
 
     q = Query()
-    info = MockInfo(db, redis)
+    info = MockInfo(db, redis, settings)
     trends_data = await q.trends(info, days=days)
     
     return {
