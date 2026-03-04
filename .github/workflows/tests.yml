@@ -58,3 +58,32 @@ jobs:
         run: |
           # Pytest will automatically respect tests_config.yaml in the root
           pytest --verbose -m "not ai_test"
+
+  admin-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: apps/admin-tma/package-lock.json
+
+      - name: Install admin dependencies
+        working-directory: apps/admin-tma
+        run: npm ci
+
+      - name: Unit/component tests (Vitest)
+        working-directory: apps/admin-tma
+        run: npm test
+
+      - name: Install Playwright browsers
+        working-directory: apps/admin-tma
+        run: npx playwright install --with-deps chromium
+
+      - name: E2E tests (Playwright)
+        working-directory: apps/admin-tma
+        run: npm run test:e2e

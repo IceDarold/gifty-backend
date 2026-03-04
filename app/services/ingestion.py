@@ -42,7 +42,7 @@ class IngestionService:
         self.catalog_repo = PostgresCatalogRepository(db)
         self.parsing_repo = ParsingRepository(db, redis=redis)
 
-    async def ingest_products(self, products: List[ScrapedProduct], source_id: int, *, run_id: int | None = None):
+    async def ingest_products(self, products: List[ScrapedProduct], source_id: int, *, run_id: Optional[int] = None):
         if not products:
             return 0
 
