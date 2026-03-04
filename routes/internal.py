@@ -11,6 +11,7 @@ import hashlib
 import logging
 from pydantic import BaseModel, Field
 from prometheus_client import Counter, Histogram
+import sqlalchemy as sa
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
