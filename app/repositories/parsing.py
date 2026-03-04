@@ -195,21 +195,30 @@ class ParsingRepository:
             return source
         return None
 
-    async def sync_spiders(self, available_spiders: List[str]) -> List[str]:
+    async def sync_spiders(self, available_spiders: List[str], *, default_urls: Optional[dict[str, str]] = None) -> List[str]:
         """
         Synchronizes spiders with discovery hubs and keeps runtime hub sources for compatibility.
         """
+        default_urls = default_urls or {}
         hub_stmt = select(ParsingHub.site_key)
         hub_result = await self.session.execute(hub_stmt)
         existing_hub_keys = set(hub_result.scalars().all())
         
         new_spiders = []
         for spider_key in available_spiders:
+            default_url = default_urls.get(spider_key)
+            if isinstance(default_url, str):
+                default_url = default_url.strip()
+                if not default_url.startswith("http"):
+                    default_url = None
+            else:
+                default_url = None
+
             if spider_key not in existing_hub_keys:
                 self.session.add(
                     ParsingHub(
                         site_key=spider_key,
-                        url=f"https://{spider_key}.placeholder",
+                        url=default_url or f"https://{spider_key}.placeholder",
                         strategy="discovery",
                         is_active=False,
                         status="waiting",
@@ -217,6 +226,15 @@ class ParsingRepository:
                     )
                 )
                 new_spiders.append(spider_key)
+            elif default_url:
+                # If hub exists but still has a placeholder URL, update it to the discovered default.
+                hub = (
+                    await self.session.execute(
+                        select(ParsingHub).where(ParsingHub.site_key == spider_key)
+                    )
+                ).scalar_one_or_none()
+                if hub and isinstance(hub.url, str) and hub.url.endswith(".placeholder"):
+                    hub.url = default_url
 
             # Runtime compatibility: keep one hub source entry for manual run/detail screens.
             src_stmt = select(ParsingSource).where(
@@ -228,13 +246,15 @@ class ParsingRepository:
                 self.session.add(
                     ParsingSource(
                         site_key=spider_key,
-                        url=f"https://{spider_key}.placeholder",
+                        url=default_url or f"https://{spider_key}.placeholder",
                         type="hub",
                         strategy="discovery",
                         is_active=False,
                         config={"is_new": True, "note": "Runtime mirror of parsing_hubs"},
                     )
                 )
+            elif default_url and isinstance(existing_source.url, str) and existing_source.url.endswith(".placeholder"):
+                existing_source.url = default_url
         
         await self.session.commit()
             

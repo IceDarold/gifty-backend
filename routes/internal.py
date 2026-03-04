@@ -1390,7 +1390,7 @@ async def sync_spiders_endpoint(
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    new_spiders = await repo.sync_spiders(request.available_spiders)
+    new_spiders = await repo.sync_spiders(request.available_spiders, default_urls=request.default_urls)
     
     if new_spiders:
         notifier = get_notification_service()

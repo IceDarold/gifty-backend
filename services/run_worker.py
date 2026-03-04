@@ -9,6 +9,7 @@ import redis.asyncio as redis
 import psutil
 import socket
 import signal
+import sys
 from datetime import datetime
 from urllib.parse import urlencode
 from prometheus_client import start_http_server, Counter, Gauge
@@ -77,6 +78,74 @@ class ScraperWorker:
         except Exception as e:
             logger.error(f"Error listing spiders: {e}")
         return []
+
+    def get_default_spider_urls(self, spider_names: list[str]) -> dict[str, str]:
+        """
+        Best-effort extraction of default start URL per spider.
+
+        Scrapy spiders in this repo typically either:
+        - define non-empty start_urls, OR
+        - set self.url / self.start_urls inside start_requests() when url arg is missing.
+
+        We avoid any DB access here; this is purely code-introspection.
+        """
+        if not spider_names:
+            return {}
+
+        # Make sure the Scrapy project is importable in both docker and local runs.
+        if os.path.isdir("services") and os.path.isdir(os.path.join("services", "gifty_scraper")):
+            services_path = os.path.abspath("services")
+            if services_path not in sys.path:
+                sys.path.insert(0, services_path)
+
+        os.environ.setdefault("SCRAPY_SETTINGS_MODULE", "gifty_scraper.settings")
+
+        urls: dict[str, str] = {}
+        try:
+            from scrapy.spiderloader import SpiderLoader
+            from scrapy.utils.project import get_project_settings
+
+            settings = get_project_settings()
+            loader = SpiderLoader.from_settings(settings)
+
+            for name in spider_names:
+                try:
+                    spider_cls = loader.load(name)
+                except Exception:
+                    continue
+
+                try:
+                    spider = spider_cls()
+                except Exception:
+                    # Some spiders might require args; skip.
+                    continue
+
+                # 1) Prefer explicit .url if present after init
+                candidate = getattr(spider, "url", None)
+
+                # 2) Then start_urls
+                if not candidate:
+                    start_urls = getattr(spider, "start_urls", None)
+                    if isinstance(start_urls, (list, tuple)) and start_urls:
+                        candidate = start_urls[0]
+
+                # 3) Finally, peek into first yielded Request from start_requests
+                if not candidate:
+                    try:
+                        it = spider.start_requests()
+                        first = next(iter(it), None)
+                        candidate = getattr(first, "url", None)
+                    except Exception:
+                        candidate = None
+
+                if isinstance(candidate, str):
+                    candidate = candidate.strip()
+                    if candidate.startswith("http"):
+                        urls[name] = candidate
+        except Exception as e:
+            logger.error(f"Failed to extract default spider urls: {e}")
+
+        return urls
 
     async def report_api(self, endpoint, payload, params=None):
         """Sends status/error reports to the Core API."""
@@ -151,7 +220,11 @@ class ScraperWorker:
         self.available_spiders = self.get_available_spiders()
         logger.info(f"Available spiders: {self.available_spiders}")
         if self.available_spiders:
-            await self.report_api("sources/sync-spiders", {"available_spiders": self.available_spiders})
+            default_urls = self.get_default_spider_urls(self.available_spiders)
+            await self.report_api(
+                "sources/sync-spiders",
+                {"available_spiders": self.available_spiders, "default_urls": default_urls},
+            )
 
     async def run_spider(self, task):
         """Executes a single Scrapy crawl in a subprocess with streaming logs."""
