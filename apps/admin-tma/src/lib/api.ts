@@ -190,6 +190,28 @@ export const updateMerchant = (siteKey: string, payload: { name?: string; base_u
 // --- Analytics ---
 export const fetchTrends = (days = 7) => getJson(`${ANALYTICS_PREFIX}/trends`, { days });
 export const fetchIntelligence = (days = 7) => getJson(`${INTERNAL_PREFIX}/analytics/intelligence`, { days });
+export const fetchLLMLogs = (params?: {
+  days?: number;
+  limit?: number;
+  offset?: number;
+  provider?: string;
+  model?: string;
+  call_type?: string;
+  status?: string;
+  session_id?: string;
+  experiment_id?: string;
+  variant_id?: string;
+}) => getJson(`${INTERNAL_PREFIX}/analytics/llm/logs`, params);
+export const fetchLLMThroughput = (params?: {
+  days?: number;
+  bucket?: "minute" | "hour" | "day" | "week";
+  provider?: string;
+  model?: string;
+  call_type?: string;
+  status?: string;
+}) => getJson(`${INTERNAL_PREFIX}/analytics/llm/throughput`, params);
+export const fetchLLMBreakdown = (params?: { days?: number; group_by?: string; limit?: number }) =>
+  getJson(`${INTERNAL_PREFIX}/analytics/llm/breakdown`, params);
 
 // --- Logs (Loki) ---
 export const fetchLogServices = () => getJson(`${INTERNAL_PREFIX}/logs/services`);

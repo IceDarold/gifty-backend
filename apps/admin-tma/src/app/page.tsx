@@ -9,6 +9,7 @@ import { SpiderDetail } from "@/components/SpiderDetail";
 import { UsageChart } from "@/components/UsageChart";
 import { SettingsView } from "@/components/SettingsView";
 import { Intelligence } from "@/components/Intelligence";
+import { LLMLogsView } from "@/components/LLMLogsView";
 import { InfraPanel } from "@/components/InfraPanel";
 import { HealthView } from "@/components/HealthView";
 import { CatalogView } from "@/components/CatalogView";
@@ -160,6 +161,11 @@ export default function Home() {
                     key: "intelligence",
                     label: "AI",
                     icon: <Brain size={20} fill={activeTab === "intelligence" ? "currentColor" : "none"} />,
+                },
+                {
+                    key: "llm_logs",
+                    label: "LLM Logs",
+                    icon: <ScrollText size={20} />,
                 },
             ],
         },
@@ -344,6 +350,8 @@ export default function Home() {
                 );
             case "intelligence":
                 return <Intelligence />;
+            case "llm_logs":
+                return <LLMLogsView />;
             case "health":
                 return (
                     <>

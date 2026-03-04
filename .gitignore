@@ -207,3 +207,7 @@ marimo/_static/
 marimo/_lsp/
 __marimo__/
 .vscode/
+
+# Allow tracking Next.js app helpers under ignored `lib/` directory.
+!apps/admin-tma/src/lib/
+!apps/admin-tma/src/lib/**
