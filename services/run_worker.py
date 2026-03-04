@@ -10,6 +10,7 @@ import psutil
 import socket
 import signal
 import sys
+import json
 from datetime import datetime
 from urllib.parse import urlencode
 from prometheus_client import start_http_server, Counter, Gauge
@@ -81,71 +82,58 @@ class ScraperWorker:
 
     def get_default_spider_urls(self, spider_names: list[str]) -> dict[str, str]:
         """
-        Best-effort extraction of default start URL per spider.
+        Reads default URLs from a shared config file.
 
-        Scrapy spiders in this repo typically either:
-        - define non-empty start_urls, OR
-        - set self.url / self.start_urls inside start_requests() when url arg is missing.
-
-        We avoid any DB access here; this is purely code-introspection.
+        We intentionally DO NOT infer defaults from spider code here:
+        for discovery-first flows we want URLs to be explicit and curated
+        (category/hub pages), not "whatever the spider happens to request first".
         """
         if not spider_names:
             return {}
 
-        # Make sure the Scrapy project is importable in both docker and local runs.
-        if os.path.isdir("services") and os.path.isdir(os.path.join("services", "gifty_scraper")):
-            services_path = os.path.abspath("services")
-            if services_path not in sys.path:
-                sys.path.insert(0, services_path)
+        # Prefer explicit path, fallback to file shipped within services image.
+        raw_path = os.getenv("SPIDER_DEFAULTS_PATH", "gifty_scraper/spider_defaults.json")
+        candidates = [
+            raw_path,
+            os.path.join(os.getcwd(), raw_path),
+            os.path.join(os.getcwd(), "services", raw_path),
+        ]
+        path = next((p for p in candidates if p and os.path.exists(p)), None)
+        if not path:
+            logger.warning(
+                "Spider defaults config not found; set SPIDER_DEFAULTS_PATH. "
+                "Spiders will be registered with placeholder URLs."
+            )
+            return {}
 
-        os.environ.setdefault("SCRAPY_SETTINGS_MODULE", "gifty_scraper.settings")
-
-        urls: dict[str, str] = {}
         try:
-            from scrapy.spiderloader import SpiderLoader
-            from scrapy.utils.project import get_project_settings
-
-            settings = get_project_settings()
-            loader = SpiderLoader.from_settings(settings)
-
-            for name in spider_names:
-                try:
-                    spider_cls = loader.load(name)
-                except Exception:
-                    continue
-
-                try:
-                    spider = spider_cls()
-                except Exception:
-                    # Some spiders might require args; skip.
-                    continue
-
-                # 1) Prefer explicit .url if present after init
-                candidate = getattr(spider, "url", None)
-
-                # 2) Then start_urls
-                if not candidate:
-                    start_urls = getattr(spider, "start_urls", None)
-                    if isinstance(start_urls, (list, tuple)) and start_urls:
-                        candidate = start_urls[0]
-
-                # 3) Finally, peek into first yielded Request from start_requests
-                if not candidate:
-                    try:
-                        it = spider.start_requests()
-                        first = next(iter(it), None)
-                        candidate = getattr(first, "url", None)
-                    except Exception:
-                        candidate = None
-
-                if isinstance(candidate, str):
-                    candidate = candidate.strip()
-                    if candidate.startswith("http"):
-                        urls[name] = candidate
+            raw = json.loads(open(path, "r", encoding="utf-8").read())
         except Exception as e:
-            logger.error(f"Failed to extract default spider urls: {e}")
+            logger.error(f"Failed to load spider defaults from {path}: {e}")
+            return {}
 
-        return urls
+        # Allow both formats:
+        # 1) {"spider": {"hub_url": "..."}, ...}
+        # 2) {"spider": "https://...", ...}
+        defaults: dict[str, str] = {}
+        for name in spider_names:
+            item = raw.get(name) if isinstance(raw, dict) else None
+            url = None
+            if isinstance(item, str):
+                url = item
+            elif isinstance(item, dict):
+                url = item.get("hub_url") or item.get("default_url")
+
+            if isinstance(url, str):
+                url = url.strip()
+                if url.startswith("http"):
+                    defaults[name] = url
+
+        missing = [s for s in spider_names if s not in defaults]
+        if missing:
+            logger.warning("No default hub URLs configured for spiders: %s", ", ".join(sorted(missing)))
+
+        return defaults
 
     async def report_api(self, endpoint, payload, params=None):
         """Sends status/error reports to the Core API."""

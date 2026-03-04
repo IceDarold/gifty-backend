@@ -1,0 +1,11 @@
+{
+  "citilink": {
+    "hub_url": "https://www.citilink.ru/catalog/"
+  },
+  "mvideo": {
+    "hub_url": "https://www.mvideo.ru/vse-kategorii"
+  },
+  "plati_market": {
+    "hub_url": "https://plati.market/xml/test_sections.asp?l=ru-RU"
+  }
+}
