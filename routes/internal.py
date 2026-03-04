@@ -11,6 +11,7 @@ import hashlib
 import logging
 from pydantic import BaseModel, Field
 from prometheus_client import Counter, Histogram
+import sqlalchemy as sa
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
@@ -1761,18 +1762,39 @@ async def webapp_auth(
         logger.error("Bot token not configured")
         raise HTTPException(status_code=500, detail="Bot token not configured")
         
-    # Dev bypass
-    if settings.env == "dev" and init_data == "dev_user_1821014162":
-        logger.info("Using DEV BYPASS authentication for user 1821014162")
-        user_id = 1821014162
+    init_data = (init_data or "").strip()
+
+    # Dev bypass:
+    # - allow explicit "dev_user_<id>"
+    # - if no init_data provided in dev, fall back to a known dev admin user
+    user_id: int = 0
+    if settings.env == "dev":
+        if not init_data:
+            init_data = "dev_user_1821014162"
+
+        m = re.fullmatch(r"dev_user_(\d+)", init_data)
+        if m:
+            user_id = int(m.group(1))
+            logger.info("Using DEV BYPASS authentication for user %s", user_id)
+        else:
+            if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
+                logger.warning("Invalid init data verification failed")
+                raise HTTPException(status_code=403, detail="Invalid init data")
+
+            from urllib.parse import parse_qsl
+            import json
+
+            params = dict(parse_qsl(init_data))
+            user_data = json.loads(params.get("user", "{}"))
+            user_id = int(user_data.get("id", 0))
     else:
         if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
             logger.warning("Invalid init data verification failed")
             raise HTTPException(status_code=403, detail="Invalid init data")
-            
+
         from urllib.parse import parse_qsl
         import json
-        
+
         params = dict(parse_qsl(init_data))
         user_data = json.loads(params.get("user", "{}"))
         user_id = int(user_data.get("id", 0))
