@@ -119,6 +119,16 @@ export const getApiErrorMessage = (err: unknown): string => {
   return "Request failed";
 };
 
+export const isSseDisabled = (): boolean => {
+  const env = process.env.NEXT_PUBLIC_DISABLE_SSE;
+  if (typeof env === "string" && env.trim()) {
+    const normalized = env.trim().toLowerCase();
+    if (["1", "true", "yes", "on"].includes(normalized)) return true;
+  }
+  const w = safeWindow() as any;
+  return !w || typeof w.EventSource !== "function";
+};
+
 // --- Auth (Telegram mini app) ---
 export const authWithTelegram = async () => {
   const init_data = getInitDataRaw();
