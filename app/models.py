@@ -546,6 +546,18 @@ class LLMLog(TimestampMixin, Base):
     input_messages: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     output_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Status / error info
+    status: Mapped[str] = mapped_column(String, nullable=False, index=True, server_default="ok")
+    error_type: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Provider metadata / dedup
+    provider_request_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+    prompt_hash: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+
+    # Parameters / flags
+    params: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
     
     # Metrics
     prompt_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
