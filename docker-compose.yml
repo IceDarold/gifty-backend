@@ -25,6 +25,9 @@ services:
       #      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
       #      REDIS_URL: "redis://redis:6379/0"
       #      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
+      # Control automatic migrations on container start (useful when pointing at a remote DB)
+      SKIP_MIGRATIONS: "${SKIP_MIGRATIONS:-0}"
+      ALEMBIC_UPGRADE_TARGET: "${ALEMBIC_UPGRADE_TARGET:-head}"
       LLM_PROXY_URL: "socks5://host.docker.internal:3128"
       TELEGRAM_BOT_TOKEN: "8504465402:AAG44tbjK0i4SFbDk0YfOnxeWN91uL9bUv8"
 

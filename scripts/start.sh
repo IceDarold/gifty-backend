@@ -1,8 +1,13 @@
 #!/usr/bin/env sh
 set -e
 
-echo "Running migrations..."
-alembic upgrade head
+if [ "${SKIP_MIGRATIONS:-0}" = "1" ]; then
+  echo "Skipping migrations (SKIP_MIGRATIONS=1)"
+else
+  TARGET="${ALEMBIC_UPGRADE_TARGET:-head}"
+  echo "Running migrations (alembic upgrade ${TARGET})..."
+  alembic upgrade "${TARGET}"
+fi
 
 echo "Starting Gunicorn..."
 exec gunicorn app.main:app \
