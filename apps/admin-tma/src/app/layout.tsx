@@ -20,6 +20,7 @@ export const metadata: Metadata = {
 import { QueryProvider } from "@/components/QueryProvider";
 
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { OpsRuntimeSettingsProvider } from "@/contexts/OpsRuntimeSettingsContext";
 import Script from "next/script";
 
 export default function RootLayout({
@@ -51,9 +52,11 @@ export default function RootLayout({
         <QueryProvider>
           <TMAProvider>
             <LanguageProvider>
-              <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
-                {children}
-              </div>
+              <OpsRuntimeSettingsProvider>
+                <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+                  {children}
+                </div>
+              </OpsRuntimeSettingsProvider>
             </LanguageProvider>
           </TMAProvider>
         </QueryProvider>

@@ -98,6 +98,7 @@ nav:
   - Overview:
       - System Overview: overview/index.md
       - Recipient Management: overview/recipient_management.md
+      - Ownership Areas: overview/ownership_areas.md
   - Parsing System:
       - Architecture: parsing/architecture.md
       - Guide (How to add parser): parsing/guide.md
@@ -113,6 +114,7 @@ nav:
       - Intelligence API: recommendation/intelligence_api.md
   - Analytics & Monitoring:
       - Overview & Philosophy: analytics_monitoring/dashboard.md
+      - Grafana Setup: analytics_monitoring/grafana.md
       - Metrics:
           - Business KPI: analytics_monitoring/kpi_metrics.md
           - AI Observability: analytics_monitoring/ai_observability.md

@@ -50,6 +50,33 @@ update_env_webapp_url() {
   fi
 }
 
+update_env_database_url_port() {
+  local port="$1"
+  if [ ! -f "$ENV_FILE" ]; then
+    return 0
+  fi
+
+  local current_line
+  current_line="$(grep '^DATABASE_URL=' "$ENV_FILE" || true)"
+  if [ -z "$current_line" ]; then
+    return 0
+  fi
+
+  local current_url="${current_line#DATABASE_URL=}"
+  current_url="${current_url%\"}"
+  current_url="${current_url#\"}"
+
+  # Force containers to use host Postgres endpoint (local or SSH-tunnel port).
+  local updated_url
+  updated_url="$(echo "$current_url" | sed -E "s#@[^/]+/#@host.docker.internal:${port}/#")"
+
+  if grep -q '^DATABASE_URL=' "$ENV_FILE"; then
+    sed -i '' "s#^DATABASE_URL=.*\$#DATABASE_URL=\"${updated_url}\"#" "$ENV_FILE"
+  else
+    printf '\nDATABASE_URL="%s"\n' "$updated_url" >> "$ENV_FILE"
+  fi
+}
+
 require_cmd docker
 require_cmd npm
 require_cmd curl
@@ -135,16 +162,21 @@ if [ "$DB_MODE" = "remote" ]; then
 
   if wait_port "localhost" "$DB_LOCAL_PORT" 10; then
     echo "SSH tunnel is up"
+    update_env_database_url_port "$DB_LOCAL_PORT"
   else
     echo "Failed to open SSH tunnel on localhost:${DB_LOCAL_PORT}"
     exit 1
   fi
 else
   echo "[1/5] DB mode: local (SSH tunnel skipped)"
+  update_env_database_url_port "5432"
 fi
 
 echo "[2/5] Docker services"
-docker compose up -d postgres redis rabbitmq api telegram-bot
+docker compose up -d postgres redis rabbitmq api scraper telegram-bot
+
+EFFECTIVE_DB_URL="$(grep '^DATABASE_URL=' "$ENV_FILE" | cut -d= -f2- || true)"
+echo "Effective DATABASE_URL: ${EFFECTIVE_DB_URL}"
 
 echo "[3/5] Admin TMA (Next.js) on http://localhost:${ADMIN_TMA_PORT}"
 pkill -f "next dev.*--port ${ADMIN_TMA_PORT}" 2>/dev/null || true

@@ -2,11 +2,31 @@ import logging
 from app.db import get_session_context
 from app.repositories.parsing import ParsingRepository
 from app.utils.rabbitmq import publish_parsing_task
+from sqlalchemy import select
+from app.models import OpsRuntimeState
 
 logger = logging.getLogger(__name__)
 
+
+async def _is_scheduler_paused() -> bool:
+    try:
+        async with get_session_context() as session:
+            paused = (
+                await session.execute(
+                    select(OpsRuntimeState.scheduler_paused).where(OpsRuntimeState.id == 1)
+                )
+            ).scalar_one_or_none()
+            return bool(paused) if paused is not None else False
+    except Exception:
+        logger.exception("Failed to read persistent scheduler pause state; fallback to running")
+        return False
+
 async def run_parsing_scheduler():
     logger.info("Starting parsing scheduler loop...")
+
+    if await _is_scheduler_paused():
+        logger.info("Parsing scheduler is paused. Skipping this cycle.")
+        return
     
     async with get_session_context() as session:
         repo = ParsingRepository(session)

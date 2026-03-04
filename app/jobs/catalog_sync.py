@@ -17,12 +17,13 @@ logger = logging.getLogger(__name__)
 def _normalize_product(item: dict) -> dict:
     """Convert Takprodam item to local Product model usage."""
     # Mapping based on the actual Takprodam response provided by the user
-    gift_id = f"takprodam:{item['id']}"
+    product_id = f"takprodam:{item['id']}"
     content_text = build_content_text(item)
     image_url = item.get("image_url")
     
     return {
-        "gift_id": gift_id,
+        "product_id": product_id,
+        "site_key": "takprodam",
         "title": item.get("title") or "Untitled",
         "description": item.get("description"),
         "price": float(item["price"]) if item.get("price") else None,
@@ -67,7 +68,7 @@ async def catalog_sync_full(source_id: int | None = None) -> dict[str, Any]:
                     continue
                 product = _normalize_product(item)
                 normalized_batch.append(product)
-                seen_ids.add(product["gift_id"])
+                seen_ids.add(product["product_id"])
             
             if normalized_batch:
                 count = await repo.upsert_products(normalized_batch)

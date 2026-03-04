@@ -42,7 +42,7 @@ class IngestionService:
         self.catalog_repo = PostgresCatalogRepository(db)
         self.parsing_repo = ParsingRepository(db, redis=redis)
 
-    async def ingest_products(self, products: List[ScrapedProduct], source_id: int):
+    async def ingest_products(self, products: List[ScrapedProduct], source_id: int, *, run_id: int | None = None):
         if not products:
             return 0
 
@@ -61,32 +61,60 @@ class IngestionService:
 
         # 2. Prepare Product data for Upsert
         product_dicts = []
-        seen_gift_ids = set()
+        seen_product_ids = set()
+
+        derived_site_key = None
+        if source:
+            derived_site_key = str(source.site_key or "").strip() or None
+
+        merchant_name = None
+        if derived_site_key:
+            merchant = await self.parsing_repo.get_or_create_merchant(derived_site_key)
+            merchant_name = merchant.name if merchant else derived_site_key
         
         for p in products:
-            clean_url = normalize_url(p.product_url, strip_params=strip_params)
-            gift_id = f"{p.site_key}:{clean_url}" 
-            
-            if gift_id in seen_gift_ids:
+            site_key = str(p.site_key or "").strip() or derived_site_key
+            if not site_key:
+                # Cannot construct stable product_id without site_key.
                 continue
-            seen_gift_ids.add(gift_id)
+
+            clean_url = normalize_url(p.product_url, strip_params=strip_params)
+            product_id = f"{site_key}:{clean_url}"
+            
+            if product_id in seen_product_ids:
+                continue
+            seen_product_ids.add(product_id)
+
+            if not merchant_name:
+                merchant = await self.parsing_repo.get_or_create_merchant(site_key)
+                merchant_name = merchant.name if merchant else site_key
             
             product_dicts.append({
-                "gift_id": gift_id,
+                "product_id": product_id,
                 "title": p.title,
                 "description": p.description,
                 "price": p.price,
                 "currency": p.currency,
                 "image_url": p.image_url,
                 "product_url": clean_url,
-                "merchant": p.merchant,
-                "category": p.category, 
+                "merchant": merchant_name,
+                "category": None,
                 "raw": p.raw_data,
-                "is_active": True
+                "is_active": True,
+                "site_key": site_key,
             })
 
         # 3. Bulk Upsert
         count = await self.catalog_repo.upsert_products(product_dicts)
+
+        # 3.1 Record category links (source is a category/list source).
+        if source and source.type == "list" and source.category_id and seen_product_ids:
+            await self.parsing_repo.upsert_product_category_links(
+                product_ids=seen_product_ids,
+                discovered_category_id=int(source.category_id),
+                source_id=int(source_id),
+                run_id=int(run_id) if run_id else None,
+            )
         
         # 4. Update Source Stats
         await self.parsing_repo.update_source_stats(source_id, {

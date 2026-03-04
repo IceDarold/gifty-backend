@@ -687,6 +687,9 @@ export function QueueView({ queue, tasksData, isLoadingTasks, historyData, isLoa
                                         {String(run.status || "unknown").toUpperCase()}
                                     </span>
                                 </div>
+                                {run.category_name ? (
+                                    <div className="mt-1 text-[10px] text-white/80">category: {run.category_name}</div>
+                                ) : null}
                                 <div className="mt-1 text-[10px] text-[var(--tg-theme-hint-color)]">
                                     scraped: {run.items_scraped || 0} • new: {run.items_new || 0}
                                     {typeof run.duration_seconds === "number" ? ` • ${run.duration_seconds.toFixed(1)}s` : ""}

@@ -1,27 +1,31 @@
 "use client";
 
-import { ExternalLink, Package, RefreshCcw, Search } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Package, RefreshCcw, Search } from "lucide-react";
 
 interface CatalogViewProps {
     data?: { items?: any[]; total?: number };
     isLoading: boolean;
+    pendingNewItems?: number;
     search: string;
     page: number;
     pageSize?: number;
     onSearchChange: (value: string) => void;
     onPageChange: (value: number) => void;
     onRefresh: () => void;
+    onApplyNewItems?: () => void;
 }
 
 export function CatalogView({
     data,
     isLoading,
+    pendingNewItems = 0,
     search,
     page,
     pageSize = 20,
     onSearchChange,
     onPageChange,
     onRefresh,
+    onApplyNewItems,
 }: CatalogViewProps) {
     const items = data?.items || [];
     const total = data?.total || 0;
@@ -34,12 +38,24 @@ export function CatalogView({
                     <h2 className="text-lg font-bold">Global Catalog</h2>
                     <p className="text-xs text-[var(--tg-theme-hint-color)]">{total.toLocaleString()} items</p>
                 </div>
-                <button
-                    onClick={onRefresh}
-                    className="p-2 rounded-xl glass text-[var(--tg-theme-button-color)] active:scale-95 transition-all"
-                >
-                    <RefreshCcw size={16} />
-                </button>
+                <div className="flex items-center gap-2">
+                    {pendingNewItems > 0 ? (
+                        <button
+                            onClick={() => onApplyNewItems?.()}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-400/45 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 active:scale-95 transition-all"
+                            title="Load new items"
+                        >
+                            <ArrowUpRight size={14} />
+                            {pendingNewItems} new items
+                        </button>
+                    ) : null}
+                    <button
+                        onClick={onRefresh}
+                        className="p-2 rounded-xl glass text-[var(--tg-theme-button-color)] active:scale-95 transition-all"
+                    >
+                        <RefreshCcw size={16} />
+                    </button>
+                </div>
             </div>
 
             <div className="relative">
@@ -62,7 +78,7 @@ export function CatalogView({
                     </div>
                 ) : (
                     items.map((item: any) => (
-                        <div key={item.gift_id} className="card flex gap-3">
+                        <div key={item.product_id ?? item.gift_id} className="card flex gap-3">
                             <div className="w-14 h-14 rounded-lg bg-[var(--tg-theme-secondary-bg-color)] overflow-hidden">
                                 {item.image_url ? (
                                     // eslint-disable-next-line @next/next/no-img-element
@@ -72,7 +88,10 @@ export function CatalogView({
                             <div className="flex-1 min-w-0">
                                 <div className="text-xs font-bold line-clamp-2">{item.title}</div>
                                 <div className="mt-1 text-[10px] text-[var(--tg-theme-hint-color)]">
-                                    {item.merchant || "unknown"} • {item.category || "uncategorized"}
+                                    {item.merchant || "unknown"} •{" "}
+                                    {item.scraped_category?.name
+                                        ? `${item.scraped_category.name}${item.scraped_categories_count > 1 ? ` +${item.scraped_categories_count - 1}` : ""}`
+                                        : (item.category || "uncategorized")}
                                 </div>
                                 <div className="mt-1 text-sm font-black text-[var(--tg-theme-button-color)]">
                                     {item.price ? `${Number(item.price).toLocaleString()} ${item.currency || "RUB"}` : "N/A"}

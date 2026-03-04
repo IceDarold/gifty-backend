@@ -12,10 +12,47 @@ from gifty_scraper.items import ProductItem, CategoryItem
 def _ts():
     return datetime.utcnow().strftime("%H:%M:%S")
 
+
+def _as_int_or_none(value):
+    if value is None:
+        return None
+    if isinstance(value, bool):
+        return int(value)
+    if isinstance(value, int):
+        return value
+    if isinstance(value, float):
+        return int(value)
+    if isinstance(value, str):
+        raw = value.strip()
+        if not raw:
+            return None
+        try:
+            return int(raw)
+        except ValueError:
+            return None
+    return None
+
+
+def _guess_name_from_url(url: str) -> str:
+    cleaned = (url or "").rstrip("/")
+    if not cleaned:
+        return "category"
+    slug = cleaned.split("/")[-1]
+    slug = slug.replace("-", " ").replace("_", " ").strip()
+    return slug or "category"
+
 class IngestionPipeline:
     def __init__(self):
         self.logger = logging.getLogger(__name__)
-        self.api_url = f"{os.getenv('CORE_API_URL', 'http://api:8000').rstrip('/')}/api/v1/internal/ingest-batch"
+        core_api_url = os.getenv("CORE_API_URL", "http://api:8000")
+        normalized = core_api_url.rstrip("/")
+        # Accept both base URL and full ingest endpoint from env.
+        if normalized.endswith("/api/v1/internal/ingest-batch"):
+            self.api_url = normalized
+        elif normalized.endswith("/api/v1/internal"):
+            self.api_url = f"{normalized}/ingest-batch"
+        else:
+            self.api_url = f"{normalized}/api/v1/internal/ingest-batch"
         self.token = os.getenv("INTERNAL_API_TOKEN", "default_internal_token")
         self.batch_size = int(os.getenv("SCRAPY_BATCH_SIZE", "50"))
         self.items_buffer = []
@@ -95,16 +132,40 @@ class IngestionPipeline:
 
         for item in batch:
             if "product_url" in item:
-                products.append(item)
-            elif "url" in item and "name" in item:
-                categories.append(item)
+                title = str(item.get("title") or item.get("name") or "").strip()
+                product_url = str(item.get("product_url") or "").strip()
+                site_key = str(item.get("site_key") or getattr(spider, "site_key", "") or "").strip()
+                if not title or not product_url or not site_key:
+                    self.logger.debug("Skip invalid product item for ingest: %s", item)
+                    continue
+                normalized = dict(item)
+                normalized["title"] = title
+                normalized["product_url"] = product_url
+                normalized["site_key"] = site_key
+                normalized["source_id"] = _as_int_or_none(item.get("source_id", getattr(spider, "source_id", None)))
+                products.append(normalized)
+            elif "url" in item:
+                url = str(item.get("url") or "").strip()
+                site_key = str(item.get("site_key") or getattr(spider, "site_key", "") or "").strip()
+                name = str(item.get("name") or item.get("title") or "").strip()
+                if not name and url:
+                    name = _guess_name_from_url(url)
+                if not url or not site_key or not name:
+                    self.logger.debug("Skip invalid category item for ingest: %s", item)
+                    continue
+                normalized = dict(item)
+                normalized["url"] = url
+                normalized["site_key"] = site_key
+                normalized["name"] = name
+                categories.append(normalized)
 
         if not products and not categories:
             return
 
         first_item = products[0] if products else categories[0]
-        source_id = first_item.get("source_id", getattr(spider, 'source_id', 0))
-        run_id = first_item.get("run_id", getattr(spider, 'run_id', None))
+        source_id = _as_int_or_none(first_item.get("source_id", getattr(spider, 'source_id', None)))
+        source_id = source_id if source_id is not None else 0
+        run_id = _as_int_or_none(first_item.get("run_id", getattr(spider, 'run_id', None)))
         spider_name = first_item.get("site_key", spider.name)
 
         payload = {
@@ -133,5 +194,12 @@ class IngestionPipeline:
 
         except Exception as e:
             ingestion_batches_total.labels(spider=spider_name, status="error").inc()
-            self.logger.error(f"Failed to ingest batch for {spider_name}: {e}")
-            await self._publish(source_id, f"[ERROR] [{_ts()}] ❌ Batch failed: {e}")
+            details = ""
+            if isinstance(e, httpx.HTTPStatusError):
+                try:
+                    details = e.response.text
+                except Exception:
+                    details = ""
+            extra = f" response={details}" if details else ""
+            self.logger.error(f"Failed to ingest batch for {spider_name}: {e}{extra}")
+            await self._publish(source_id, f"[ERROR] [{_ts()}] ❌ Batch failed: {e}{extra}")

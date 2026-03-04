@@ -19,7 +19,7 @@ pkill -f "ssh.*-L ${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" 2>/dev/null || t
 
 echo "[4/4] Stop Docker services"
 if docker compose version >/dev/null 2>&1; then
-  docker compose stop postgres redis rabbitmq api telegram-bot >/dev/null 2>&1 || true
+  docker compose stop postgres redis rabbitmq api scraper telegram-bot >/dev/null 2>&1 || true
 fi
 
 echo "Dev environment stopped"

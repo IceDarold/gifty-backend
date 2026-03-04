@@ -24,6 +24,7 @@ class Base(DeclarativeBase):
 
 
 import ssl
+import os
 
 db_url = make_url(settings.db_url)
 # Startup diagnostic print
@@ -64,10 +65,14 @@ engine_args = {
 
 # SQLite doesn't support pool_size and max_overflow
 if "sqlite" not in db_url.drivername:
+    pool_size = int(os.getenv("DB_POOL_SIZE", "20"))
+    max_overflow = int(os.getenv("DB_MAX_OVERFLOW", "20"))
+    pool_timeout = int(os.getenv("DB_POOL_TIMEOUT", "30"))
     engine_args.update({
         "pool_pre_ping": True,
-        "pool_size": 10,
-        "max_overflow": 20,
+        "pool_size": pool_size,
+        "max_overflow": max_overflow,
+        "pool_timeout": pool_timeout,
     })
 
 engine = create_async_engine(db_url, **engine_args)
@@ -79,7 +84,6 @@ async def get_db() -> AsyncSession:
 
 
 import redis.asyncio as redis
-import os
 
 # Redis setup
 if os.getenv("TESTING") == "true":
