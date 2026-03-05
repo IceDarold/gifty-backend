@@ -1,20 +1,32 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTMA } from "@/components/TMAProvider";
 import { Bell, Settings, User } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 export function DashboardHeader() {
     const tma = useTMA();
     const { t } = useLanguage();
     const { events, unreadCount, markAllRead, clear, markRead } = useNotificationCenter();
+    const retryRegistry = useRetryRegistry();
     const [open, setOpen] = useState(false);
+    const [runningRetryKey, setRunningRetryKey] = useState<string | null>(null);
     const anchorRef = useRef<HTMLButtonElement | null>(null);
     const popoverRef = useRef<HTMLDivElement | null>(null);
+    const cooldownRef = useRef(new Map<string, number>());
 
     const orderedEvents = useMemo(() => [...events].sort((a, b) => b.lastTs - a.lastTs).slice(0, 200), [events]);
+
+    const canRetry = useCallback((key: string) => {
+        const now = Date.now();
+        const last = cooldownRef.current.get(key) || 0;
+        if (runningRetryKey === key) return false;
+        if (now - last < 2000) return false;
+        return retryRegistry.has(key);
+    }, [retryRegistry, runningRetryKey]);
 
     useEffect(() => {
         if (!open) return;
@@ -141,6 +153,25 @@ export function DashboardHeader() {
                                                         {formatTs(e.lastTs)}
                                                         {e.count > 1 ? ` · ×${e.count}` : ""}
                                                     </p>
+                                                    {e.retryKey && retryRegistry.has(e.retryKey) ? (
+                                                        <div className="mt-2">
+                                                            <button
+                                                                className="inline-flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/20 px-2.5 py-1.5 text-[11px] font-semibold text-white/85 hover:bg-white/10 active:scale-95 transition-all disabled:opacity-50"
+                                                                disabled={!canRetry(e.retryKey)}
+                                                                onClick={async (evt) => {
+                                                                    evt.preventDefault();
+                                                                    evt.stopPropagation();
+                                                                    const key = e.retryKey!;
+                                                                    cooldownRef.current.set(key, Date.now());
+                                                                    setRunningRetryKey(key);
+                                                                    await retryRegistry.run(key);
+                                                                    setRunningRetryKey((prev) => (prev === key ? null : prev));
+                                                                }}
+                                                            >
+                                                                {runningRetryKey === e.retryKey ? "Повтор..." : (e.retryLabel || "Повторить")}
+                                                            </button>
+                                                        </div>
+                                                    ) : null}
                                                 </div>
                                             </div>
                                         </button>

@@ -3,17 +3,21 @@
 import { useEffect, useMemo, useRef } from "react";
 import { getApiErrorMessage, getApiErrorStatus, isServerApiError } from "@/lib/api";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 type UseApiErrorToastArgs = {
   id: string;
   title: string;
+  retryKey?: string;
+  retryLabel?: string;
   errors: unknown[];
   enabled?: boolean;
   ttlMs?: number;
 };
 
-export function useApiErrorToast({ id, title, errors, enabled = true, ttlMs = 10000 }: UseApiErrorToastArgs) {
+export function useApiErrorToast({ id, title, retryKey, retryLabel, errors, enabled = true, ttlMs = 10000 }: UseApiErrorToastArgs) {
   const { toast: showToast } = useNotificationCenter();
+  const retryRegistry = useRetryRegistry();
   const lastSignatureRef = useRef<string | null>(null);
 
   const snapshot = useMemo(() => {
@@ -58,9 +62,14 @@ export function useApiErrorToast({ id, title, errors, enabled = true, ttlMs = 10
         title,
         message: snapshot.message,
         dedupeKey: `${id}:${snapshot.signature}`,
+        retryKey,
+        retryLabel,
       },
       { ttlMs },
     );
-  }, [enabled, snapshot, showToast, id, title, ttlMs]);
-}
+  }, [enabled, snapshot, showToast, id, title, ttlMs, retryKey, retryLabel]);
 
+  return {
+    registerRetry: retryKey ? (fn: () => void | Promise<void>) => retryRegistry.register(retryKey, fn) : null,
+  };
+}

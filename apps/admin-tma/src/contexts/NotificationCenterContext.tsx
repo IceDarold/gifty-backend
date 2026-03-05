@@ -16,6 +16,8 @@ export type NotificationEvent = {
   source?: string;
   meta?: Record<string, unknown>;
   dedupeKey?: string;
+  retryKey?: string;
+  retryLabel?: string;
 };
 
 type NotificationCenterState = {
@@ -64,8 +66,10 @@ const normalizeLoadedEvents = (raw: unknown, now: number): NotificationEvent[] =
     const source = typeof item.source === "string" ? item.source : undefined;
     const meta = isPlainObject(item.meta) ? (item.meta as Record<string, unknown>) : undefined;
     const dedupeKey = typeof item.dedupeKey === "string" ? item.dedupeKey : undefined;
+    const retryKey = typeof item.retryKey === "string" ? item.retryKey : undefined;
+    const retryLabel = typeof item.retryLabel === "string" ? item.retryLabel : undefined;
     if (!id || !title) continue;
-    out.push({ id, level, title, message, ts, lastTs, count, readAt, source, meta, dedupeKey });
+    out.push({ id, level, title, message, ts, lastTs, count, readAt, source, meta, dedupeKey, retryKey, retryLabel });
   }
   return out;
 };
@@ -91,6 +95,8 @@ const upsertEvent = (events: NotificationEvent[], now: number, next: UpsertInput
       source: next.source,
       meta: next.meta,
       dedupeKey: next.dedupeKey,
+      retryKey: next.retryKey,
+      retryLabel: next.retryLabel,
       lastTs: now,
       count: prev.count + 1,
       readAt: null,
@@ -114,6 +120,8 @@ const upsertEvent = (events: NotificationEvent[], now: number, next: UpsertInput
       source: next.source,
       meta: next.meta,
       dedupeKey: next.dedupeKey,
+      retryKey: next.retryKey,
+      retryLabel: next.retryLabel,
       lastTs: now,
       count: prev.count + 1,
       readAt: null,
@@ -137,6 +145,8 @@ const upsertEvent = (events: NotificationEvent[], now: number, next: UpsertInput
       source: next.source,
       meta: next.meta,
       dedupeKey: next.dedupeKey,
+      retryKey: next.retryKey,
+      retryLabel: next.retryLabel,
     },
   ];
 };
@@ -163,10 +173,19 @@ const reducer = (state: NotificationCenterState, action: NotificationCenterActio
       return { events, toasts: nextToasts };
     }
     case "dismissToast":
-      return { ...state, toasts: state.toasts.filter((t) => t.id !== action.id) };
+      return {
+        ...state,
+        toasts: state.toasts.filter((t) => t.id !== action.id),
+        events: state.events.map((e) => (e.id === action.id ? { ...e, readAt: e.readAt ?? Date.now() } : e)),
+      };
     case "pruneToasts": {
+      const expiredIds = state.toasts.filter((t) => t.expiresAt !== null && t.expiresAt <= action.now).map((t) => t.id);
       const toasts = state.toasts.filter((t) => t.expiresAt === null || t.expiresAt > action.now);
-      return toasts.length === state.toasts.length ? state : { ...state, toasts };
+      if (toasts.length === state.toasts.length) return state;
+      const events = expiredIds.length
+        ? state.events.map((e) => (expiredIds.includes(e.id) ? { ...e, readAt: e.readAt ?? action.now } : e))
+        : state.events;
+      return { ...state, toasts, events };
     }
     case "markRead": {
       const events = state.events.map((e) => (e.id === action.id ? { ...e, readAt: e.readAt ?? action.now } : e));

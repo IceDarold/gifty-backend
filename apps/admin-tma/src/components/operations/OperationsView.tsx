@@ -27,6 +27,7 @@ import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
 import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
 import { openGrafanaExploreLoki, openGrafanaExplorePrometheus } from "@/lib/grafana";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   formatDateTime,
@@ -218,6 +219,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   const [schedulerPausePending, setSchedulerPausePending] = useState(false);
   const { getIntervalMs } = useOpsRuntimeSettings();
   const { toast: showToast, dismissToast } = useNotificationCenter();
+  const retryRegistry = useRetryRegistry();
 
   const {
     selectedSiteKey,
@@ -238,10 +240,50 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   useApiErrorToast({
     id: "ops-run-details-api",
     title: "Run details API временно недоступен",
+    retryKey: "ops-run-details-api",
+    retryLabel: "Повторить",
     errors: [runDetails.error],
     enabled: !!selectedRunId,
     ttlMs: 10000,
   });
+
+  useEffect(() => {
+    const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
+      if (!selectedRunId) return;
+      await runDetails.refetch();
+    });
+    const unregisterOps = retryRegistry.register("ops-api-error", async () => {
+      await Promise.allSettled([
+        overview.refetch(),
+        sites.refetch(),
+        activeRuns.refetch(),
+        queuedRuns.refetch(),
+        completedRuns.refetch(),
+        errorRuns.refetch(),
+        schedulerStats.refetch(),
+        itemsTrend.refetch(),
+        tasksTrend.refetch(),
+        selectedRunId ? runDetails.refetch() : Promise.resolve(),
+      ]);
+    });
+    return () => {
+      unregisterDetails();
+      unregisterOps();
+    };
+  }, [
+    retryRegistry,
+    selectedRunId,
+    overview.refetch,
+    sites.refetch,
+    activeRuns.refetch,
+    queuedRuns.refetch,
+    completedRuns.refetch,
+    errorRuns.refetch,
+    schedulerStats.refetch,
+    itemsTrend.refetch,
+    tasksTrend.refetch,
+    runDetails.refetch,
+  ]);
 
   const filteredSites = useMemo(() => {
     const q = siteSearch.trim().toLowerCase();
@@ -511,14 +553,20 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     opsApiErrorSignatureRef.current = opsApiErrorSnapshot.signature;
 
     const notifId = "ops-api-error";
-    upsertNotification({
-      id: notifId,
-      status: "error",
-      title: "Operations API временно недоступен",
-      message: opsApiErrorSnapshot.message,
-    });
+    showToast(
+      {
+        id: notifId,
+        level: "error",
+        title: "Operations API временно недоступен",
+        message: opsApiErrorSnapshot.message,
+        dedupeKey: `ops-api-error:${opsApiErrorSnapshot.signature}`,
+        retryKey: "ops-api-error",
+        retryLabel: "Повторить",
+      },
+      { ttlMs: 10000 },
+    );
     window.setTimeout(() => dismissToast(notifId), 10000);
-  }, [opsApiErrorSnapshot, dismissToast]);
+  }, [opsApiErrorSnapshot, dismissToast, showToast]);
 
   const handleRunDiscovery = async (site: any) => {
     const siteKey = String(site?.site_key || "");

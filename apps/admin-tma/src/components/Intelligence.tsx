@@ -7,10 +7,13 @@ import { fetchIntelligence } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useOpsRuntimeSettings } from '@/contexts/OpsRuntimeSettingsContext';
 import { useApiErrorToast } from '@/hooks/useApiErrorToast';
+import { useRetryRegistry } from '@/contexts/RetryRegistryContext';
+import { useEffect } from 'react';
 
 export function Intelligence() {
     const { t } = useLanguage();
     const { getIntervalMs } = useOpsRuntimeSettings();
+    const retryRegistry = useRetryRegistry();
     const { data: stats, isLoading, error, refetch } = useQuery({
         queryKey: ['intelligence'],
         queryFn: () => fetchIntelligence(7),
@@ -20,10 +23,19 @@ export function Intelligence() {
     useApiErrorToast({
         id: "ai-intelligence-api",
         title: "AI Intelligence API временно недоступен",
+        retryKey: "ai-intelligence-api",
+        retryLabel: "Повторить",
         errors: [error],
         enabled: true,
         ttlMs: 10000,
     });
+
+    useEffect(() => {
+        const unregister = retryRegistry.register("ai-intelligence-api", async () => {
+            await refetch();
+        });
+        return unregister;
+    }, [retryRegistry, refetch]);
 
     if (isLoading) return (
         <div className="flex flex-col items-center justify-center py-20 gap-4">

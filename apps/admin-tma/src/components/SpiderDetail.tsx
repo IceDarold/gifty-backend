@@ -11,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 interface SpiderDetailProps {
     sourceId: number;
@@ -45,6 +46,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     const [urlDraft, setUrlDraft] = useState("");
     const [inlineSaving, setInlineSaving] = useState<"name" | "url" | null>(null);
     const { toast: showToast, dismissToast } = useNotificationCenter();
+    const retryRegistry = useRetryRegistry();
     const categoryDetails = useQuery({
         queryKey: ['ops-discovery-category', selectedCategoryId],
         queryFn: () => fetchOpsDiscoveryCategoryDetails(selectedCategoryId as number),
@@ -63,6 +65,8 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     useApiErrorToast({
         id: `spider-${sourceId}-api`,
         title: "Parser API временно недоступен",
+        retryKey: `spider-${sourceId}-api`,
+        retryLabel: "Повторить",
         errors: [sourceError],
         enabled: !!sourceId,
         ttlMs: 10000,
@@ -70,6 +74,8 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     useApiErrorToast({
         id: `spider-${sourceId}-category-details-api`,
         title: "Category API временно недоступен",
+        retryKey: `spider-${sourceId}-category-details-api`,
+        retryLabel: "Повторить",
         errors: [categoryDetails.error],
         enabled: !!selectedCategoryId,
         ttlMs: 10000,
@@ -96,6 +102,23 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
         parserSlug
     ).trim() || parserSlug;
     const parserUrl = String(sourceData?.url || initialSource?.url || "").trim();
+
+    useEffect(() => {
+        const key = `spider-${sourceId}-api`;
+        const unregister = retryRegistry.register(key, async () => {
+            await refetchSource();
+        });
+        return unregister;
+    }, [retryRegistry, sourceId, refetchSource]);
+
+    useEffect(() => {
+        const key = `spider-${sourceId}-category-details-api`;
+        const unregister = retryRegistry.register(key, async () => {
+            if (!selectedCategoryId) return;
+            await categoryDetails.refetch();
+        });
+        return unregister;
+    }, [retryRegistry, sourceId, selectedCategoryId, categoryDetails.refetch]);
 
     const runHistory = sourceData.history || [];
     const trendBuckets = useMemo(() => {
