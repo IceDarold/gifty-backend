@@ -247,44 +247,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     ttlMs: 10000,
   });
 
-  useEffect(() => {
-    const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
-      if (!selectedRunId) return;
-      await runDetails.refetch();
-    });
-    const unregisterOps = retryRegistry.register("ops-api-error", async () => {
-      await Promise.allSettled([
-        overview.refetch(),
-        sites.refetch(),
-        activeRuns.refetch(),
-        queuedRuns.refetch(),
-        completedRuns.refetch(),
-        errorRuns.refetch(),
-        schedulerStats.refetch(),
-        itemsTrend.refetch(),
-        tasksTrend.refetch(),
-        selectedRunId ? runDetails.refetch() : Promise.resolve(),
-      ]);
-    });
-    return () => {
-      unregisterDetails();
-      unregisterOps();
-    };
-  }, [
-    retryRegistry,
-    selectedRunId,
-    overview.refetch,
-    sites.refetch,
-    activeRuns.refetch,
-    queuedRuns.refetch,
-    completedRuns.refetch,
-    errorRuns.refetch,
-    schedulerStats.refetch,
-    itemsTrend.refetch,
-    tasksTrend.refetch,
-    runDetails.refetch,
-  ]);
-
   const filteredSites = useMemo(() => {
     const q = siteSearch.trim().toLowerCase();
     if (!q) return sites.data?.items || [];
@@ -391,6 +353,44 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     queryFn: () => fetchOpsTasksTrend({ granularity: tasksTrendGranularity, buckets: tasksTrendBuckets }),
     refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.tasks_trend_ms", 30000))),
   });
+
+  useEffect(() => {
+    const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
+      if (!selectedRunId) return;
+      await runDetails.refetch();
+    });
+    const unregisterOps = retryRegistry.register("ops-api-error", async () => {
+      await Promise.allSettled([
+        overview.refetch(),
+        sites.refetch(),
+        activeRuns.refetch(),
+        queuedRuns.refetch(),
+        completedRuns.refetch(),
+        errorRuns.refetch(),
+        schedulerStats.refetch(),
+        itemsTrend.refetch(),
+        tasksTrend.refetch(),
+        selectedRunId ? runDetails.refetch() : Promise.resolve(),
+      ]);
+    });
+    return () => {
+      unregisterDetails();
+      unregisterOps();
+    };
+  }, [
+    retryRegistry,
+    selectedRunId,
+    overview.refetch,
+    sites.refetch,
+    activeRuns.refetch,
+    queuedRuns.refetch,
+    completedRuns.refetch,
+    errorRuns.refetch,
+    schedulerStats.refetch,
+    itemsTrend.refetch,
+    tasksTrend.refetch,
+    runDetails.refetch,
+  ]);
   const queuedItems = useMemo(
     () => (queuedRuns.data?.pages || []).flatMap((page: any) => page?.items || []),
     [queuedRuns.data?.pages],
