@@ -1442,7 +1442,7 @@ async def sync_spiders_endpoint(
                 f"<code>{', '.join(sorted(set(restored_spiders)))}</code>\n\n"
                 "Previously auto-disabled sources were restored to their prior state."
             )
-            await notifier.notify(topic="scraping", message=text)
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
         if newly_missing:
             text = (
                 "<b>⚠️ Spiders Missing In Code</b>\n\n"
@@ -1451,14 +1451,14 @@ async def sync_spiders_endpoint(
                 f"Grace period before full disable: <b>{int(grace_minutes)}</b> minutes.\n"
                 "Hub entries are marked as <b>missing</b> immediately for visibility."
             )
-            await notifier.notify(topic="scraping", message=text)
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
         if disabled:
             text = (
                 "<b>🛑 Spiders Disabled</b>\n\n"
                 "These spiders have been missing longer than grace and were disabled (scheduler will skip them):\n"
                 f"<code>{', '.join(sorted(set(disabled)))}</code>"
             )
-            await notifier.notify(topic="scraping", message=text)
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
     except Exception:
         pass
 
@@ -1472,7 +1472,7 @@ async def sync_spiders_endpoint(
             f"They have been added to the database as <b>inactive</b>. "
             f"Please configure their URLs and settings in the admin panel."
         )
-        await notifier.notify(topic="scraping", message=text)
+        asyncio.create_task(notifier.notify(topic="scraping", message=text))
     
     return {
         "status": "ok",

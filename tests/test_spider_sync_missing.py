@@ -83,9 +83,6 @@ async def internal_client(sqlite_db_session):
 
 @pytest.mark.asyncio
 async def test_sync_spiders_disables_missing_after_grace(internal_client, sqlite_db_session, monkeypatch):
-    # Disable grace so missing spiders get disabled immediately for this test.
-    monkeypatch.setenv("MISSING_SPIDER_DISABLE_GRACE_MINUTES", "0")
-
     # Seed DB with a spider that doesn't exist in code.
     ghost_hub = ParsingHub(
         site_key="ghostshop",
@@ -124,15 +121,13 @@ async def test_sync_spiders_disables_missing_after_grace(internal_client, sqlite
     await sqlite_db_session.refresh(ghost_hub)
     await sqlite_db_session.refresh(ghost_source)
     assert ghost_source.is_active is False
-    assert ghost_source.status == "disabled"
+    assert ghost_source.status == "missing"
+    assert ghost_hub.status == "missing"
     assert (ghost_hub.config or {}).get("missing_in_code") is True
 
 
 @pytest.mark.asyncio
 async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite_db_session, monkeypatch):
-    # Disable grace so missing spiders get disabled immediately for this test.
-    monkeypatch.setenv("MISSING_SPIDER_DISABLE_GRACE_MINUTES", "0")
-
     # Seed DB with a spider that goes missing and then returns.
     hub = ParsingHub(
         site_key="ghostshop",
@@ -182,7 +177,8 @@ async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite
     await sqlite_db_session.refresh(source)
     await sqlite_db_session.refresh(list_source)
     assert source.is_active is False
-    assert list_source.is_active is False
+    # Only the hub mirror is marked missing; list sources are skipped by the scheduler via hub status.
+    assert list_source.is_active is True
 
     # Second sync: ghostshop is reported as available again => auto-restore.
     resp2 = internal_client.post(
