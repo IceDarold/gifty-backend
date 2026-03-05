@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import json
 import logging
-from typing import Optional, List, Sequence, Any, Iterable
+from typing import Optional, List, Sequence, Any
 
 from sqlalchemy import select, update, and_, func, case
 from sqlalchemy.dialects.postgresql import insert
@@ -212,7 +212,13 @@ class ParsingRepository:
         existing_hub_keys = set(hub_result.scalars().all())
         
         new_spiders = []
-        for spider_key in available_spiders:
+        normalized_spiders = [
+            str(s).strip()
+            for s in (available_spiders or [])
+            if isinstance(s, str) and str(s).strip()
+        ]
+
+        for spider_key in normalized_spiders:
             default_url = default_urls.get(spider_key)
             if isinstance(default_url, str):
                 default_url = default_url.strip()
@@ -314,19 +320,37 @@ class ParsingRepository:
                 cfg.pop("missing_in_code", None)
                 cfg.pop("missing_in_code_since", None)
                 cfg.pop("missing_in_code_last_seen_at", None)
-                # Auto-restore if we previously disabled due to missing in code.
-                if cfg.get("disabled_due_to_missing_in_code"):
-                    prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
-                    prev_status = cfg.get("disabled_due_to_missing_prev_status")
-                    if isinstance(prev_active, bool):
-                        existing_source.is_active = prev_active
-                    if isinstance(prev_status, str) and prev_status:
-                        existing_source.status = prev_status
-                    cfg.pop("disabled_due_to_missing_in_code", None)
-                    cfg.pop("disabled_due_to_missing_prev_is_active", None)
-                    cfg.pop("disabled_due_to_missing_prev_status", None)
-                    cfg.pop("disabled_due_to_missing_at", None)
                 existing_source.config = cfg
+
+        # Auto-restore: if we previously disabled sources due to missing in code,
+        # and the spider is now present, restore prior states for ALL sources (hub + list).
+        if normalized_spiders:
+            sources = (
+                await self.session.execute(
+                    select(ParsingSource).where(ParsingSource.site_key.in_(normalized_spiders))
+                )
+            ).scalars().all()
+
+            for source in sources:
+                cfg = dict(source.config or {})
+                if not cfg.get("disabled_due_to_missing_in_code"):
+                    continue
+
+                prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
+                prev_status = cfg.get("disabled_due_to_missing_prev_status")
+                if isinstance(prev_active, bool):
+                    source.is_active = prev_active
+                if isinstance(prev_status, str) and prev_status:
+                    source.status = prev_status
+                cfg.pop("disabled_due_to_missing_in_code", None)
+                cfg.pop("disabled_due_to_missing_prev_is_active", None)
+                cfg.pop("disabled_due_to_missing_prev_status", None)
+                cfg.pop("disabled_due_to_missing_at", None)
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                source.config = cfg
         
         await self.session.commit()
             
@@ -461,6 +485,73 @@ class ParsingRepository:
             "grace_minutes": grace_minutes,
             "ts": now.isoformat(),
         }
+
+    async def get_missing_spiders_report(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        """
+        Returns a list of spiders that are missing from the codebase
+        (as last observed by the workers via sync-spiders).
+        """
+        limit = max(1, min(int(limit or 200), 1000))
+
+        hubs = (
+            await self.session.execute(
+                select(ParsingHub).order_by(ParsingHub.site_key.asc()).limit(limit)
+            )
+        ).scalars().all()
+
+        missing_keys = []
+        hub_by_key: dict[str, ParsingHub] = {}
+        for hub in hubs:
+            if not hub.site_key:
+                continue
+            cfg = hub.config or {}
+            if isinstance(cfg, dict) and cfg.get("missing_in_code"):
+                missing_keys.append(hub.site_key)
+                hub_by_key[hub.site_key] = hub
+
+        if not missing_keys:
+            return []
+
+        # Aggregate sources stats for these site_keys.
+        stmt = (
+            select(
+                ParsingSource.site_key,
+                func.count(ParsingSource.id).label("sources_total"),
+                func.sum(case((ParsingSource.is_active.is_(True), 1), else_=0)).label("sources_active"),
+                func.sum(case((ParsingSource.status == "missing", 1), else_=0)).label("sources_missing"),
+                func.sum(case((ParsingSource.status == "disabled", 1), else_=0)).label("sources_disabled"),
+            )
+            .where(ParsingSource.site_key.in_(missing_keys))
+            .group_by(ParsingSource.site_key)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        stats_by_key = {
+            str(r.site_key): {
+                "sources_total": int(r.sources_total or 0),
+                "sources_active": int(r.sources_active or 0),
+                "sources_missing": int(r.sources_missing or 0),
+                "sources_disabled": int(r.sources_disabled or 0),
+            }
+            for r in rows
+            if r and r.site_key
+        }
+
+        report: list[dict[str, Any]] = []
+        for key in sorted(missing_keys):
+            hub = hub_by_key.get(key)
+            cfg = dict(hub.config or {}) if hub else {}
+            report.append(
+                {
+                    "site_key": key,
+                    "hub_url": hub.url if hub else None,
+                    "missing_since": cfg.get("missing_in_code_since"),
+                    "last_seen_in_code_at": cfg.get("last_seen_in_code_at"),
+                    "last_missing_seen_at": cfg.get("missing_in_code_last_seen_at"),
+                    "stats": stats_by_key.get(key, {}),
+                    "hub_config": cfg,
+                }
+            )
+        return report
 
     async def set_source_active_status(self, source_id: int, is_active: bool) -> bool:
         stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(

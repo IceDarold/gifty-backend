@@ -154,6 +154,18 @@ async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite
         config={"last_seen_in_code_at": "2000-01-01T00:00:00"},
     )
     sqlite_db_session.add(source)
+
+    list_source = ParsingSource(
+        site_key="ghostshop",
+        url="https://ghostshop.example/list",
+        type="list",
+        strategy="deep",
+        is_active=True,
+        status="waiting",
+        category_id=1,
+        config={"last_seen_in_code_at": "2000-01-01T00:00:00"},
+    )
+    sqlite_db_session.add(list_source)
     await sqlite_db_session.commit()
 
     from app.config import get_settings
@@ -168,7 +180,9 @@ async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite
     )
     assert resp1.status_code == 200, resp1.text
     await sqlite_db_session.refresh(source)
+    await sqlite_db_session.refresh(list_source)
     assert source.is_active is False
+    assert list_source.is_active is False
 
     # Second sync: ghostshop is reported as available again => auto-restore.
     resp2 = internal_client.post(
@@ -183,8 +197,11 @@ async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite
 
     await sqlite_db_session.refresh(hub)
     await sqlite_db_session.refresh(source)
+    await sqlite_db_session.refresh(list_source)
     assert (hub.config or {}).get("missing_in_code") is not True
     assert (source.config or {}).get("missing_in_code") is not True
     # Restored to previous active state.
     assert source.is_active is True
     assert source.status == "waiting"
+    assert list_source.is_active is True
+    assert list_source.status == "waiting"
