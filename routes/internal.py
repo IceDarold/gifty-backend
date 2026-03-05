@@ -1391,7 +1391,22 @@ async def sync_spiders_endpoint(
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    new_spiders = await repo.sync_spiders(request.available_spiders, default_urls=request.default_urls)
+    new_spiders = await repo.sync_spiders(
+        request.available_spiders,
+        default_urls=request.default_urls,
+    )
+
+    # If DB contains spiders that are missing from the codebase, quarantine them.
+    # Grace period prevents flapping during rolling deploys.
+    import os
+    try:
+        grace_minutes = int(os.getenv("MISSING_SPIDER_DISABLE_GRACE_MINUTES", "360"))
+    except Exception:
+        grace_minutes = 360
+    missing_report = await repo.mark_missing_spiders(
+        request.available_spiders,
+        grace_minutes=grace_minutes,
+    )
     
     if new_spiders:
         notifier = get_notification_service()
@@ -1405,7 +1420,7 @@ async def sync_spiders_endpoint(
         )
         await notifier.notify(topic="scraping", message=text)
     
-    return {"status": "ok", "new_spiders": new_spiders}
+    return {"status": "ok", "new_spiders": new_spiders, **(missing_report or {})}
 
 @router.get("/sources/backlog", response_model=List[DiscoveredCategorySchema], summary="Получить список discovery-категорий (бэклог)")
 async def get_discovery_backlog(

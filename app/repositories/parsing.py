@@ -195,11 +195,18 @@ class ParsingRepository:
             return source
         return None
 
-    async def sync_spiders(self, available_spiders: List[str], *, default_urls: Optional[dict[str, str]] = None) -> List[str]:
+    async def sync_spiders(
+        self,
+        available_spiders: List[str],
+        *,
+        default_urls: Optional[dict[str, str]] = None,
+        seen_at: Optional[datetime] = None,
+    ) -> List[str]:
         """
         Synchronizes spiders with discovery hubs and keeps runtime hub sources for compatibility.
         """
         default_urls = default_urls or {}
+        seen_at = seen_at or datetime.now()
         hub_stmt = select(ParsingHub.site_key)
         hub_result = await self.session.execute(hub_stmt)
         existing_hub_keys = set(hub_result.scalars().all())
@@ -222,7 +229,11 @@ class ParsingRepository:
                         strategy="discovery",
                         is_active=False,
                         status="waiting",
-                        config={"is_new": True, "note": "Automatically detected, please configure"},
+                        config={
+                            "is_new": True,
+                            "note": "Automatically detected, please configure",
+                            "last_seen_in_code_at": seen_at.isoformat(),
+                        },
                     )
                 )
                 new_spiders.append(spider_key)
@@ -233,8 +244,26 @@ class ParsingRepository:
                         select(ParsingHub).where(ParsingHub.site_key == spider_key)
                     )
                 ).scalar_one_or_none()
-                if hub and isinstance(hub.url, str) and hub.url.endswith(".placeholder"):
-                    hub.url = default_url
+                if hub:
+                    if isinstance(hub.url, str) and hub.url.endswith(".placeholder"):
+                        hub.url = default_url
+                    cfg = dict(hub.config or {})
+                    cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                    cfg.pop("missing_in_code", None)
+                    cfg.pop("missing_in_code_since", None)
+                    hub.config = cfg
+            else:
+                hub = (
+                    await self.session.execute(
+                        select(ParsingHub).where(ParsingHub.site_key == spider_key)
+                    )
+                ).scalar_one_or_none()
+                if hub:
+                    cfg = dict(hub.config or {})
+                    cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                    cfg.pop("missing_in_code", None)
+                    cfg.pop("missing_in_code_since", None)
+                    hub.config = cfg
 
             # Runtime compatibility: keep one hub source entry for manual run/detail screens.
             src_stmt = select(ParsingSource).where(
@@ -250,15 +279,137 @@ class ParsingRepository:
                         type="hub",
                         strategy="discovery",
                         is_active=False,
-                        config={"is_new": True, "note": "Runtime mirror of parsing_hubs"},
+                        config={
+                            "is_new": True,
+                            "note": "Runtime mirror of parsing_hubs",
+                            "last_seen_in_code_at": seen_at.isoformat(),
+                        },
                     )
                 )
             elif default_url and isinstance(existing_source.url, str) and existing_source.url.endswith(".placeholder"):
                 existing_source.url = default_url
+                cfg = dict(existing_source.config or {})
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                existing_source.config = cfg
+            else:
+                cfg = dict(existing_source.config or {})
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                existing_source.config = cfg
         
         await self.session.commit()
             
         return new_spiders
+
+    async def mark_missing_spiders(
+        self,
+        available_spiders: List[str],
+        *,
+        grace_minutes: int = 360,
+        now: Optional[datetime] = None,
+    ) -> dict[str, Any]:
+        """
+        Marks spiders that exist in DB but are missing from the codebase.
+
+        This does NOT delete anything. It "quarantines" missing spiders:
+        - adds flags into ParsingHub.config / ParsingSource.config (hub mirror)
+        - after a grace period, disables all parsing_sources for that site_key so scheduler won't queue them.
+
+        Why grace period:
+        - during rolling deploy, an older worker image might report a partial spider list.
+        """
+        now = now or datetime.now()
+        grace_minutes = max(0, int(grace_minutes or 0))
+        available = {s for s in (available_spiders or []) if isinstance(s, str) and s.strip()}
+
+        hubs = (
+            await self.session.execute(
+                select(ParsingHub).order_by(ParsingHub.site_key.asc())
+            )
+        ).scalars().all()
+
+        hub_by_key = {h.site_key: h for h in hubs if h.site_key}
+        all_keys = set(hub_by_key.keys())
+        missing_keys = sorted(all_keys - available)
+
+        newly_missing: list[str] = []
+        for key in missing_keys:
+            hub = hub_by_key.get(key)
+            if not hub:
+                continue
+            cfg = dict(hub.config or {})
+            if not cfg.get("missing_in_code"):
+                newly_missing.append(key)
+            cfg["missing_in_code"] = True
+            cfg.setdefault("missing_in_code_since", now.isoformat())
+            cfg["missing_in_code_last_seen_at"] = now.isoformat()
+            hub.config = cfg
+
+        # Determine which spiders to disable now (missing longer than grace).
+        disable_keys: list[str] = []
+        if grace_minutes == 0:
+            disable_keys = list(missing_keys)
+        else:
+            for key in missing_keys:
+                hub = hub_by_key.get(key)
+                if not hub:
+                    continue
+                cfg = dict(hub.config or {})
+                seen_raw = cfg.get("last_seen_in_code_at")
+                if not isinstance(seen_raw, str) or not seen_raw:
+                    # If we never saw it, treat as old enough.
+                    disable_keys.append(key)
+                    continue
+                try:
+                    seen_at = datetime.fromisoformat(seen_raw.replace("Z", "+00:00"))
+                except Exception:
+                    disable_keys.append(key)
+                    continue
+                age_minutes = (now - seen_at).total_seconds() / 60.0
+                if age_minutes >= grace_minutes:
+                    disable_keys.append(key)
+
+        disabled: list[str] = []
+        if disable_keys:
+            # Disable all sources for missing spiders so scheduler won't queue them.
+            # We keep their data for possible future restore.
+            stmt = (
+                update(ParsingSource)
+                .where(ParsingSource.site_key.in_(disable_keys))
+                .values(
+                    is_active=False,
+                    status="disabled",
+                )
+            )
+            await self.session.execute(stmt)
+            disabled = sorted(set(disable_keys))
+
+            # Also stamp configs on hub-mirror sources for UI/debugging.
+            srcs = (
+                await self.session.execute(
+                    select(ParsingSource).where(
+                        and_(ParsingSource.site_key.in_(disable_keys), ParsingSource.type == "hub")
+                    )
+                )
+            ).scalars().all()
+            for s in srcs:
+                cfg = dict(s.config or {})
+                cfg["missing_in_code"] = True
+                cfg.setdefault("missing_in_code_since", now.isoformat())
+                cfg["missing_in_code_last_seen_at"] = now.isoformat()
+                s.config = cfg
+
+        await self.session.commit()
+        return {
+            "missing_spiders": missing_keys,
+            "newly_missing_spiders": sorted(newly_missing),
+            "disabled_spiders": disabled,
+            "grace_minutes": grace_minutes,
+            "ts": now.isoformat(),
+        }
 
     async def set_source_active_status(self, source_id: int, is_active: bool) -> bool:
         stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
