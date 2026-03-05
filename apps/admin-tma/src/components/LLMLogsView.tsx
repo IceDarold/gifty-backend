@@ -5,10 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Clock, Filter, RefreshCcw, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
 import { fetchLLMBreakdown, fetchLLMLogs, fetchLLMThroughput } from "@/lib/api";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { Modal } from "@/components/frontend/Modal";
+import { useApiErrorToast } from "@/hooks/useApiErrorToast";
 
 type Bucket = "minute" | "hour" | "day" | "week";
 
@@ -100,6 +100,21 @@ export function LLMLogsView() {
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
+  useApiErrorToast({
+    id: "llm-analytics-api",
+    title: "LLM Analytics API временно недоступен",
+    errors: [
+      logsQuery.error,
+      throughputQuery.error,
+      providerBreakdown.error,
+      modelBreakdown.error,
+      callTypeBreakdown.error,
+      statusBreakdown.error,
+    ],
+    enabled: true,
+    ttlMs: 10000,
+  });
+
   const total = Number(logsQuery.data?.total || 0);
   const items = Array.isArray(logsQuery.data?.items) ? logsQuery.data.items : [];
   const hasPrev = offset > 0;
@@ -138,20 +153,7 @@ export function LLMLogsView() {
         </p>
       </div>
 
-      <ApiServerErrorBanner
-        errors={[
-          logsQuery.error,
-          throughputQuery.error,
-          providerBreakdown.error,
-          modelBreakdown.error,
-          callTypeBreakdown.error,
-          statusBreakdown.error,
-        ]}
-        onRetry={async () => {
-          await Promise.allSettled([logsQuery.refetch(), throughputQuery.refetch()]);
-        }}
-        title="LLM Analytics API временно недоступен"
-      />
+      {/* API errors are surfaced via Notification Center toasts */}
 
       <div className="card space-y-3">
         <div className="flex items-center justify-between gap-3">

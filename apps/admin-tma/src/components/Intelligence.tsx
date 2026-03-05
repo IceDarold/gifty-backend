@@ -5,8 +5,8 @@ import { Brain, CreditCard, Layers, Zap, ArrowRight, Activity, Loader2 } from 'l
 import { useQuery } from '@tanstack/react-query';
 import { fetchIntelligence } from '@/lib/api';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { ApiServerErrorBanner } from '@/components/ApiServerErrorBanner';
 import { useOpsRuntimeSettings } from '@/contexts/OpsRuntimeSettingsContext';
+import { useApiErrorToast } from '@/hooks/useApiErrorToast';
 
 export function Intelligence() {
     const { t } = useLanguage();
@@ -15,6 +15,14 @@ export function Intelligence() {
         queryKey: ['intelligence'],
         queryFn: () => fetchIntelligence(7),
         refetchInterval: (query) => (query.state.error ? false : getIntervalMs('intelligence.summary_ms', 300000)),
+    });
+
+    useApiErrorToast({
+        id: "ai-intelligence-api",
+        title: "AI Intelligence API временно недоступен",
+        errors: [error],
+        enabled: true,
+        ttlMs: 10000,
     });
 
     if (isLoading) return (
@@ -27,13 +35,15 @@ export function Intelligence() {
     if (error || !stats) {
         return (
             <div className="px-4 py-6">
-                <ApiServerErrorBanner
-                    errors={[error]}
-                    onRetry={async () => {
-                        await refetch();
-                    }}
-                    title="AI Intelligence API временно недоступен"
-                />
+                <div className="rounded-xl border border-white/12 bg-white/[0.03] p-4 text-sm text-white/80">
+                    <p className="font-semibold">AI Intelligence временно недоступен</p>
+                    <button
+                        onClick={() => void refetch()}
+                        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-white/5 px-3 py-2 text-xs font-bold border border-white/10 hover:bg-white/10 active:scale-95 transition-all"
+                    >
+                        Retry
+                    </button>
+                </div>
             </div>
         );
     }

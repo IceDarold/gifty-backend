@@ -101,9 +101,6 @@ vi.mock("@/components/CatalogView", () => ({
 vi.mock("@/components/LogsView", () => ({
   LogsView: () => <div data-testid="LogsView" />,
 }));
-vi.mock("@/components/ApiServerErrorBanner", () => ({
-  ApiServerErrorBanner: () => <div data-testid="ApiServerErrorBanner" />,
-}));
 vi.mock("@/components/frontend/FrontendRoutingView", () => ({
   FrontendRoutingView: () => <div data-testid="FrontendRoutingView" />,
 }));
@@ -140,4 +137,3 @@ describe("Home page (tabs)", () => {
     expect(screen.getByTestId("SettingsView")).toBeInTheDocument();
   });
 });
-
