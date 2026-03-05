@@ -22,6 +22,7 @@ import { InfraPanel } from "@/components/InfraPanel";
 	import { getOpsStreamUrl, isSseDisabled } from "@/lib/api";
 	import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 	import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+	import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 const AVAILABLE_SPIDERS = [
     "detmir", "group_price", "inteltoys", "kassir",
@@ -66,7 +67,8 @@ export default function Home() {
 
     const tma = useTMA();
     const { t } = useLanguage();
-    const opsRuntimeSettings = useOpsRuntimeSettings();
+	    const opsRuntimeSettings = useOpsRuntimeSettings();
+	    const retryRegistry = useRetryRegistry();
     const chatId = tma?.user?.id || tma?.authUser?.id;
 
     const {
@@ -89,6 +91,8 @@ export default function Home() {
 	    useApiErrorToast({
 	        id: "dashboard-api",
 	        title: "Dashboard API временно недоступен",
+	        retryKey: "dashboard-api",
+	        retryLabel: "Повторить",
 	        errors: [stats.error, health.error, scraping.error, sources.error, trends.error, workers.error, queue.error],
 	        enabled: activeTab === "dashboard",
 	        ttlMs: 10000,
@@ -96,6 +100,8 @@ export default function Home() {
 	    useApiErrorToast({
 	        id: "catalog-api",
 	        title: "Catalog API временно недоступен",
+	        retryKey: "catalog-api",
+	        retryLabel: "Повторить",
 	        errors: [catalogQuery.error],
 	        enabled: activeTab === "catalog",
 	        ttlMs: 10000,
@@ -103,6 +109,8 @@ export default function Home() {
 	    useApiErrorToast({
 	        id: "health-api",
 	        title: "Health API временно недоступен",
+	        retryKey: "health-api",
+	        retryLabel: "Повторить",
 	        errors: [health.error, workers.error, queue.error],
 	        enabled: activeTab === "health",
 	        ttlMs: 10000,
@@ -110,6 +118,8 @@ export default function Home() {
 	    useApiErrorToast({
 	        id: "settings-api",
 	        title: "Settings API временно недоступен",
+	        retryKey: "settings-api",
+	        retryLabel: "Повторить",
 	        errors: [subscriber.error],
 	        enabled: activeTab === "settings",
 	        ttlMs: 10000,
@@ -490,3 +500,38 @@ export default function Home() {
         </main>
     );
 }
+	    useEffect(() => {
+	        const unregister = retryRegistry.register("dashboard-api", async () => {
+	            await Promise.allSettled([
+	                stats.refetch(),
+	                health.refetch(),
+	                scraping.refetch(),
+	                sources.refetch(),
+	                trends.refetch(),
+	                workers.refetch(),
+	                queue.refetch(),
+	            ]);
+	        });
+	        return unregister;
+	    }, [retryRegistry, stats.refetch, health.refetch, scraping.refetch, sources.refetch, trends.refetch, workers.refetch, queue.refetch]);
+
+	    useEffect(() => {
+	        const unregister = retryRegistry.register("catalog-api", async () => {
+	            await catalogQuery.refetch();
+	        });
+	        return unregister;
+	    }, [retryRegistry, catalogQuery.refetch]);
+
+	    useEffect(() => {
+	        const unregister = retryRegistry.register("health-api", async () => {
+	            await Promise.allSettled([health.refetch(), workers.refetch(), queue.refetch()]);
+	        });
+	        return unregister;
+	    }, [retryRegistry, health.refetch, workers.refetch, queue.refetch]);
+
+	    useEffect(() => {
+	        const unregister = retryRegistry.register("settings-api", async () => {
+	            await subscriber.refetch();
+	        });
+	        return unregister;
+	    }, [retryRegistry, subscriber.refetch]);
