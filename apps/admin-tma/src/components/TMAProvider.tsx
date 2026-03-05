@@ -23,6 +23,21 @@ interface TMAContextType {
 const TMAContext = createContext<TMAContextType | null>(null);
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "GiftyAIBot";
 const BOT_LINK = `https://t.me/${BOT_USERNAME}`;
+const TEST_MODE = process.env.NEXT_PUBLIC_TEST_MODE === "1";
+
+const readTestUser = (): AuthUser => {
+    const raw = process.env.NEXT_PUBLIC_TEST_USER_JSON;
+    if (!raw) return { id: 1, role: "superadmin", permissions: ["*"] };
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && typeof parsed.id === "number") {
+            return parsed as AuthUser;
+        }
+    } catch {
+        // ignore
+    }
+    return { id: 1, role: "superadmin", permissions: ["*"] };
+};
 
 export function TMAProvider({ children }: { children: React.ReactNode }) {
     const [isReady, setIsReady] = useState(false);
@@ -30,6 +45,21 @@ export function TMAProvider({ children }: { children: React.ReactNode }) {
     const [context, setContext] = useState<TMAContextType | null>(null);
 
     useEffect(() => {
+        if (TEST_MODE) {
+            const authUser = readTestUser();
+            const rawInitData = getInitDataRaw();
+            setContext({
+                user: authUser,
+                authUser,
+                startParam: null,
+                platform: "test",
+                initDataRaw: rawInitData,
+            });
+            setIsAuthorized(true);
+            setIsReady(true);
+            return;
+        }
+
         const getUnsafeUser = () => (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user || null;
         const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 

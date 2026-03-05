@@ -9,6 +9,7 @@ import { SpiderDetail } from "@/components/SpiderDetail";
 import { UsageChart } from "@/components/UsageChart";
 import { SettingsView } from "@/components/SettingsView";
 import { Intelligence } from "@/components/Intelligence";
+import { LLMLogsView } from "@/components/LLMLogsView";
 import { InfraPanel } from "@/components/InfraPanel";
 import { HealthView } from "@/components/HealthView";
 import { CatalogView } from "@/components/CatalogView";
@@ -19,7 +20,7 @@ import { useCatalogProducts, useDashboardData } from "@/hooks/useDashboard";
 import { OperationsView } from "@/components/operations/OperationsView";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTMA } from "@/components/TMAProvider";
-import { getOpsStreamUrl } from "@/lib/api";
+import { getOpsStreamUrl, isSseDisabled } from "@/lib/api";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 
 const AVAILABLE_SPIDERS = [
@@ -87,6 +88,7 @@ export default function Home() {
 
     useEffect(() => {
         if (activeTab !== "catalog") return;
+        if (isSseDisabled()) return;
         let source: EventSource | null = null;
 
         try {
@@ -159,6 +161,11 @@ export default function Home() {
                     key: "intelligence",
                     label: "AI",
                     icon: <Brain size={20} fill={activeTab === "intelligence" ? "currentColor" : "none"} />,
+                },
+                {
+                    key: "llm_logs",
+                    label: "LLM Logs",
+                    icon: <ScrollText size={20} />,
                 },
             ],
         },
@@ -343,6 +350,8 @@ export default function Home() {
                 );
             case "intelligence":
                 return <Intelligence />;
+            case "llm_logs":
+                return <LLMLogsView />;
             case "health":
                 return (
                     <>
@@ -457,6 +466,7 @@ export default function Home() {
                     {navSections.flatMap((section) => section.items).map((item) => (
                         <button
                             key={`mobile-${item.key}`}
+                            data-testid={`nav-mobile-${item.key}`}
                             onClick={() => setActiveTab(item.key)}
                             className={`nav-item shrink-0 ${activeTab === item.key ? "active" : ""}`}
                         >
@@ -479,6 +489,7 @@ export default function Home() {
                             {section.items.map((item) => (
                                 <button
                                     key={item.key}
+                                    data-testid={`nav-${item.key}`}
                                     onClick={() => setActiveTab(item.key)}
                                     className={`nav-item ${activeTab === item.key ? "active" : ""} ${!sidebarCollapsed ? "md:w-full md:h-auto md:min-h-[2.7rem] md:flex-row md:justify-start md:px-3" : ""}`}
                                 >

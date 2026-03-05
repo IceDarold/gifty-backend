@@ -11,6 +11,7 @@ import hashlib
 import logging
 from pydantic import BaseModel, Field
 from prometheus_client import Counter, Histogram
+import sqlalchemy as sa
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
@@ -1761,18 +1762,39 @@ async def webapp_auth(
         logger.error("Bot token not configured")
         raise HTTPException(status_code=500, detail="Bot token not configured")
         
-    # Dev bypass
-    if settings.env == "dev" and init_data == "dev_user_1821014162":
-        logger.info("Using DEV BYPASS authentication for user 1821014162")
-        user_id = 1821014162
+    init_data = (init_data or "").strip()
+
+    # Dev bypass:
+    # - allow explicit "dev_user_<id>"
+    # - if no init_data provided in dev, fall back to a known dev admin user
+    user_id: int = 0
+    if settings.env == "dev":
+        if not init_data:
+            init_data = "dev_user_1821014162"
+
+        m = re.fullmatch(r"dev_user_(\d+)", init_data)
+        if m:
+            user_id = int(m.group(1))
+            logger.info("Using DEV BYPASS authentication for user %s", user_id)
+        else:
+            if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
+                logger.warning("Invalid init data verification failed")
+                raise HTTPException(status_code=403, detail="Invalid init data")
+
+            from urllib.parse import parse_qsl
+            import json
+
+            params = dict(parse_qsl(init_data))
+            user_data = json.loads(params.get("user", "{}"))
+            user_id = int(user_data.get("id", 0))
     else:
         if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
             logger.warning("Invalid init data verification failed")
             raise HTTPException(status_code=403, detail="Invalid init data")
-            
+
         from urllib.parse import parse_qsl
         import json
-        
+
         params = dict(parse_qsl(init_data))
         user_data = json.loads(params.get("user", "{}"))
         user_id = int(user_data.get("id", 0))
@@ -4519,6 +4541,53 @@ async def stream_ops_events(
         db=db,
     )
 
+    async def event_gen() -> AsyncGenerator[str, None]:
+        import time
+
+        pubsub = redis.pubsub()
+        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
+        last_ping = time.monotonic()
+
+        # Send initial queue snapshot on connect.
+        queue = await _fetch_rabbit_queue_stats()
+        if queue.get("status") == "ok":
+            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
+
+        try:
+            while True:
+                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
+                if message and message.get("type") == "message":
+                    raw = message.get("data")
+                    if isinstance(raw, (bytes, bytearray)):
+                        raw = raw.decode("utf-8", errors="ignore")
+                    try:
+                        decoded = json.loads(raw) if isinstance(raw, str) else {}
+                    except Exception:
+                        decoded = {}
+
+                    event_type = decoded.get("type")
+                    payload = decoded.get("payload") or {}
+                    if event_type:
+                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+                now = time.monotonic()
+                if now - last_ping >= 15:
+                    last_ping = now
+                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
+        finally:
+            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
+            await pubsub.close()
+
+    return StreamingResponse(
+        event_gen(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
 
 @router.get("/logs/services", summary="List available log services from Loki")
 async def list_log_services(
@@ -4628,53 +4697,6 @@ async def stream_logs(
         },
     )
 
-    async def event_gen() -> AsyncGenerator[str, None]:
-        import time
-
-        pubsub = redis.pubsub()
-        await pubsub.subscribe(OPS_EVENTS_CHANNEL)
-        last_ping = time.monotonic()
-
-        # Send initial queue snapshot on connect.
-        queue = await _fetch_rabbit_queue_stats()
-        if queue.get("status") == "ok":
-            yield f"event: queue.updated\ndata: {json.dumps({**queue, 'ts': datetime.now(timezone.utc).isoformat()}, ensure_ascii=False)}\n\n"
-
-        try:
-            while True:
-                message = await pubsub.get_message(ignore_subscribe_messages=True, timeout=1.0)
-                if message and message.get("type") == "message":
-                    raw = message.get("data")
-                    if isinstance(raw, (bytes, bytearray)):
-                        raw = raw.decode("utf-8", errors="ignore")
-                    try:
-                        decoded = json.loads(raw) if isinstance(raw, str) else {}
-                    except Exception:
-                        decoded = {}
-
-                    event_type = decoded.get("type")
-                    payload = decoded.get("payload") or {}
-                    if event_type:
-                        yield f"event: {event_type}\ndata: {json.dumps(payload, ensure_ascii=False)}\n\n"
-
-                now = time.monotonic()
-                if now - last_ping >= 15:
-                    last_ping = now
-                    yield f"event: ping\ndata: {json.dumps({'ts': datetime.now(timezone.utc).isoformat()})}\n\n"
-        finally:
-            await pubsub.unsubscribe(OPS_EVENTS_CHANNEL)
-            await pubsub.close()
-
-    return StreamingResponse(
-        event_gen(),
-        media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "Connection": "keep-alive",
-            "X-Accel-Buffering": "no",
-        },
-    )
-
 
 @router.get("/analytics/intelligence", summary="AI Intelligence analytics summary")
 async def get_intelligence_stats(
@@ -4755,6 +4777,210 @@ async def get_intelligence_stats(
         "providers": providers,
         "latency_heatmap": latency_data
     }
+
+
+@router.get("/analytics/llm/logs", summary="LLM call logs (paginated)")
+async def get_llm_logs(
+    days: int = 7,
+    limit: int = 50,
+    offset: int = 0,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    call_type: Optional[str] = None,
+    status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    experiment_id: Optional[str] = None,
+    variant_id: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from sqlalchemy import select, func
+    from app.models import LLMLog
+
+    if days < 1:
+        days = 1
+    if days > 90:
+        days = 90
+    if limit < 1:
+        limit = 1
+    if limit > 200:
+        limit = 200
+    if offset < 0:
+        offset = 0
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    stmt = select(LLMLog).where(LLMLog.created_at >= since)
+
+    if provider:
+        stmt = stmt.where(LLMLog.provider == provider)
+    if model:
+        stmt = stmt.where(LLMLog.model == model)
+    if call_type:
+        stmt = stmt.where(LLMLog.call_type == call_type)
+    if status:
+        stmt = stmt.where(LLMLog.status == status)
+    if session_id:
+        stmt = stmt.where(LLMLog.session_id == session_id)
+    if experiment_id:
+        stmt = stmt.where(LLMLog.experiment_id == experiment_id)
+    if variant_id:
+        stmt = stmt.where(LLMLog.variant_id == variant_id)
+
+    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total = (await db.execute(total_stmt)).scalar_one() or 0
+
+    rows = (await db.execute(stmt.order_by(LLMLog.created_at.desc()).offset(offset).limit(limit))).scalars().all()
+
+    items = []
+    for r in rows:
+        cost_val = r.cost_usd
+        if isinstance(cost_val, Decimal):
+            cost_val = float(cost_val)
+        items.append(
+            {
+                "id": str(r.id),
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "provider": r.provider,
+                "model": r.model,
+                "call_type": r.call_type,
+                "status": r.status,
+                "error_type": r.error_type,
+                "error_message": r.error_message,
+                "provider_request_id": r.provider_request_id,
+                "prompt_hash": r.prompt_hash,
+                "params": r.params,
+                "latency_ms": r.latency_ms,
+                "prompt_tokens": r.prompt_tokens,
+                "completion_tokens": r.completion_tokens,
+                "total_tokens": r.total_tokens,
+                "cost_usd": cost_val,
+                "session_id": r.session_id,
+                "experiment_id": r.experiment_id,
+                "variant_id": r.variant_id,
+            }
+        )
+
+    return {
+        "total": int(total),
+        "limit": limit,
+        "offset": offset,
+        "items": items,
+    }
+
+
+@router.get("/analytics/llm/throughput", summary="LLM throughput time-series")
+async def get_llm_throughput(
+    days: int = 7,
+    bucket: str = "hour",  # minute|hour|day|week
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    call_type: Optional[str] = None,
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    from datetime import datetime, timedelta, timezone
+    from sqlalchemy import select, func
+    from app.models import LLMLog
+
+    bucket_map = {
+        "minute": "minute",
+        "hour": "hour",
+        "day": "day",
+        "week": "week",
+    }
+    granularity = bucket_map.get((bucket or "").lower(), "hour")
+
+    if days < 1:
+        days = 1
+    if days > 90:
+        days = 90
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    ts = func.date_trunc(granularity, LLMLog.created_at).label("ts")
+    stmt = select(ts, func.count().label("count")).where(LLMLog.created_at >= since)
+
+    if provider:
+        stmt = stmt.where(LLMLog.provider == provider)
+    if model:
+        stmt = stmt.where(LLMLog.model == model)
+    if call_type:
+        stmt = stmt.where(LLMLog.call_type == call_type)
+    if status:
+        stmt = stmt.where(LLMLog.status == status)
+
+    stmt = stmt.group_by(ts).order_by(ts.asc())
+    res = await db.execute(stmt)
+
+    points = [{"ts": r.ts.isoformat(), "count": int(r.count or 0)} for r in res.all() if r.ts is not None]
+    return {"bucket": granularity, "days": days, "points": points}
+
+
+@router.get("/analytics/llm/breakdown", summary="LLM breakdown by dimension")
+async def get_llm_breakdown(
+    days: int = 7,
+    group_by: str = "provider",  # provider|model|call_type|status
+    limit: int = 20,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from sqlalchemy import select, func
+    from app.models import LLMLog
+
+    group_map = {
+        "provider": LLMLog.provider,
+        "model": LLMLog.model,
+        "call_type": LLMLog.call_type,
+        "status": LLMLog.status,
+    }
+    dim = group_map.get((group_by or "").lower(), LLMLog.provider)
+
+    if days < 1:
+        days = 1
+    if days > 90:
+        days = 90
+    if limit < 1:
+        limit = 1
+    if limit > 100:
+        limit = 100
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    stmt = (
+        select(
+            dim.label("key"),
+            func.count(LLMLog.id).label("requests"),
+            func.sum(LLMLog.cost_usd).label("cost"),
+            func.sum(LLMLog.total_tokens).label("tokens"),
+            func.avg(LLMLog.latency_ms).label("avg_latency_ms"),
+        )
+        .where(LLMLog.created_at >= since)
+        .group_by(dim)
+        .order_by(func.count(LLMLog.id).desc())
+        .limit(limit)
+    )
+    res = await db.execute(stmt)
+    items = []
+    for r in res.all():
+        cost_val = r.cost
+        if isinstance(cost_val, Decimal):
+            cost_val = float(cost_val)
+        items.append(
+            {
+                "key": r.key,
+                "requests": int(r.requests or 0),
+                "total_cost_usd": cost_val or 0.0,
+                "total_tokens": int(r.tokens or 0),
+                "avg_latency_ms": float(r.avg_latency_ms or 0.0),
+            }
+        )
+
+    return {"group_by": group_by, "days": days, "items": items}
 @router.get("/health", summary="Detailed system health monitoring")
 async def get_system_health(
     db: AsyncSession = Depends(get_db),

@@ -1,16 +1,6 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { TMAProvider } from "@/components/TMAProvider";
-
-const manrope = Manrope({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-manrope",
-});
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-});
 
 export const metadata: Metadata = {
   title: "Gifty Admin TMA",
@@ -48,7 +38,7 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={`${manrope.variable} ${spaceGrotesk.variable}`}>
+      <body>
         <QueryProvider>
           <TMAProvider>
             <LanguageProvider>
