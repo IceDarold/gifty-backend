@@ -5,6 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Clock, Filter, RefreshCcw, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
+import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
 import { fetchLLMBreakdown, fetchLLMLogs, fetchLLMThroughput } from "@/lib/api";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { Modal } from "@/components/frontend/Modal";
@@ -179,7 +180,20 @@ export function LLMLogsView() {
         </p>
       </div>
 
-      {/* API errors are surfaced via Notification Center toasts */}
+      <ApiServerErrorBanner
+        errors={[
+          logsQuery.error,
+          throughputQuery.error,
+          providerBreakdown.error,
+          modelBreakdown.error,
+          callTypeBreakdown.error,
+          statusBreakdown.error,
+        ]}
+        onRetry={async () => {
+          await Promise.allSettled([logsQuery.refetch(), throughputQuery.refetch()]);
+        }}
+        title="LLM Analytics API временно недоступен"
+      />
 
       <div className="card space-y-3">
         <div className="flex items-center justify-between gap-3">

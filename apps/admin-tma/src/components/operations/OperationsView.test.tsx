@@ -1,7 +1,8 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "@/test/renderWithProviders";
 
 const mockUseQuery = vi.fn((options: any) => {
   const key = Array.isArray(options?.queryKey) ? options.queryKey[0] : options?.queryKey;
@@ -62,10 +63,14 @@ const mockUseInfiniteQuery = vi.fn(() => ({
   error: null,
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: (opts: any) => mockUseQuery(opts),
-  useInfiniteQuery: (opts: any) => mockUseInfiniteQuery(opts),
-}));
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQuery: (opts: any) => mockUseQuery(opts),
+    useInfiniteQuery: (opts: any) => mockUseInfiniteQuery(opts),
+  };
+});
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: any) => <div data-testid="chart">{children}</div>,
@@ -77,9 +82,13 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => null,
 }));
 
-vi.mock("@/contexts/OpsRuntimeSettingsContext", () => ({
-  useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
-}));
+vi.mock("@/contexts/OpsRuntimeSettingsContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/contexts/OpsRuntimeSettingsContext")>();
+  return {
+    ...actual,
+    useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
+  };
+});
 
 vi.mock("@/lib/grafana", () => ({
   openGrafanaExploreLoki: vi.fn(),
@@ -135,7 +144,7 @@ import { OperationsView } from "./OperationsView";
 describe("OperationsView (smoke)", () => {
   it("renders and switches tabs without real react-query/recharts", async () => {
     const user = userEvent.setup();
-    render(<OperationsView onOpenSourceDetails={() => undefined} />);
+    renderWithProviders(<OperationsView onOpenSourceDetails={() => undefined} />);
 
     expect(screen.getByText("Operations Center")).toBeInTheDocument();
     expect(screen.getByText("Live connected")).toBeInTheDocument();
@@ -147,4 +156,3 @@ describe("OperationsView (smoke)", () => {
     expect(mockUseInfiniteQuery).toHaveBeenCalled();
   });
 });
-

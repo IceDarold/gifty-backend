@@ -1391,8 +1391,78 @@ async def sync_spiders_endpoint(
     _ = Depends(verify_internal_token)
 ):
     repo = ParsingRepository(db)
-    new_spiders = await repo.sync_spiders(request.available_spiders, default_urls=request.default_urls)
-    
+    # Detect restored spiders BEFORE sync clears missing flags.
+    restored_spiders: list[str] = []
+    try:
+        from sqlalchemy import select
+
+        available_set = {
+            str(s).strip()
+            for s in (request.available_spiders or [])
+            if isinstance(s, str) and str(s).strip()
+        }
+        if available_set:
+            hubs = (
+                await db.execute(
+                    select(ParsingHub).where(ParsingHub.site_key.in_(list(available_set)))
+                )
+            ).scalars().all()
+            for hub in hubs:
+                cfg = hub.config or {}
+                if isinstance(cfg, dict) and cfg.get("missing_in_code"):
+                    restored_spiders.append(hub.site_key)
+    except Exception:
+        restored_spiders = []
+
+    new_spiders = await repo.sync_spiders(
+        request.available_spiders,
+        default_urls=request.default_urls,
+    )
+
+    # If DB contains spiders that are missing from the codebase, quarantine them.
+    # Grace period prevents flapping during rolling deploys.
+    import os
+    try:
+        grace_minutes = int(os.getenv("MISSING_SPIDER_DISABLE_GRACE_MINUTES", "360"))
+    except Exception:
+        grace_minutes = 360
+    missing_report = await repo.mark_missing_spiders(
+        request.available_spiders,
+        grace_minutes=grace_minutes,
+    )
+
+    # Notifications (fire-and-forget so this endpoint stays fast)
+    try:
+        notifier = get_notification_service()
+        newly_missing = (missing_report or {}).get("newly_missing_spiders") or []
+        disabled = (missing_report or {}).get("disabled_spiders") or []
+        if restored_spiders:
+            text = (
+                "<b>✅ Spiders Restored</b>\n\n"
+                "The following spiders are present in the codebase again:\n"
+                f"<code>{', '.join(sorted(set(restored_spiders)))}</code>\n\n"
+                "Previously auto-disabled sources were restored to their prior state."
+            )
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
+        if newly_missing:
+            text = (
+                "<b>⚠️ Spiders Missing In Code</b>\n\n"
+                "These spiders exist in DB but were not found in the current worker image:\n"
+                f"<code>{', '.join(sorted(set(newly_missing)))}</code>\n\n"
+                f"Grace period before full disable: <b>{int(grace_minutes)}</b> minutes.\n"
+                "Hub entries are marked as <b>missing</b> immediately for visibility."
+            )
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
+        if disabled:
+            text = (
+                "<b>🛑 Spiders Disabled</b>\n\n"
+                "These spiders have been missing longer than grace and were disabled (scheduler will skip them):\n"
+                f"<code>{', '.join(sorted(set(disabled)))}</code>"
+            )
+            asyncio.create_task(notifier.notify(topic="scraping", message=text))
+    except Exception:
+        pass
+
     if new_spiders:
         notifier = get_notification_service()
         spiders_str = ", ".join(new_spiders)
@@ -1403,9 +1473,25 @@ async def sync_spiders_endpoint(
             f"They have been added to the database as <b>inactive</b>. "
             f"Please configure their URLs and settings in the admin panel."
         )
-        await notifier.notify(topic="scraping", message=text)
-    
-    return {"status": "ok", "new_spiders": new_spiders}
+        asyncio.create_task(notifier.notify(topic="scraping", message=text))
+
+    return {
+        "status": "ok",
+        "new_spiders": new_spiders,
+        "restored_spiders": sorted(set(restored_spiders)),
+        **(missing_report or {}),
+    }
+
+
+@router.get("/sources/missing-spiders", summary="Список пауков, отсутствующих в коде")
+async def get_missing_spiders_endpoint(
+    limit: int = 200,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    repo = ParsingRepository(db)
+    items = await repo.get_missing_spiders_report(limit=limit)
+    return {"status": "ok", "items": items}
 
 @router.get("/sources/backlog", response_model=List[DiscoveredCategorySchema], summary="Получить список discovery-категорий (бэклог)")
 async def get_discovery_backlog(
