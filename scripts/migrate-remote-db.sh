@@ -40,6 +40,10 @@ if ! docker compose version >/dev/null 2>&1; then
   exit 1
 fi
 
+detect_heads() {
+  docker compose run --rm --no-deps api alembic heads 2>&1 | awk '{print $1}' | sed '/^$/d' || true
+}
+
 tunnel_started=0
 
 if nc -z localhost "$DB_LOCAL_PORT" >/dev/null 2>&1; then
@@ -74,6 +78,26 @@ else
 fi
 
 echo "Running migrations from current local code..."
+heads="$(detect_heads)"
+head_count="$(echo "$heads" | sed '/^$/d' | wc -l | tr -d ' ')"
+if [ "${head_count:-0}" -gt 1 ]; then
+  echo "ERROR: multiple Alembic heads detected in current codebase:"
+  echo "$heads" | sed 's/^/  - /'
+  echo
+  if [ "${AUTO_MERGE_HEADS:-0}" = "1" ]; then
+    echo "AUTO_MERGE_HEADS=1: creating an automatic merge revision..."
+    # Generate merge revision in the mounted worktree (so it persists locally).
+    docker compose run --rm --no-deps api alembic merge -m "auto: merge heads" $heads
+    echo
+    echo "Created merge revision. Commit it, then rerun this script."
+    echo "Tip: git status && git add alembic/versions && git commit -m \"fix(migrations): merge alembic heads\""
+  else
+    echo "Fix: create a merge revision and commit it, then rerun this script:"
+    echo "  docker compose run --rm --no-deps api alembic merge -m \"merge heads\" $heads"
+  fi
+  exit 1
+fi
+
 docker compose run --rm --no-deps api alembic upgrade head
 
 echo "Checking migration state..."
