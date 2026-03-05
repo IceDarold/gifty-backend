@@ -2,7 +2,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import json
 import logging
-from typing import Optional, List, Sequence, Any
+from typing import Optional, List, Sequence, Any, Iterable
 
 from sqlalchemy import select, update, and_, func, case
 from sqlalchemy.dialects.postgresql import insert
@@ -251,6 +251,7 @@ class ParsingRepository:
                     cfg["last_seen_in_code_at"] = seen_at.isoformat()
                     cfg.pop("missing_in_code", None)
                     cfg.pop("missing_in_code_since", None)
+                    cfg.pop("missing_in_code_last_seen_at", None)
                     hub.config = cfg
             else:
                 hub = (
@@ -263,6 +264,7 @@ class ParsingRepository:
                     cfg["last_seen_in_code_at"] = seen_at.isoformat()
                     cfg.pop("missing_in_code", None)
                     cfg.pop("missing_in_code_since", None)
+                    cfg.pop("missing_in_code_last_seen_at", None)
                     hub.config = cfg
 
             # Runtime compatibility: keep one hub source entry for manual run/detail screens.
@@ -292,12 +294,38 @@ class ParsingRepository:
                 cfg["last_seen_in_code_at"] = seen_at.isoformat()
                 cfg.pop("missing_in_code", None)
                 cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                # Auto-restore if we previously disabled due to missing in code.
+                if cfg.get("disabled_due_to_missing_in_code"):
+                    prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
+                    prev_status = cfg.get("disabled_due_to_missing_prev_status")
+                    if isinstance(prev_active, bool):
+                        existing_source.is_active = prev_active
+                    if isinstance(prev_status, str) and prev_status:
+                        existing_source.status = prev_status
+                    cfg.pop("disabled_due_to_missing_in_code", None)
+                    cfg.pop("disabled_due_to_missing_prev_is_active", None)
+                    cfg.pop("disabled_due_to_missing_prev_status", None)
+                    cfg.pop("disabled_due_to_missing_at", None)
                 existing_source.config = cfg
             else:
                 cfg = dict(existing_source.config or {})
                 cfg["last_seen_in_code_at"] = seen_at.isoformat()
                 cfg.pop("missing_in_code", None)
                 cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                # Auto-restore if we previously disabled due to missing in code.
+                if cfg.get("disabled_due_to_missing_in_code"):
+                    prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
+                    prev_status = cfg.get("disabled_due_to_missing_prev_status")
+                    if isinstance(prev_active, bool):
+                        existing_source.is_active = prev_active
+                    if isinstance(prev_status, str) and prev_status:
+                        existing_source.status = prev_status
+                    cfg.pop("disabled_due_to_missing_in_code", None)
+                    cfg.pop("disabled_due_to_missing_prev_is_active", None)
+                    cfg.pop("disabled_due_to_missing_prev_status", None)
+                    cfg.pop("disabled_due_to_missing_at", None)
                 existing_source.config = cfg
         
         await self.session.commit()
@@ -375,31 +403,54 @@ class ParsingRepository:
         disabled: list[str] = []
         if disable_keys:
             # Disable all sources for missing spiders so scheduler won't queue them.
-            # We keep their data for possible future restore.
-            stmt = (
-                update(ParsingSource)
-                .where(ParsingSource.site_key.in_(disable_keys))
-                .values(
-                    is_active=False,
-                    status="disabled",
-                )
-            )
-            await self.session.execute(stmt)
-            disabled = sorted(set(disable_keys))
-
-            # Also stamp configs on hub-mirror sources for UI/debugging.
+            # We keep their data for possible future restore and record previous states.
             srcs = (
                 await self.session.execute(
-                    select(ParsingSource).where(
-                        and_(ParsingSource.site_key.in_(disable_keys), ParsingSource.type == "hub")
-                    )
+                    select(ParsingSource).where(ParsingSource.site_key.in_(disable_keys))
                 )
             ).scalars().all()
             for s in srcs:
                 cfg = dict(s.config or {})
+                # Record previous state only once.
+                if not cfg.get("disabled_due_to_missing_in_code"):
+                    cfg["disabled_due_to_missing_in_code"] = True
+                    cfg["disabled_due_to_missing_prev_is_active"] = bool(s.is_active)
+                    cfg["disabled_due_to_missing_prev_status"] = str(s.status or "waiting")
+                    cfg["disabled_due_to_missing_at"] = now.isoformat()
                 cfg["missing_in_code"] = True
                 cfg.setdefault("missing_in_code_since", now.isoformat())
                 cfg["missing_in_code_last_seen_at"] = now.isoformat()
+                s.config = cfg
+
+                s.is_active = False
+                s.status = "disabled"
+
+            disabled = sorted(set(disable_keys))
+
+        # UI/Operator friendliness: immediately mark hub-mirror sources as missing (inactive),
+        # even before grace disables all sources. This makes it visible in the parsers UI.
+        if missing_keys:
+            hub_sources = (
+                await self.session.execute(
+                    select(ParsingSource).where(
+                        and_(ParsingSource.site_key.in_(missing_keys), ParsingSource.type == "hub")
+                    )
+                )
+            ).scalars().all()
+            for s in hub_sources:
+                cfg = dict(s.config or {})
+                cfg["missing_in_code"] = True
+                cfg.setdefault("missing_in_code_since", now.isoformat())
+                cfg["missing_in_code_last_seen_at"] = now.isoformat()
+                # Only flip active->inactive for UI if it isn't already disabled by grace.
+                if s.status != "disabled":
+                    if not cfg.get("disabled_due_to_missing_in_code"):
+                        cfg["disabled_due_to_missing_in_code"] = True
+                        cfg["disabled_due_to_missing_prev_is_active"] = bool(s.is_active)
+                        cfg["disabled_due_to_missing_prev_status"] = str(s.status or "waiting")
+                        cfg["disabled_due_to_missing_at"] = now.isoformat()
+                    s.is_active = False
+                    s.status = "missing"
                 s.config = cfg
 
         await self.session.commit()

@@ -126,3 +126,65 @@ async def test_sync_spiders_disables_missing_after_grace(internal_client, sqlite
     assert ghost_source.is_active is False
     assert ghost_source.status == "disabled"
     assert (ghost_hub.config or {}).get("missing_in_code") is True
+
+
+@pytest.mark.asyncio
+async def test_sync_spiders_restores_when_spider_returns(internal_client, sqlite_db_session, monkeypatch):
+    # Disable grace so missing spiders get disabled immediately for this test.
+    monkeypatch.setenv("MISSING_SPIDER_DISABLE_GRACE_MINUTES", "0")
+
+    # Seed DB with a spider that goes missing and then returns.
+    hub = ParsingHub(
+        site_key="ghostshop",
+        url="https://ghostshop.example/hub",
+        strategy="discovery",
+        is_active=True,
+        status="waiting",
+        config={"last_seen_in_code_at": "2000-01-01T00:00:00"},
+    )
+    sqlite_db_session.add(hub)
+
+    source = ParsingSource(
+        site_key="ghostshop",
+        url="https://ghostshop.example/hub",
+        type="hub",
+        strategy="discovery",
+        is_active=True,
+        status="waiting",
+        config={"last_seen_in_code_at": "2000-01-01T00:00:00"},
+    )
+    sqlite_db_session.add(source)
+    await sqlite_db_session.commit()
+
+    from app.config import get_settings
+
+    HEADERS = {"X-Internal-Token": get_settings().internal_api_token}
+
+    # First sync: ghostshop not in code => disabled.
+    resp1 = internal_client.post(
+        "/api/v1/internal/sources/sync-spiders",
+        json={"available_spiders": ["detmir"], "default_urls": {"detmir": "https://www.detmir.ru/"}},
+        headers=HEADERS,
+    )
+    assert resp1.status_code == 200, resp1.text
+    await sqlite_db_session.refresh(source)
+    assert source.is_active is False
+
+    # Second sync: ghostshop is reported as available again => auto-restore.
+    resp2 = internal_client.post(
+        "/api/v1/internal/sources/sync-spiders",
+        json={
+            "available_spiders": ["detmir", "ghostshop"],
+            "default_urls": {"detmir": "https://www.detmir.ru/", "ghostshop": "https://ghostshop.example/hub"},
+        },
+        headers=HEADERS,
+    )
+    assert resp2.status_code == 200, resp2.text
+
+    await sqlite_db_session.refresh(hub)
+    await sqlite_db_session.refresh(source)
+    assert (hub.config or {}).get("missing_in_code") is not True
+    assert (source.config or {}).get("missing_in_code") is not True
+    # Restored to previous active state.
+    assert source.is_active is True
+    assert source.status == "waiting"
