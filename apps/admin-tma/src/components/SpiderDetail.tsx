@@ -7,9 +7,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { SourceConfigEditor } from "./SourceConfigEditor";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
-import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
 import { useQuery } from "@tanstack/react-query";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
+import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
+import { useApiErrorToast } from "@/hooks/useApiErrorToast";
 
 interface SpiderDetailProps {
     sourceId: number;
@@ -43,9 +44,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     const [nameDraft, setNameDraft] = useState("");
     const [urlDraft, setUrlDraft] = useState("");
     const [inlineSaving, setInlineSaving] = useState<"name" | "url" | null>(null);
-    const [notifications, setNotifications] = useState<
-        { id: string; status: "running" | "success" | "error"; title: string; message: string }[]
-    >([]);
+    const { toast: showToast, dismissToast } = useNotificationCenter();
     const categoryDetails = useQuery({
         queryKey: ['ops-discovery-category', selectedCategoryId],
         queryFn: () => fetchOpsDiscoveryCategoryDetails(selectedCategoryId as number),
@@ -60,6 +59,21 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     const { t, language } = useLanguage();
     const { getIntervalMs } = useOpsRuntimeSettings();
     const locale = language === 'ru' ? ru : enUS;
+
+    useApiErrorToast({
+        id: `spider-${sourceId}-api`,
+        title: "Parser API временно недоступен",
+        errors: [sourceError],
+        enabled: !!sourceId,
+        ttlMs: 10000,
+    });
+    useApiErrorToast({
+        id: `spider-${sourceId}-category-details-api`,
+        title: "Category API временно недоступен",
+        errors: [categoryDetails.error],
+        enabled: !!selectedCategoryId,
+        ttlMs: 10000,
+    });
 
     const sourceData = source ?? {
         id: sourceId,
@@ -171,19 +185,16 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     };
 
     const upsertNotification = (next: { id: string; status: "running" | "success" | "error"; title: string; message: string }) => {
-        setNotifications((prev) => {
-            const idx = prev.findIndex((n) => n.id === next.id);
-            if (idx >= 0) {
-                const copy = [...prev];
-                copy[idx] = next;
-                return copy;
-            }
-            return [...prev, next];
-        });
-    };
-
-    const dismissNotification = (id: string) => {
-        setNotifications((prev) => prev.filter((n) => n.id !== id));
+        showToast(
+            {
+                id: next.id,
+                level: next.status,
+                title: next.title,
+                message: next.message,
+                dedupeKey: next.id,
+            },
+            { ttlMs: next.status === "running" ? 0 : next.status === "error" ? 9000 : 7000 },
+        );
     };
 
     const commitInlineName = async () => {
@@ -203,7 +214,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                 title: "Name update failed",
                 message: String(error?.response?.data?.detail || error?.message || "Unknown error"),
             });
-            window.setTimeout(() => dismissNotification(notifId), 7000);
+            window.setTimeout(() => dismissToast(notifId), 7000);
             setNameDraft(parserDisplayName);
         } finally {
             setInlineSaving(null);
@@ -226,7 +237,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                 title: "URL update failed",
                 message: String(error?.response?.data?.detail || error?.message || "Unknown error"),
             });
-            window.setTimeout(() => dismissNotification(notifId), 7000);
+            window.setTimeout(() => dismissToast(notifId), 7000);
             setUrlDraft(parserUrl);
         } finally {
             setInlineSaving(null);
@@ -297,7 +308,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             });
         } finally {
             setRunningDiscovery(false);
-            window.setTimeout(() => dismissNotification(notifId), 10000);
+            window.setTimeout(() => dismissToast(notifId), 10000);
         }
     };
 
@@ -330,7 +341,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             });
         } finally {
             setRunningCategoryIds((prev) => ({ ...prev, [categoryId]: false }));
-            window.setTimeout(() => dismissNotification(notifId), 7000);
+            window.setTimeout(() => dismissToast(notifId), 7000);
         }
     };
 
@@ -370,7 +381,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             });
         } finally {
             setRunningAllCategories(false);
-            window.setTimeout(() => dismissNotification(notifId), 10000);
+            window.setTimeout(() => dismissToast(notifId), 10000);
         }
     };
 
@@ -389,7 +400,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                 title: "No categories to approve",
                 message: "All visible categories are already approved.",
             });
-            window.setTimeout(() => dismissNotification(notifId), 5000);
+            window.setTimeout(() => dismissToast(notifId), 5000);
             return;
         }
 
@@ -427,7 +438,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             });
         } finally {
             setApprovingAllCategories(false);
-            window.setTimeout(() => dismissNotification(notifId), 9000);
+            window.setTimeout(() => dismissToast(notifId), 9000);
         }
     };
 
@@ -558,13 +569,6 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                             {t('spiders.loading_details')}
                         </div>
                     ) : null}
-                    <ApiServerErrorBanner
-                        errors={[sourceError]}
-                        onRetry={async () => {
-                            await refetchSource();
-                        }}
-                        title="Parser API временно недоступен"
-                    />
                     {sourceError ? (
                         <div className="rounded-xl border border-red-400/40 bg-red-500/10 p-3 text-xs text-red-100">
                             <p className="font-semibold">Не удалось загрузить карточку парсера</p>
@@ -912,13 +916,6 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                             </button>
                         </div>
                         <div className="max-h-[78vh] overflow-y-auto p-4 space-y-3">
-                            <ApiServerErrorBanner
-                                errors={[categoryDetails.error]}
-                                onRetry={async () => {
-                                    await categoryDetails.refetch();
-                                }}
-                                title="Category API временно недоступен"
-                            />
                             {categoryDetails.isLoading ? (
                                 <div className="flex items-center justify-center py-12 text-sm text-white/80">
                                     <Loader2 size={16} className="animate-spin mr-2" />
@@ -969,7 +966,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                                         upsertNotification({ id: `cat-run-${categoryItem.id}`, status: "error", title: "Queue failed", message: String(error?.response?.data?.detail || error?.message || "Unknown error") });
                                                     } finally {
                                                         setCategoryActionPending(false);
-                                                        window.setTimeout(() => dismissNotification(`cat-run-${categoryItem.id}`), 7000);
+                                                        window.setTimeout(() => dismissToast(`cat-run-${categoryItem.id}`), 7000);
                                                     }
                                                 }}
                                             >
@@ -990,7 +987,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                                                 upsertNotification({ id: `cat-${categoryItem.id}`, status: "error", title: "Approve failed", message: String(error?.response?.data?.detail || error?.message || "Unknown error") });
                                                             } finally {
                                                                 setCategoryActionPending(false);
-                                                                window.setTimeout(() => dismissNotification(`cat-${categoryItem.id}`), 7000);
+                                                                window.setTimeout(() => dismissToast(`cat-${categoryItem.id}`), 7000);
                                                             }
                                                         }}
                                                     >
@@ -1009,7 +1006,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                                                 upsertNotification({ id: `cat-${categoryItem.id}`, status: "error", title: "Reject failed", message: String(error?.response?.data?.detail || error?.message || "Unknown error") });
                                                             } finally {
                                                                 setCategoryActionPending(false);
-                                                                window.setTimeout(() => dismissNotification(`cat-${categoryItem.id}`), 7000);
+                                                                window.setTimeout(() => dismissToast(`cat-${categoryItem.id}`), 7000);
                                                             }
                                                         }}
                                                     >
@@ -1031,7 +1028,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                                             upsertNotification({ id: `cat-${categoryItem.id}`, status: "error", title: "Re-activate failed", message: String(error?.response?.data?.detail || error?.message || "Unknown error") });
                                                         } finally {
                                                             setCategoryActionPending(false);
-                                                            window.setTimeout(() => dismissNotification(`cat-${categoryItem.id}`), 7000);
+                                                            window.setTimeout(() => dismissToast(`cat-${categoryItem.id}`), 7000);
                                                         }
                                                     }}
                                                 >
@@ -1074,37 +1071,6 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                     </div>
                 </div>
             ) : null}
-            <div className="fixed bottom-4 right-4 z-[90] flex w-[320px] max-w-[calc(100vw-2rem)] flex-col gap-2">
-                {notifications.map((n) => (
-                    <div
-                        key={n.id}
-                        className={`rounded-xl border p-3 shadow-xl ${
-                            n.status === "running"
-                                ? "border-sky-300/45 bg-sky-500/15 text-sky-100"
-                                : n.status === "success"
-                                    ? "border-emerald-300/45 bg-emerald-500/15 text-emerald-100"
-                                    : "border-rose-300/45 bg-rose-500/15 text-rose-100"
-                        }`}
-                    >
-                        <div className="flex items-start gap-2">
-                            {n.status === "running" ? (
-                                <Loader2 size={14} className="mt-0.5 animate-spin" />
-                            ) : n.status === "success" ? (
-                                <CheckCircle2 size={14} className="mt-0.5" />
-                            ) : (
-                                <AlertCircle size={14} className="mt-0.5" />
-                            )}
-                            <div className="min-w-0 flex-1">
-                                <p className="text-sm font-semibold leading-tight">{n.title}</p>
-                                <p className="mt-0.5 text-xs opacity-90">{n.message}</p>
-                            </div>
-                            <button className="text-xs opacity-80 hover:opacity-100" onClick={() => dismissNotification(n.id)}>
-                                x
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
         </div>
     );
 }
