@@ -1413,6 +1413,7 @@ async def sync_spiders_endpoint(
                     restored_spiders.append(hub.site_key)
     except Exception:
         restored_spiders = []
+
     new_spiders = await repo.sync_spiders(
         request.available_spiders,
         default_urls=request.default_urls,
@@ -1430,7 +1431,7 @@ async def sync_spiders_endpoint(
         grace_minutes=grace_minutes,
     )
 
-    # Notifications
+    # Notifications (fire-and-forget so this endpoint stays fast)
     try:
         notifier = get_notification_service()
         newly_missing = (missing_report or {}).get("newly_missing_spiders") or []
@@ -1473,7 +1474,7 @@ async def sync_spiders_endpoint(
             f"Please configure their URLs and settings in the admin panel."
         )
         asyncio.create_task(notifier.notify(topic="scraping", message=text))
-    
+
     return {
         "status": "ok",
         "new_spiders": new_spiders,

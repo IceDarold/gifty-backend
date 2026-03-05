@@ -22,7 +22,7 @@ describe("Intelligence", () => {
     renderWithProviders(<Intelligence />);
 
     await waitFor(() => {
-      expect(screen.getByText(/AI Intelligence API временно недоступен/i)).toBeInTheDocument();
+      expect(screen.getByText(/AI Intelligence( API)? временно недоступен/i)).toBeInTheDocument();
     });
   });
 

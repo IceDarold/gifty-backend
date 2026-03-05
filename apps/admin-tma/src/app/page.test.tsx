@@ -1,22 +1,32 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("@/components/TMAProvider", () => ({
   useTMA: () => ({ authUser: { id: 1 } }),
+  TMAProvider: ({ children }: any) => <>{children}</>,
 }));
 
-vi.mock("@/contexts/LanguageContext", () => ({
-  useLanguage: () => ({
-    language: "en",
-    t: (key: string) => key,
-  }),
-}));
+vi.mock("@/contexts/LanguageContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/contexts/LanguageContext")>();
+  return {
+    ...actual,
+    useLanguage: () => ({
+      language: "en",
+      t: (key: string) => key,
+    }),
+  };
+});
 
-vi.mock("@/contexts/OpsRuntimeSettingsContext", () => ({
-  useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
-}));
+vi.mock("@/contexts/OpsRuntimeSettingsContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/contexts/OpsRuntimeSettingsContext")>();
+  return {
+    ...actual,
+    useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
+  };
+});
 
 vi.mock("@/lib/api", async () => {
   const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
@@ -116,7 +126,7 @@ import Home from "./page";
 describe("Home page (tabs)", () => {
   it("renders and navigates across tabs", async () => {
     const user = userEvent.setup();
-    render(<Home />);
+    renderWithProviders(<Home />);
 
     // Default tab is ops.
     expect(screen.getByTestId("OperationsView")).toBeInTheDocument();
@@ -140,4 +150,3 @@ describe("Home page (tabs)", () => {
     expect(screen.getByTestId("SettingsView")).toBeInTheDocument();
   });
 });
-

@@ -6,9 +6,12 @@ import { RuntimeStatePanel } from './RuntimeStatePanel';
 import { AllowedHostsPanel } from './AllowedHostsPanel';
 import { AuditLogPanel } from './AuditLogPanel';
 import { useFrontendRoutingData } from '@/hooks/useFrontendRouting';
-import { ApiServerErrorBanner } from '@/components/ApiServerErrorBanner';
+import { useApiErrorToast } from '@/hooks/useApiErrorToast';
+import { useRetryRegistry } from '@/contexts/RetryRegistryContext';
+import { useEffect } from 'react';
 
 export function FrontendRoutingView() {
+  const retryRegistry = useRetryRegistry();
   const {
     apps,
     releases,
@@ -38,32 +41,42 @@ export function FrontendRoutingView() {
     deleteAllowedHost,
   } = useFrontendRoutingData();
 
+  useApiErrorToast({
+    id: "frontend-control-api",
+    title: "Frontend Control API временно недоступен",
+    retryKey: "frontend-control-api",
+    retryLabel: "Повторить",
+    errors: [apps.error, releases.error, profiles.error, rules.error, runtimeState.error, allowedHosts.error, auditLog.error],
+    enabled: true,
+    ttlMs: 10000,
+  });
+
+  useEffect(() => {
+    const unregister = retryRegistry.register("frontend-control-api", async () => {
+      await Promise.allSettled([
+        apps.refetch(),
+        releases.refetch(),
+        profiles.refetch(),
+        rules.refetch(),
+        runtimeState.refetch(),
+        allowedHosts.refetch(),
+        auditLog.refetch(),
+      ]);
+    });
+    return unregister;
+  }, [
+    retryRegistry,
+    apps.refetch,
+    releases.refetch,
+    profiles.refetch,
+    rules.refetch,
+    runtimeState.refetch,
+    allowedHosts.refetch,
+    auditLog.refetch,
+  ]);
+
   return (
     <div className="space-y-4 px-4 pb-8">
-      <ApiServerErrorBanner
-        errors={[
-          apps.error,
-          releases.error,
-          profiles.error,
-          rules.error,
-          runtimeState.error,
-          allowedHosts.error,
-          auditLog.error,
-        ]}
-        onRetry={async () => {
-          await Promise.allSettled([
-            apps.refetch(),
-            releases.refetch(),
-            profiles.refetch(),
-            rules.refetch(),
-            runtimeState.refetch(),
-            allowedHosts.refetch(),
-            auditLog.refetch(),
-          ]);
-        }}
-        title="Frontend Control API временно недоступен"
-      />
-
       <AppsPanel
         apps={appsData}
         releases={releasesData}

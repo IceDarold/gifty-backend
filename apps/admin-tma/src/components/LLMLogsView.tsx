@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Clock, Filter, RefreshCcw, X } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
@@ -9,6 +9,8 @@ import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
 import { fetchLLMBreakdown, fetchLLMLogs, fetchLLMThroughput } from "@/lib/api";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { Modal } from "@/components/frontend/Modal";
+import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 type Bucket = "minute" | "hour" | "day" | "week";
 
@@ -31,6 +33,7 @@ const formatTsLabel = (iso: string, bucket: Bucket) => {
 
 export function LLMLogsView() {
   const { getIntervalMs } = useOpsRuntimeSettings();
+  const retryRegistry = useRetryRegistry();
   const [days, setDays] = useState<number>(7);
   const [bucket, setBucket] = useState<Bucket>("hour");
   const [status, setStatus] = useState<string>("");
@@ -99,6 +102,45 @@ export function LLMLogsView() {
     queryFn: () => fetchLLMBreakdown({ days, group_by: "status", limit: 8 }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
+
+  useApiErrorToast({
+    id: "llm-analytics-api",
+    title: "LLM Analytics API временно недоступен",
+    retryKey: "llm-analytics-api",
+    retryLabel: "Повторить",
+    errors: [
+      logsQuery.error,
+      throughputQuery.error,
+      providerBreakdown.error,
+      modelBreakdown.error,
+      callTypeBreakdown.error,
+      statusBreakdown.error,
+    ],
+    enabled: true,
+    ttlMs: 10000,
+  });
+
+  useEffect(() => {
+    const unregister = retryRegistry.register("llm-analytics-api", async () => {
+      await Promise.allSettled([
+        logsQuery.refetch(),
+        throughputQuery.refetch(),
+        providerBreakdown.refetch(),
+        modelBreakdown.refetch(),
+        callTypeBreakdown.refetch(),
+        statusBreakdown.refetch(),
+      ]);
+    });
+    return unregister;
+  }, [
+    retryRegistry,
+    logsQuery.refetch,
+    throughputQuery.refetch,
+    providerBreakdown.refetch,
+    modelBreakdown.refetch,
+    callTypeBreakdown.refetch,
+    statusBreakdown.refetch,
+  ]);
 
   const total = Number(logsQuery.data?.total || 0);
   const items = Array.isArray(logsQuery.data?.items) ? logsQuery.data.items : [];

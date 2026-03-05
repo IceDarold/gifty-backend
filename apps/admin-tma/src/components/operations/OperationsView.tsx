@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode, type UIEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 import {
   Activity,
   AlertCircle,
@@ -23,9 +23,11 @@ import {
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useOperationsData } from "@/hooks/useOperations";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
-import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
-import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
+import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
+import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
 import { openGrafanaExploreLoki, openGrafanaExplorePrometheus } from "@/lib/grafana";
+import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import {
   formatDateTime,
@@ -207,9 +209,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   const [activeLogFilter, setActiveLogFilter] = useState<LogFilter>("all");
   const [sitesVisibleCount, setSitesVisibleCount] = useState(SITES_PAGE_SIZE);
   const [runningDiscoveryBySite, setRunningDiscoveryBySite] = useState<Record<string, boolean>>({});
-  const [notifications, setNotifications] = useState<
-    { id: string; status: "running" | "success" | "error"; title: string; message: string }[]
-  >([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [itemsTrendGranularity, setItemsTrendGranularity] = useState<"week" | "day" | "hour" | "minute">("day");
   const [tasksTrendGranularity, setTasksTrendGranularity] = useState<"week" | "day" | "hour" | "minute">("day");
@@ -219,6 +218,8 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   const [workerPausePendingId, setWorkerPausePendingId] = useState<string | null>(null);
   const [schedulerPausePending, setSchedulerPausePending] = useState(false);
   const { getIntervalMs } = useOpsRuntimeSettings();
+  const { toast: showToast, dismissToast } = useNotificationCenter();
+  const retryRegistry = useRetryRegistry();
 
   const {
     selectedSiteKey,
@@ -235,6 +236,16 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     runSourceNow,
     runSiteDiscovery,
   } = useOperationsData();
+
+  useApiErrorToast({
+    id: "ops-run-details-api",
+    title: "Run details API временно недоступен",
+    retryKey: "ops-run-details-api",
+    retryLabel: "Повторить",
+    errors: [runDetails.error],
+    enabled: !!selectedRunId,
+    ttlMs: 10000,
+  });
 
   const filteredSites = useMemo(() => {
     const q = siteSearch.trim().toLowerCase();
@@ -342,6 +353,44 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     queryFn: () => fetchOpsTasksTrend({ granularity: tasksTrendGranularity, buckets: tasksTrendBuckets }),
     refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.tasks_trend_ms", 30000))),
   });
+
+  useEffect(() => {
+    const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
+      if (!selectedRunId) return;
+      await runDetails.refetch();
+    });
+    const unregisterOps = retryRegistry.register("ops-api-error", async () => {
+      await Promise.allSettled([
+        overview.refetch(),
+        sites.refetch(),
+        activeRuns.refetch(),
+        queuedRuns.refetch(),
+        completedRuns.refetch(),
+        errorRuns.refetch(),
+        schedulerStats.refetch(),
+        itemsTrend.refetch(),
+        tasksTrend.refetch(),
+        selectedRunId ? runDetails.refetch() : Promise.resolve(),
+      ]);
+    });
+    return () => {
+      unregisterDetails();
+      unregisterOps();
+    };
+  }, [
+    retryRegistry,
+    selectedRunId,
+    overview.refetch,
+    sites.refetch,
+    activeRuns.refetch,
+    queuedRuns.refetch,
+    completedRuns.refetch,
+    errorRuns.refetch,
+    schedulerStats.refetch,
+    itemsTrend.refetch,
+    tasksTrend.refetch,
+    runDetails.refetch,
+  ]);
   const queuedItems = useMemo(
     () => (queuedRuns.data?.pages || []).flatMap((page: any) => page?.items || []),
     [queuedRuns.data?.pages],
@@ -436,36 +485,88 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     }
   };
 
-  const retryApiRequests = async () => {
-    await Promise.allSettled([
-      overview.refetch(),
-      sites.refetch(),
-      activeRuns.refetch(),
-      queuedRuns.refetch(),
-      completedRuns.refetch(),
-      errorRuns.refetch(),
-      schedulerStats.refetch(),
-      itemsTrend.refetch(),
-      tasksTrend.refetch(),
-      selectedRunId ? runDetails.refetch() : Promise.resolve(),
-    ]);
-  };
-
   const upsertNotification = (next: { id: string; status: "running" | "success" | "error"; title: string; message: string }) => {
-    setNotifications((prev) => {
-      const idx = prev.findIndex((n) => n.id === next.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = next;
-        return copy;
-      }
-      return [...prev, next];
-    });
+    showToast(
+      {
+        id: next.id,
+        level: next.status,
+        title: next.title,
+        message: next.message,
+        dedupeKey: next.id,
+      },
+      { ttlMs: next.status === "running" ? 0 : next.status === "error" ? 10000 : 6000 },
+    );
   };
 
-  const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  const opsApiErrorSignatureRef = useRef<string | null>(null);
+  const opsApiErrorSnapshot = useMemo(() => {
+    const entries: { label: string; error: unknown }[] = [
+      { label: "overview", error: overview.error },
+      { label: "sites", error: sites.error },
+      { label: "active runs", error: activeRuns.error },
+      { label: "queued runs", error: queuedRuns.error },
+      { label: "completed runs", error: completedRuns.error },
+      { label: "error runs", error: errorRuns.error },
+      { label: "scheduler", error: schedulerStats.error },
+      { label: "items trend", error: itemsTrend.error },
+      { label: "tasks trend", error: tasksTrend.error },
+      { label: "run details", error: runDetails.error },
+    ];
+    const apiErrors = entries.filter((e) => isServerApiError(e.error));
+    if (!apiErrors.length) return null;
+
+    const signature = apiErrors
+      .map((e) => {
+        const status = getApiErrorStatus(e.error);
+        const msg = getApiErrorMessage(e.error);
+        return `${e.label}:${status ?? "x"}:${msg}`;
+      })
+      .join("|");
+
+    const labels = apiErrors.map((e) => e.label).join(", ");
+    const firstErr = apiErrors[0]!.error;
+    const status = getApiErrorStatus(firstErr);
+    const msg = getApiErrorMessage(firstErr);
+    const messageRaw = `${labels}: ${msg}${status ? ` (HTTP ${status})` : ""}`;
+    const message = messageRaw.length > 220 ? `${messageRaw.slice(0, 217)}...` : messageRaw;
+
+    return { signature, message };
+  }, [
+    overview.error,
+    sites.error,
+    activeRuns.error,
+    queuedRuns.error,
+    completedRuns.error,
+    errorRuns.error,
+    schedulerStats.error,
+    itemsTrend.error,
+    tasksTrend.error,
+    runDetails.error,
+  ]);
+
+  useEffect(() => {
+    if (!opsApiErrorSnapshot) {
+      opsApiErrorSignatureRef.current = null;
+      return;
+    }
+    if (opsApiErrorSignatureRef.current === opsApiErrorSnapshot.signature) return;
+    opsApiErrorSignatureRef.current = opsApiErrorSnapshot.signature;
+
+    const notifId = "ops-api-error";
+    showToast(
+      {
+        id: notifId,
+        level: "error",
+        title: "Operations API временно недоступен",
+        message: opsApiErrorSnapshot.message,
+        dedupeKey: `ops-api-error:${opsApiErrorSnapshot.signature}`,
+        retryKey: "ops-api-error",
+        retryLabel: "Повторить",
+      },
+      { ttlMs: 10000 },
+    );
+    window.setTimeout(() => dismissToast(notifId), 10000);
+  }, [opsApiErrorSnapshot, dismissToast, showToast]);
 
   const handleRunDiscovery = async (site: any) => {
     const siteKey = String(site?.site_key || "");
@@ -526,7 +627,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setRunningDiscoveryBySite((prev) => ({ ...prev, [siteKey]: false }));
-      window.setTimeout(() => dismissNotification(notifId), 10000);
+      window.setTimeout(() => dismissToast(notifId), 10000);
     }
   };
 
@@ -593,7 +694,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setWorkerPausePendingId(null);
-      window.setTimeout(() => dismissNotification(notifId), 6000);
+      window.setTimeout(() => dismissToast(notifId), 6000);
     }
   };
 
@@ -630,7 +731,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setSchedulerPausePending(false);
-      window.setTimeout(() => dismissNotification(notifId), 6000);
+      window.setTimeout(() => dismissToast(notifId), 6000);
     }
   };
 
@@ -695,23 +796,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             {streamError ? <span className="text-xs text-rose-200">{streamError}</span> : null}
           </div>
         </div>
-
-        <ApiServerErrorBanner
-          errors={[
-            overview.error,
-            sites.error,
-            activeRuns.error,
-            queuedRuns.error,
-            completedRuns.error,
-            errorRuns.error,
-            schedulerStats.error,
-            itemsTrend.error,
-            tasksTrend.error,
-            runDetails.error,
-          ]}
-          onRetry={retryApiRequests}
-          title="Operations API временно недоступен"
-        />
 
         <div className="flex flex-wrap gap-2">
           {([
@@ -1285,13 +1369,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
               </button>
             </div>
             <div className="max-h-[82vh] overflow-y-auto p-4">
-              <ApiServerErrorBanner
-                errors={[runDetails.error]}
-                onRetry={async () => {
-                  await runDetails.refetch();
-                }}
-                title="Run details API временно недоступен"
-              />
               <div className="mt-2 rounded-xl border border-white/12 bg-black/25 p-3 min-h-[320px]">
                 {runDetails.isLoading ? (
                   <div className="flex items-center justify-center py-12 text-white/80 text-sm">
@@ -1553,37 +1630,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
           </div>
         </div>
       ) : null}
-      <div className="fixed bottom-4 right-4 z-[80] flex w-[320px] max-w-[calc(100vw-2rem)] flex-col gap-2">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`rounded-xl border p-3 shadow-xl ${
-              n.status === "running"
-                ? "border-sky-300/45 bg-sky-500/15 text-sky-100"
-                : n.status === "success"
-                  ? "border-emerald-300/45 bg-emerald-500/15 text-emerald-100"
-                  : "border-rose-300/45 bg-rose-500/15 text-rose-100"
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              {n.status === "running" ? (
-                <Loader2 size={14} className="mt-0.5 animate-spin" />
-              ) : n.status === "success" ? (
-                <CheckCircle2 size={14} className="mt-0.5" />
-              ) : (
-                <AlertCircle size={14} className="mt-0.5" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight">{n.title}</p>
-                <p className="mt-0.5 text-xs opacity-90">{n.message}</p>
-              </div>
-              <button className="text-xs opacity-80 hover:opacity-100" onClick={() => dismissNotification(n.id)}>
-                x
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }
