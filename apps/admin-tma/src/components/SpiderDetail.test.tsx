@@ -1,7 +1,8 @@
 import React from "react";
 import { describe, expect, it, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { renderWithProviders } from "@/test/renderWithProviders";
 
 vi.mock("recharts", () => ({
   ResponsiveContainer: ({ children }: any) => <div data-testid="chart">{children}</div>,
@@ -13,26 +14,30 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => null,
 }));
 
-vi.mock("@tanstack/react-query", () => ({
-  useQuery: (options: any) => {
-    const key = Array.isArray(options?.queryKey) ? options.queryKey[0] : options?.queryKey;
-    if (key === "ops-discovery-category") {
-      return {
-        data: { item: { id: 123, status: "new", url: "https://example.com/cat" } },
-        isLoading: false,
-        error: null,
-      };
-    }
-    if (key === "ops-source-items-trend") {
-      return {
-        data: { items: [{ ts: "2026-03-04T00:00:00Z", items_new: 3, items_total: 10 }] },
-        isLoading: false,
-        error: null,
-      };
-    }
-    return { data: null, isLoading: false, error: null };
-  },
-}));
+vi.mock("@tanstack/react-query", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
+  return {
+    ...actual,
+    useQuery: (options: any) => {
+      const key = Array.isArray(options?.queryKey) ? options.queryKey[0] : options?.queryKey;
+      if (key === "ops-discovery-category") {
+        return {
+          data: { item: { id: 123, status: "new", url: "https://example.com/cat" } },
+          isLoading: false,
+          error: null,
+        };
+      }
+      if (key === "ops-source-items-trend") {
+        return {
+          data: { items: [{ ts: "2026-03-04T00:00:00Z", items_new: 3, items_total: 10 }] },
+          isLoading: false,
+          error: null,
+        };
+      }
+      return { data: null, isLoading: false, error: null };
+    },
+  };
+});
 
 vi.mock("@/hooks/useDashboard", () => ({
   useSourceDetails: () => ({
@@ -59,16 +64,24 @@ vi.mock("@/hooks/useDashboard", () => ({
   }),
 }));
 
-vi.mock("@/contexts/LanguageContext", () => ({
-  useLanguage: () => ({
-    language: "en",
-    t: (key: string) => key,
-  }),
-}));
+vi.mock("@/contexts/LanguageContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/contexts/LanguageContext")>();
+  return {
+    ...actual,
+    useLanguage: () => ({
+      language: "en",
+      t: (key: string) => key,
+    }),
+  };
+});
 
-vi.mock("@/contexts/OpsRuntimeSettingsContext", () => ({
-  useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
-}));
+vi.mock("@/contexts/OpsRuntimeSettingsContext", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/contexts/OpsRuntimeSettingsContext")>();
+  return {
+    ...actual,
+    useOpsRuntimeSettings: () => ({ getIntervalMs: () => 30000 }),
+  };
+});
 
 import { SpiderDetail } from "./SpiderDetail";
 
@@ -76,7 +89,7 @@ describe("SpiderDetail (smoke)", () => {
   it("renders overview and categories tabs", async () => {
     const user = userEvent.setup();
 
-    render(
+    renderWithProviders(
       <SpiderDetail
         sourceId={1}
         onClose={() => undefined}

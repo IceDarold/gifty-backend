@@ -4,6 +4,8 @@ import { render, type RenderOptions } from "@testing-library/react";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { OpsRuntimeSettingsProvider } from "@/contexts/OpsRuntimeSettingsContext";
 import { TMAProvider } from "@/components/TMAProvider";
+import { NotificationCenterProvider } from "@/contexts/NotificationCenterContext";
+import { RetryRegistryProvider } from "@/contexts/RetryRegistryContext";
 
 export function createTestQueryClient() {
   return new QueryClient({
@@ -29,7 +31,11 @@ export function renderWithProviders(
       <QueryClientProvider client={queryClient}>
         <LanguageProvider>
           <OpsRuntimeSettingsProvider>
-            <TMAProvider>{children}</TMAProvider>
+            <RetryRegistryProvider>
+              <NotificationCenterProvider>
+                <TMAProvider>{children}</TMAProvider>
+              </NotificationCenterProvider>
+            </RetryRegistryProvider>
           </OpsRuntimeSettingsProvider>
         </LanguageProvider>
       </QueryClientProvider>
@@ -38,4 +44,3 @@ export function renderWithProviders(
 
   return { queryClient, ...render(ui, { wrapper: Wrapper, ...options }) };
 }
-
