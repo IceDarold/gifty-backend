@@ -3,22 +3,22 @@
     "hub_url": "https://www.citilink.ru/catalog/"
   },
   "colapsar": {
-    "hub_url": "https://colapsar.placeholder"
+    "hub_url": "https://colapsar.ru/"
   },
   "detmir": {
-    "hub_url": "https://detmir.placeholder"
+    "hub_url": "https://www.detmir.ru/karta-saita/"
   },
   "goldenapple": {
-    "hub_url": "https://goldenapple.placeholder"
+    "hub_url": "https://goldapple.ru/"
   },
   "group_price": {
-    "hub_url": "https://group_price.placeholder"
+    "hub_url": "https://groupprice.ru/pages/gifts"
   },
   "inteltoys": {
-    "hub_url": "https://inteltoys.placeholder"
+    "hub_url": "https://inteltoys.ru/"
   },
   "kassir": {
-    "hub_url": "https://kassir.placeholder"
+    "hub_url": "https://www.kassir.ru/"
   },
   "lefutur": {
     "hub_url": "https://lefutur.ru/"
@@ -27,7 +27,7 @@
     "hub_url": "https://leonardo.ru/ishop/"
   },
   "letu": {
-    "hub_url": "https://letu.placeholder"
+    "hub_url": "https://www.letu.ru"
   },
   "mir_kubikov": {
     "hub_url": "https://mir-kubikov.ru/catalog/"
@@ -36,30 +36,30 @@
     "hub_url": "https://www.mvideo.ru/vse-kategorii"
   },
   "nashi_podarki": {
-    "hub_url": "https://nashi_podarki.placeholder"
+    "hub_url": "https://nashipodarki.ru/catalog/"
   },
   "pichshop": {
-    "hub_url": "https://pichshop.placeholder"
+    "hub_url": "https://pichshop.ru/"
   },
   "plati_market": {
     "hub_url": "https://plati.market/xml/test_sections.asp?l=ru-RU"
   },
   "russianlegacy": {
-    "hub_url": "https://russianlegacy.placeholder"
+    "hub_url": "https://russianlegacy.com/"
   },
   "sokolov": {
     "hub_url": "https://catalog.sokolov.ru/api/v2/catalog"
   },
   "sportmaster": {
-    "hub_url": "https://sportmaster.placeholder"
+    "hub_url": "https://www.sportmaster.ru/"
   },
   "stockmann": {
     "hub_url": "https://stockmann.ru/"
   },
   "vseigrushki": {
-    "hub_url": "https://vseigrushki.placeholder"
+    "hub_url": "https://vseigrushki.com/"
   },
   "mrgeek": {
-    "hub_url": "https://mrgeek.placeholder"
+    "hub_url": "https://mrgeek.ru/catalog/"
   }
 }
