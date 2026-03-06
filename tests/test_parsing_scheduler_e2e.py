@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector
 
 from app.db import Base
-from app.models import ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, Merchant, ProductCategoryLink
+from app.models import ParsingHub, ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, Merchant, ProductCategoryLink
 from app.repositories.parsing import ParsingRepository
 from app.jobs.parsing_scheduler import run_parsing_scheduler
 from app.repositories.catalog import PostgresCatalogRepository
@@ -35,6 +35,7 @@ async def sqlite_db_session(tmp_path):
         await conn.run_sync(
             Base.metadata.create_all,
             tables=[
+                ParsingHub.__table__,
                 ParsingSource.__table__,
                 DiscoveredCategory.__table__,
                 ProductCategoryLink.__table__,

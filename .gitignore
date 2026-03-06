@@ -15,6 +15,10 @@ downloads/
 eggs/
 .eggs/
 lib/
+
+# Allow tracking Next.js admin app helpers under ignored `lib/` directory.
+!apps/admin-tma/src/lib/
+!apps/admin-tma/src/lib/**
 lib64/
 parts/
 sdist/
