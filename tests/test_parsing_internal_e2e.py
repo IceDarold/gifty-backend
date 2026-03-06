@@ -10,7 +10,16 @@ from pgvector.sqlalchemy import Vector
 
 from app.main import app
 from app.db import get_db, Base, get_redis
-from app.models import ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, ParsingHub, Merchant
+from app.models import (
+    CategoryMap,
+    DiscoveredCategory,
+    Merchant,
+    ParsingHub,
+    ParsingRun,
+    ParsingSource,
+    Product,
+    ProductCategoryLink,
+)
 from app.services.notifications import get_notification_service
 
 # --- SQLite Compiles for Postgres Dialects ---
@@ -39,9 +48,12 @@ async def sqlite_db_session(tmp_path):
                 ParsingHub.__table__,
                 DiscoveredCategory.__table__,
                 ParsingRun.__table__,
+                ParsingHub.__table__,
+                DiscoveredCategory.__table__,
                 CategoryMap.__table__,
+                Product.__table__,
                 Merchant.__table__,
-                Product.__table__
+                ProductCategoryLink.__table__,
             ],
         )
 

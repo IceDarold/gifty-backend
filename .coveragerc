@@ -1,0 +1,16 @@
+[run]
+source =
+    app
+    routes
+omit =
+    app/jobs/*
+    ai_workers/*
+    exp/*
+    app/services/weeek.py
+    routes/weeek.py
+    app/services/anthropic_service.py
+    app/utils/catalog.py
+
+[report]
+show_missing = True
+skip_covered = True

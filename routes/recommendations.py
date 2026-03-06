@@ -128,6 +128,8 @@ async def react_to_hypothesis(
             raise HTTPException(status_code=404, detail="Hypothesis not found")
         
         return {"status": "success", "hypothesis_id": str(db_h.id), "reaction": db_h.user_reaction}
+    except HTTPException:
+        raise
     except Exception as e:
         logger.exception(f"Failed to record reaction for hypothesis {hypothesis_id}")
         raise HTTPException(status_code=500, detail="Internal server error")

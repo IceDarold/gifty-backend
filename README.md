@@ -40,6 +40,11 @@ Backend авторизации для SPA (React) c OAuth (Google/Yandex/VK), PK
 pytest -q
 ```
 
+## Coverage (app/ + routes/)
+```bash
+./scripts/test_coverage.sh
+```
+
 ## Примечания
 - Все секреты задаются через `.env`, в коде не хардкодятся.
 - Сессия хранится в Redis (`gifty_session` HttpOnly cookie). `STATE` для OAuth хранится в Redis 10 минут.
@@ -63,4 +68,3 @@ Generates vector embeddings for products using `BAAI/bge-m3` model (runs on CPU 
 python scripts/run_embeddings.py
 ```
 **Note:** The first run will download the model (~1GB).
-

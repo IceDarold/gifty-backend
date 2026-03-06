@@ -234,7 +234,11 @@ class PostgresCatalogRepository(CatalogRepository):
             stmt = stmt.where(Product.price <= max_price)
             
         if max_delivery_days:
-            stmt = stmt.where(Product.delivery_days <= max_delivery_days)
+            # Some deployments do not store delivery ETA as a dedicated column.
+            # Keep this filter best-effort to avoid crashing the whole search.
+            delivery_col = getattr(Product, "delivery_days", None)
+            if delivery_col is not None:
+                stmt = stmt.where(delivery_col <= max_delivery_days)
             
         distance_col = ProductEmbedding.embedding.cosine_distance(embedding)
         

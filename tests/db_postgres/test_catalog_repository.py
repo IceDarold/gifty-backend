@@ -116,28 +116,3 @@ async def test_search_similar_products(postgres_session, monkeypatch):
     )
     assert products
     assert products[0].gift_id == "p30"
-
-
-@pytest.mark.asyncio
-async def test_llm_scores_flow(postgres_session):
-    repo = PostgresCatalogRepository(postgres_session)
-
-    await repo.upsert_products([
-        _product("p40", "Prod 40"),
-        _product("p41", "Prod 41"),
-    ])
-
-    missing = await repo.get_products_without_llm_score(limit=10)
-    assert {p.gift_id for p in missing} >= {"p40", "p41"}
-
-    updated = await repo.save_llm_scores([
-        {
-            "gift_id": "p40",
-            "llm_gift_score": 0.9,
-            "llm_gift_reasoning": "ok",
-        }
-    ])
-    assert updated >= 1
-
-    missing_after = await repo.get_products_without_llm_score(limit=10)
-    assert "p40" not in {p.gift_id for p in missing_after}

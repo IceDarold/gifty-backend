@@ -1,7 +1,19 @@
 
 import pytest
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 from app.jobs.parsing_scheduler import run_parsing_scheduler, activate_discovered_sources
+
+class _AsyncContextManager:
+    def __init__(self, session):
+        self._session = session
+
+    async def __aenter__(self):
+        return self._session
+
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        return False
+
 
 @pytest.mark.asyncio
 async def test_run_parsing_scheduler_success():
@@ -18,13 +30,17 @@ async def test_run_parsing_scheduler_success():
     mock_repo = MagicMock()
     mock_repo.get_due_sources = AsyncMock(return_value=[mock_source])
     mock_repo.set_queued = AsyncMock()
+    mock_repo.create_parsing_run = AsyncMock(return_value=SimpleNamespace(id=123))
+    mock_repo.update_parsing_run = AsyncMock()
     
     # Mock context manager and other dependencies
     with patch("app.jobs.parsing_scheduler.get_session_context") as mock_ctx:
-        mock_ctx.return_value.__aenter__.return_value = AsyncMock()
-        with patch("app.jobs.parsing_scheduler._is_scheduler_paused", new=AsyncMock(return_value=False)):
-            with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
-                with patch("app.jobs.parsing_scheduler.publish_parsing_task", return_value=True) as mock_publish:
+        session = AsyncMock()
+        session.commit = AsyncMock()
+        mock_ctx.return_value = _AsyncContextManager(session)
+        with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
+            with patch("app.jobs.parsing_scheduler.publish_parsing_task", return_value=True) as mock_publish:
+                with patch("app.jobs.parsing_scheduler._is_scheduler_paused", AsyncMock(return_value=False)):
                 
                     await run_parsing_scheduler()
                 
@@ -38,10 +54,12 @@ async def test_run_parsing_scheduler_empty():
     mock_repo.get_due_sources = AsyncMock(return_value=[])
     
     with patch("app.jobs.parsing_scheduler.get_session_context") as mock_ctx:
-        mock_ctx.return_value.__aenter__.return_value = AsyncMock()
-        with patch("app.jobs.parsing_scheduler._is_scheduler_paused", new=AsyncMock(return_value=False)):
-            with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
-                with patch("app.jobs.parsing_scheduler.publish_parsing_task") as mock_publish:
+        session = AsyncMock()
+        session.commit = AsyncMock()
+        mock_ctx.return_value = _AsyncContextManager(session)
+        with patch("app.jobs.parsing_scheduler.ParsingRepository", return_value=mock_repo):
+            with patch("app.jobs.parsing_scheduler.publish_parsing_task") as mock_publish:
+                with patch("app.jobs.parsing_scheduler._is_scheduler_paused", AsyncMock(return_value=False)):
                 
                     await run_parsing_scheduler()
                 
