@@ -40,3 +40,19 @@ class GiftyBaseSpider(scrapy.Spider):
         product['site_key'] = self.site_key
         product['source_id'] = self.source_id
         return product
+
+    def create_category(self, **kwargs):
+        """Helper для создания CategoryItem с общими полями"""
+        category = CategoryItem()
+        for key, value in kwargs.items():
+            category[key] = value
+
+        if "title" in kwargs and "name" not in kwargs:
+            category["name"] = kwargs["title"]
+        if "name" in kwargs and "title" not in kwargs:
+            category["title"] = kwargs["name"]
+        if "price" not in kwargs:
+            category["price"] = None
+
+        category["site_key"] = self.site_key
+        return category

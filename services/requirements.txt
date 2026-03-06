@@ -10,3 +10,4 @@ beautifulsoup4
 python-dotenv
 prometheus_client
 scrapy-playwright
+brotli
