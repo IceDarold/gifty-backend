@@ -50,9 +50,14 @@ class ParsingRepository:
 
     async def set_queued(self, source_id: int):
         """Marks source as queued in RabbitMQ. Status 'running' will be set by worker."""
-        stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
-            status="queued", 
-            next_sync_at=datetime.now() + timedelta(minutes=15)
+        # Avoid a race where the worker starts quickly and reports `running` before we persist `queued`.
+        stmt = (
+            update(ParsingSource)
+            .where(ParsingSource.id == source_id, ParsingSource.status != "running")
+            .values(
+                status="queued",
+                next_sync_at=datetime.now() + timedelta(minutes=15),
+            )
         )
         await self.session.execute(stmt)
         await self.session.commit()
@@ -598,6 +603,31 @@ class ParsingRepository:
         )
         self.session.add(run)
         await self.session.commit()
+
+    async def create_parsing_run(
+        self,
+        *,
+        source_id: int,
+        status: str,
+        items_scraped: int = 0,
+        items_new: int = 0,
+        error_message: str | None = None,
+        duration_seconds: float | None = None,
+        logs: str | None = None,
+    ) -> ParsingRun:
+        run = ParsingRun(
+            source_id=int(source_id),
+            status=str(status),
+            items_scraped=int(items_scraped or 0),
+            items_new=int(items_new or 0),
+            error_message=error_message,
+            duration_seconds=duration_seconds,
+            logs=logs,
+        )
+        self.session.add(run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
 
     async def get_source_history(self, source_id: int, limit: int = 15):
         from app.models import ParsingRun

@@ -3539,10 +3539,14 @@ async def get_ops_site_pipeline(
         )
     ).scalars().all()
 
-    list_sources = (
+    # Include both list sources and the runtime hub source so hub discovery runs show up in running/error lanes.
+    sources = (
         await db.execute(
             select(ParsingSource)
-            .where(ParsingSource.site_key == site_key, ParsingSource.type == "list")
+            .where(
+                ParsingSource.site_key == site_key,
+                ParsingSource.status.in_(("running", "error")),
+            )
             .order_by(ParsingSource.updated_at.desc())
             .limit(10000)
         )
@@ -3583,7 +3587,7 @@ async def get_ops_site_pipeline(
         elif cat.state == "promoted":
             lanes["discovered:promoted"].append(card)
 
-    for src in list_sources:
+    for src in sources:
         card = {
             "type": "source",
             "id": src.id,
@@ -3594,7 +3598,7 @@ async def get_ops_site_pipeline(
             "priority": src.priority,
             "refresh_interval_hours": src.refresh_interval_hours,
             "category_id": src.category_id,
-            "name": (src.config or {}).get("discovery_name"),
+            "name": (src.config or {}).get("discovery_name") if isinstance(src.config, dict) else None,
             "updated_at": _iso(src.updated_at),
         }
         if src.status == "running":
