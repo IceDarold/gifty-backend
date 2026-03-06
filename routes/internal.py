@@ -5187,6 +5187,7 @@ async def get_llm_breakdown(
 ):
     from datetime import datetime, timedelta, timezone
     from decimal import Decimal
+    import sqlalchemy as sa
     from sqlalchemy import select, func
     from app.models import LLMLog
 
@@ -5218,14 +5219,18 @@ async def get_llm_breakdown(
             func.avg(LLMLog.latency_ms).label("avg_latency_ms"),
         )
         .where(LLMLog.created_at >= since)
-        .where(LLMLog.provider == provider if provider else sa.true())
-        .where(LLMLog.model == model if model else sa.true())
-        .where(LLMLog.call_type == call_type if call_type else sa.true())
-        .where(LLMLog.status == status if status else sa.true())
         .group_by(dim)
         .order_by(func.count(LLMLog.id).desc())
         .limit(limit)
     )
+    if provider:
+        stmt = stmt.where(LLMLog.provider == provider)
+    if model:
+        stmt = stmt.where(LLMLog.model == model)
+    if call_type:
+        stmt = stmt.where(LLMLog.call_type == call_type)
+    if status:
+        stmt = stmt.where(LLMLog.status == status)
     res = await db.execute(stmt)
     items = []
     for r in res.all():
@@ -5257,6 +5262,7 @@ async def get_llm_stats(
 ):
     from datetime import datetime, timedelta, timezone
     from decimal import Decimal
+    import sqlalchemy as sa
     from sqlalchemy import select, func
     from app.models import LLMLog
 
