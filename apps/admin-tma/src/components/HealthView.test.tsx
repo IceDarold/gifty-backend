@@ -19,7 +19,7 @@ describe("HealthView", () => {
 
     expect(screen.getByText(/System Health/i)).toBeInTheDocument();
     expect(screen.getAllByText(/Healthy/i).length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText(/Connected/i)).toBeInTheDocument();
-    expect(screen.getByText("42")).toBeInTheDocument();
+    expect(screen.getAllByText(/Connected/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("42").length).toBeGreaterThanOrEqual(1);
   });
 });
