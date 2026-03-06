@@ -137,6 +137,8 @@ nav:
       - AI Providers: engineering/providers.md
       - Infrastructure & Secrets: engineering/infrastructure.md
       - Deployment & CI/CD: engineering/deployment.md
+  - Legacy:
+      - Coverage-95 docs: legacy/coverage_95/index.md
   - API Reference:
       - Overview: api/index.md
       - Playground: api/playground.md

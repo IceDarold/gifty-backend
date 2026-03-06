@@ -18,6 +18,7 @@ const STORAGE_KEY = "gifty_admin_lang";
 
 const STRINGS: Record<Language, Record<string, string>> = {
   ru: {
+    "common.no_data": "Нет данных",
     "common.superadmin_panel": "Superadmin Panel",
     "common.system_optimal": "Система работает оптимально",
     "common.system_high_load": "Повышенная нагрузка",
@@ -32,6 +33,25 @@ const STRINGS: Record<Language, Record<string, string>> = {
     "spiders.no_spiders": "Пауки не подключены.",
     "spiders.click_sync": "Нажмите синхронизацию, чтобы импортировать из кода.",
 
+    "categories.title": "Категории",
+    "categories.subtitle": "Мониторинг {count} источников",
+    "categories.category": "Категория",
+    "categories.products": "Товаров",
+    "categories.status": "Статус",
+    "categories.last_run": "Последний запуск",
+    "categories.next_run": "Следующий запуск",
+    "categories.actions": "Действия",
+    "categories.view_chart": "График",
+    "categories.view_details": "Подробнее",
+    "categories.status_running": "Работает",
+    "categories.status_waiting": "Ожидает",
+    "categories.status_error": "Ошибка",
+    "categories.status_broken": "Сломан",
+    "categories.status_disabled": "Отключен",
+    "categories.never": "Никогда",
+    "categories.unknown": "Неизвестно",
+    "categories.scheduled_now": "Запланирован сейчас",
+
     "settings.topics.investors": "Инвесторы",
     "settings.topics.partners": "Партнеры",
     "settings.topics.newsletter": "Новости",
@@ -40,6 +60,7 @@ const STRINGS: Record<Language, Record<string, string>> = {
     "settings.topics.global": "Общие",
   },
   en: {
+    "common.no_data": "No data available",
     "common.superadmin_panel": "Superadmin Panel",
     "common.system_optimal": "System is optimal",
     "common.system_high_load": "High load",
@@ -53,6 +74,25 @@ const STRINGS: Record<Language, Record<string, string>> = {
     "spiders.new": "New",
     "spiders.no_spiders": "No spiders connected yet.",
     "spiders.click_sync": "Click sync to import from codebase.",
+
+    "categories.title": "Categories",
+    "categories.subtitle": "Monitoring {count} sources",
+    "categories.category": "Category",
+    "categories.products": "Products",
+    "categories.status": "Status",
+    "categories.last_run": "Last run",
+    "categories.next_run": "Next run",
+    "categories.actions": "Actions",
+    "categories.view_chart": "Chart",
+    "categories.view_details": "Details",
+    "categories.status_running": "Running",
+    "categories.status_waiting": "Waiting",
+    "categories.status_error": "Error",
+    "categories.status_broken": "Broken",
+    "categories.status_disabled": "Disabled",
+    "categories.never": "Never",
+    "categories.unknown": "Unknown",
+    "categories.scheduled_now": "Scheduled now",
 
     "settings.topics.investors": "Investors",
     "settings.topics.partners": "Partners",
@@ -113,4 +153,3 @@ export function useLanguage() {
   }
   return ctx;
 }
-

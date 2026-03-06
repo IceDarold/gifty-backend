@@ -24,11 +24,12 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useOperationsData } from "@/hooks/useOperations";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
-import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
+import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, fetchSources, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
 import { openGrafanaExploreLoki, openGrafanaExplorePrometheus } from "@/lib/grafana";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
 import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CategoriesTable } from "@/components/CategoriesTable";
 import {
   formatDateTime,
   formatDayLabel,
@@ -201,8 +202,9 @@ function MetricCard({ label, value, hint }: { label: string; value: string | num
 }
 
 export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
-  const [activeTab, setActiveTab] = useState<"stats" | "parsers" | "queue" | "workers" | "scheduler">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "parsers" | "categories" | "queue" | "workers" | "scheduler">("stats");
   const [siteSearch, setSiteSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
   const [logsCopied, setLogsCopied] = useState(false);
   const [expandedJsonIds, setExpandedJsonIds] = useState<Record<string, boolean>>({});
   const [logSearchQuery, setLogSearchQuery] = useState("");
@@ -256,6 +258,46 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         String(site.name || "").toLowerCase().includes(q),
     );
   }, [siteSearch, sites.data?.items]);
+
+  const sourcesQuery = useQuery({
+    queryKey: ["sources"],
+    queryFn: fetchSources,
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.error ? false : getIntervalMs("dashboard.sources_ms", 30_000)),
+  });
+
+  const categorySources = useMemo(() => {
+    const sources: any[] = Array.isArray(sourcesQuery.data) ? (sourcesQuery.data as any[]) : [];
+    const normalizedSearch = (categorySearch || "").trim().toLowerCase();
+
+    const filtered = sources
+      .filter((s) => s && s.type === "list")
+      .filter((s) => {
+        if (!normalizedSearch) return true;
+        const key = String(s.site_key || "").toLowerCase();
+        const url = String(s.url || "").toLowerCase();
+        const name = String(s?.config?.discovery_name || "").toLowerCase();
+        return key.includes(normalizedSearch) || url.includes(normalizedSearch) || name.includes(normalizedSearch);
+      })
+      .map((s) => ({
+        id: Number(s.id),
+        site_key: String(s.site_key || ""),
+        url: String(s.url || ""),
+        status: String(s.status || ""),
+        last_synced_at: s.last_synced_at ? String(s.last_synced_at) : null,
+        next_sync_at: s.next_sync_at ? String(s.next_sync_at) : "",
+        total_items: Number(s.total_items || 0),
+        is_active: Boolean(s.is_active),
+        config: { discovery_name: s?.config?.discovery_name ? String(s.config.discovery_name) : undefined },
+      }));
+
+    filtered.sort((a, b) => {
+      const keyCmp = a.site_key.localeCompare(b.site_key);
+      if (keyCmp !== 0) return keyCmp;
+      return String(a.config?.discovery_name || "").localeCompare(String(b.config?.discovery_name || ""));
+    });
+    return filtered;
+  }, [sourcesQuery.data, categorySearch]);
   const visibleSites = useMemo(
     () => filteredSites.slice(0, sitesVisibleCount),
     [filteredSites, sitesVisibleCount],
@@ -801,10 +843,11 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
           {([
             { key: "stats", label: "Stats" },
             { key: "parsers", label: "Parsers" },
+            { key: "categories", label: "Categories" },
             { key: "queue", label: "Queue" },
             { key: "workers", label: "Workers" },
             { key: "scheduler", label: "Scheduler" },
-          ] as { key: "stats" | "parsers" | "queue" | "workers" | "scheduler"; label: string }[]).map((tab) => (
+          ] as { key: "stats" | "parsers" | "categories" | "queue" | "workers" | "scheduler"; label: string }[]).map((tab) => (
             <button
               key={tab.key}
               className={`rounded-lg border px-3 py-1.5 text-xs transition ${
@@ -1144,6 +1187,39 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             </div>
           ) : null}
           {!filteredSites.length ? <div className="mt-2 text-sm text-white/70">No sites matched search.</div> : null}
+        </section>
+        ) : null}
+
+        {activeTab === "categories" ? (
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Categories</h3>
+              <p className="text-[11px] text-white/70">All list sources (type=list) across all sites.</p>
+            </div>
+            <input
+              value={categorySearch}
+              onChange={(event) => setCategorySearch(event.target.value)}
+              placeholder="Search site / category / url"
+              className="h-9 w-[280px] max-w-[70vw] rounded-lg border border-white/20 bg-black/20 px-2.5 text-sm text-white placeholder:text-white/45 outline-none"
+            />
+          </div>
+
+          {sourcesQuery.isLoading ? (
+            <div className="rounded-xl border border-white/12 bg-white/[0.03] min-h-[42vh] flex items-center justify-center">
+              <Loader2 className="animate-spin text-[var(--tg-theme-button-color)]" size={28} />
+            </div>
+          ) : sourcesQuery.error ? (
+            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-100">
+              Failed to load sources: {getApiErrorMessage(sourcesQuery.error)}
+            </div>
+          ) : (
+            <CategoriesTable
+              sources={categorySources}
+              onOpenDetail={(id) => onOpenSourceDetails(id)}
+              onOpenChart={(id) => onOpenSourceDetails(id)}
+            />
+          )}
         </section>
         ) : null}
 
