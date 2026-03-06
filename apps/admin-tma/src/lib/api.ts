@@ -218,7 +218,32 @@ export const fetchLLMBreakdown = (params: {
   days?: number;
   group_by?: "provider" | "model" | "call_type" | "status" | string;
   limit?: number;
+  provider?: string;
+  model?: string;
+  call_type?: string;
+  status?: string;
 }) => getJson(`${INTERNAL_PREFIX}/analytics/llm/breakdown`, params);
+
+export const fetchLLMLogDetails = (id: string) =>
+  getJson(`${INTERNAL_PREFIX}/analytics/llm/logs/${encodeURIComponent(id)}`);
+
+export const fetchLLMStats = (params: {
+  days?: number;
+  provider?: string;
+  model?: string;
+  call_type?: string;
+  status?: string;
+}) => getJson(`${INTERNAL_PREFIX}/analytics/llm/stats`, params);
+
+export const fetchLLMOutliers = (params: {
+  days?: number;
+  metric?: "latency" | "tokens" | "cost" | string;
+  limit?: number;
+  provider?: string;
+  model?: string;
+  call_type?: string;
+  status?: string;
+}) => getJson(`${INTERNAL_PREFIX}/analytics/llm/outliers`, params);
 
 // --- Logs (Loki) ---
 export const fetchLogServices = () => getJson(`${INTERNAL_PREFIX}/logs/services`);
