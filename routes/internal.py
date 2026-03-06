@@ -5136,26 +5136,36 @@ async def get_llm_log_details(
 
     related = []
     if row.session_id:
-        rel_rows = (
-            await db.execute(
-                select(LLMLog)
-                .where(LLMLog.session_id == row.session_id)
-                .order_by(LLMLog.created_at.desc())
-                .limit(50)
+        rel_stmt = (
+            select(
+                LLMLog.id,
+                LLMLog.created_at,
+                LLMLog.provider,
+                LLMLog.model,
+                LLMLog.call_type,
+                LLMLog.status,
+                LLMLog.latency_ms,
+                LLMLog.total_tokens,
+                LLMLog.cost_usd,
             )
-        ).scalars().all()
-        for r in rel_rows:
+            .where(LLMLog.session_id == row.session_id)
+            .order_by(LLMLog.created_at.desc(), LLMLog.id.desc())
+            .limit(50)
+        )
+        rel_rows = (await db.execute(rel_stmt)).all()
+        for rr in rel_rows:
+            r = rr._mapping
             related.append(
                 {
-                    "id": str(r.id),
-                    "created_at": r.created_at.isoformat() if r.created_at else None,
-                    "provider": r.provider,
-                    "model": r.model,
-                    "call_type": r.call_type,
-                    "status": r.status,
-                    "latency_ms": r.latency_ms,
-                    "total_tokens": r.total_tokens,
-                    "cost_usd": float(r.cost_usd) if r.cost_usd is not None else 0.0,
+                    "id": str(r["id"]),
+                    "created_at": r["created_at"].isoformat() if r["created_at"] else None,
+                    "provider": r["provider"],
+                    "model": r["model"],
+                    "call_type": r["call_type"],
+                    "status": r["status"],
+                    "latency_ms": r["latency_ms"],
+                    "total_tokens": r["total_tokens"],
+                    "cost_usd": float(r["cost_usd"]) if r["cost_usd"] is not None else 0.0,
                 }
             )
 
