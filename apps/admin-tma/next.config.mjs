@@ -19,10 +19,6 @@ const nextConfig = {
       },
     ],
   },
-  // Keeping these to avoid test/dev friction; Next.js will warn if keys become unsupported.
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
     ignoreBuildErrors: true,
   },
