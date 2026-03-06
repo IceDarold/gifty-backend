@@ -5047,6 +5047,12 @@ async def get_llm_log_details(
     output_text = output_payload.content_text if output_payload and output_payload.content_text is not None else (row.output_content or "")
     raw_json = raw_payload.content_json if raw_payload and raw_payload.content_json is not None else None
 
+    messages_rendered = []
+    if system_rendered:
+        messages_rendered.append({"role": "system", "content": system_rendered})
+    if user_rendered:
+        messages_rendered.append({"role": "user", "content": user_rendered})
+
     related = []
     if row.session_id:
         rel_rows = (
@@ -5113,6 +5119,7 @@ async def get_llm_log_details(
             "raw_response": raw_json,
         },
         "messages": row.input_messages,
+        "messages_rendered": messages_rendered,
         "related_calls": related,
     }
 
