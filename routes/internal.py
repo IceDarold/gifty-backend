@@ -1879,9 +1879,17 @@ async def webapp_auth(
         raise HTTPException(status_code=500, detail="Bot token not configured")
         
     # Dev bypass
-    if settings.env == "dev" and init_data == "dev_user_1821014162":
-        logger.info("Using DEV BYPASS authentication for user 1821014162")
-        user_id = 1821014162
+    init_data_stripped = (init_data or "").strip()
+    if settings.env == "dev" and (
+        init_data_stripped == ""
+        or init_data_stripped == "dev_user_1821014162"
+        or init_data_stripped.startswith("dev_user_")
+    ):
+        try:
+            user_id = int(init_data_stripped.split("dev_user_", 1)[1]) if init_data_stripped.startswith("dev_user_") else 1821014162
+        except Exception:
+            user_id = 1821014162
+        logger.info(f"Using DEV BYPASS authentication for user {user_id}")
     else:
         if not verify_telegram_init_data(init_data, settings.telegram_bot_token):
             logger.warning("Invalid init data verification failed")
@@ -2041,20 +2049,20 @@ async def list_merchants(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token),
 ):
-    from sqlalchemy import or_, func
+    from sqlalchemy import or_, func, select
     from app.models import Merchant
 
     limit = max(1, min(limit, 500))
     offset = max(0, offset)
 
-    stmt = sa.select(Merchant)
+    stmt = select(Merchant)
     if q:
         like = f"%{q}%"
         stmt = stmt.where(or_(Merchant.site_key.ilike(like), Merchant.name.ilike(like)))
     stmt = stmt.order_by(Merchant.site_key.asc()).offset(offset).limit(limit)
     items = (await db.execute(stmt)).scalars().all()
 
-    count_stmt = sa.select(func.count()).select_from(Merchant)
+    count_stmt = select(func.count()).select_from(Merchant)
     if q:
         like = f"%{q}%"
         count_stmt = count_stmt.where(or_(Merchant.site_key.ilike(like), Merchant.name.ilike(like)))
@@ -2083,6 +2091,7 @@ async def update_merchant(
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token),
 ):
+    from sqlalchemy import select
     from app.models import Merchant
     key = (site_key or "").strip()
     if not key:
@@ -2091,7 +2100,7 @@ async def update_merchant(
     name = payload.get("name")
     base_url = payload.get("base_url")
 
-    merchant = (await db.execute(sa.select(Merchant).where(Merchant.site_key == key))).scalar_one_or_none()
+    merchant = (await db.execute(select(Merchant).where(Merchant.site_key == key))).scalar_one_or_none()
     if not merchant:
         merchant = Merchant(site_key=key, name=key)
         db.add(merchant)

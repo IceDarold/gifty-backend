@@ -48,8 +48,6 @@ async def sqlite_db_session(tmp_path):
                 ParsingHub.__table__,
                 DiscoveredCategory.__table__,
                 ParsingRun.__table__,
-                ParsingHub.__table__,
-                DiscoveredCategory.__table__,
                 CategoryMap.__table__,
                 Product.__table__,
                 Merchant.__table__,

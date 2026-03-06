@@ -1,5 +1,7 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
+import json
+import logging
 from typing import Optional, List, Sequence, Any
 
 from sqlalchemy import select, update, and_, or_, func, case
@@ -7,6 +9,8 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ParsingSource, CategoryMap, ParsingRun, ParsingHub, DiscoveredCategory
+
+logger = logging.getLogger(__name__)
 
 class ParsingRepository:
     def __init__(self, session: AsyncSession, redis: Optional[Any] = None):
@@ -26,7 +30,9 @@ class ParsingRepository:
             )
             .order_by(ParsingSource.priority.desc(), ParsingSource.next_sync_at.asc())
             .limit(limit)
-            .with_for_update(skip_locked=True)
+            # Postgres does not allow `FOR UPDATE` on the nullable side of an OUTER JOIN.
+            # We only need to lock the due `parsing_sources` rows.
+            .with_for_update(skip_locked=True, of=ParsingSource)
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -127,6 +133,15 @@ class ParsingRepository:
 
     async def get_all_sources(self) -> Sequence[ParsingSource]:
         stmt = select(ParsingSource).order_by(ParsingSource.id.asc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_all_active_sources(self) -> Sequence[ParsingSource]:
+        stmt = (
+            select(ParsingSource)
+            .where(ParsingSource.is_active.is_(True))
+            .order_by(ParsingSource.id.asc())
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -592,17 +607,25 @@ class ParsingRepository:
             return source
         return None
 
-    async def log_parsing_run(self, source_id: int, status: str, items_scraped: int, items_new: int, error_message: str = None):
-        from app.models import ParsingRun
+    async def log_parsing_run(
+        self,
+        source_id: int,
+        status: str,
+        items_scraped: int,
+        items_new: int,
+        error_message: str | None = None,
+    ) -> ParsingRun:
         run = ParsingRun(
-            source_id=source_id,
-            status=status,
-            items_scraped=items_scraped,
-            items_new=items_new,
-            error_message=error_message
+            source_id=int(source_id),
+            status=str(status),
+            items_scraped=int(items_scraped or 0),
+            items_new=int(items_new or 0),
+            error_message=error_message,
         )
         self.session.add(run)
         await self.session.commit()
+        await self.session.refresh(run)
+        return run
 
     async def create_parsing_run(
         self,
@@ -625,6 +648,39 @@ class ParsingRepository:
             logs=logs,
         )
         self.session.add(run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
+    async def update_parsing_run(
+        self,
+        run_id: int,
+        *,
+        status: str | None = None,
+        items_scraped: int | None = None,
+        items_new: int | None = None,
+        error_message: str | None = None,
+        duration_seconds: float | None = None,
+        logs: str | None = None,
+    ) -> ParsingRun | None:
+        stmt = select(ParsingRun).where(ParsingRun.id == int(run_id))
+        run = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not run:
+            return None
+
+        if status is not None:
+            run.status = str(status)
+        if items_scraped is not None:
+            run.items_scraped = int(items_scraped or 0)
+        if items_new is not None:
+            run.items_new = int(items_new or 0)
+        if error_message is not None:
+            run.error_message = error_message
+        if duration_seconds is not None:
+            run.duration_seconds = duration_seconds
+        if logs is not None:
+            run.logs = logs
+
         await self.session.commit()
         await self.session.refresh(run)
         return run

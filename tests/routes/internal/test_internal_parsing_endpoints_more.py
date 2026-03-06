@@ -69,7 +69,10 @@ async def test_update_parsing_source_endpoint_404(fake_db, monkeypatch):
 
 @pytest.mark.anyio
 async def test_sync_spiders_endpoint_notifies_when_new(fake_db, monkeypatch):
-    repo = SimpleNamespace(sync_spiders=AsyncMock(return_value=["s1", "s2"]))
+    repo = SimpleNamespace(
+        sync_spiders=AsyncMock(return_value=["s1", "s2"]),
+        mark_missing_spiders=AsyncMock(return_value={"disabled": [], "still_missing": []}),
+    )
     notifier = SimpleNamespace(notify=AsyncMock())
     monkeypatch.setattr(internal_routes, "ParsingRepository", lambda db: repo)
     monkeypatch.setattr(internal_routes, "get_notification_service", lambda: notifier)
@@ -80,12 +83,18 @@ async def test_sync_spiders_endpoint_notifies_when_new(fake_db, monkeypatch):
         _="internal",
     )
     assert out["new_spiders"] == ["s1", "s2"]
+    # Notifications are fire-and-forget (scheduled via create_task).
+    await asyncio.sleep(0)
     notifier.notify.assert_awaited()
+    repo.mark_missing_spiders.assert_awaited()
 
 
 @pytest.mark.anyio
 async def test_sync_spiders_endpoint_no_new_no_notify(fake_db, monkeypatch):
-    repo = SimpleNamespace(sync_spiders=AsyncMock(return_value=[]))
+    repo = SimpleNamespace(
+        sync_spiders=AsyncMock(return_value=[]),
+        mark_missing_spiders=AsyncMock(return_value={"disabled": [], "still_missing": []}),
+    )
     notifier = SimpleNamespace(notify=AsyncMock())
     monkeypatch.setattr(internal_routes, "ParsingRepository", lambda db: repo)
     monkeypatch.setattr(internal_routes, "get_notification_service", lambda: notifier)
@@ -93,7 +102,9 @@ async def test_sync_spiders_endpoint_no_new_no_notify(fake_db, monkeypatch):
         SpiderSyncRequest(available_spiders=["s1"], default_urls=None), db=fake_db, _="internal"
     )
     assert out["new_spiders"] == []
+    await asyncio.sleep(0)
     assert notifier.notify.await_count == 0
+    repo.mark_missing_spiders.assert_awaited()
 
 
 @pytest.mark.anyio

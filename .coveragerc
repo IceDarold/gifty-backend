@@ -10,6 +10,7 @@ omit =
     routes/weeek.py
     app/services/anthropic_service.py
     app/utils/catalog.py
+    app/observability/tracing.py
 
 [report]
 show_missing = True

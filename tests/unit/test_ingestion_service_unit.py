@@ -38,6 +38,7 @@ async def test_ingest_products_dedup_skips_missing_site_key_and_links_categories
         get_or_create_merchant=AsyncMock(return_value=SimpleNamespace(name="Shop")),
         upsert_product_category_links=AsyncMock(),
         update_source_stats=AsyncMock(),
+        log_parsing_run=AsyncMock(),
     )
 
     monkeypatch.setattr(ingestion_module, "PostgresCatalogRepository", lambda db: catalog_repo)
@@ -71,16 +72,13 @@ async def test_ingest_categories_promotes_with_quota_and_tolerates_errors(monkey
     db = AsyncMock()
     db.commit = AsyncMock()
 
+    disc1 = SimpleNamespace(id=1, state="new", promoted_source_id=None)
+    disc2 = SimpleNamespace(id=2, state="new", promoted_source_id=None)
     parsing_repo = SimpleNamespace(
-        count_promoted_categories_today=AsyncMock(return_value=0),
-        get_hub_by_site_key=AsyncMock(return_value=SimpleNamespace(id=1)),
-        upsert_discovered_category=AsyncMock(
-            side_effect=[
-                SimpleNamespace(id=1, state="new"),
-                RuntimeError("boom"),
-            ]
-        ),
-        promote_discovered_category=AsyncMock(return_value=SimpleNamespace(next_sync_at=None)),
+        count_discovered_today=AsyncMock(return_value=0),
+        get_source_by_url=AsyncMock(return_value=None),
+        get_or_create_discovered_category=AsyncMock(side_effect=[disc1, disc2]),
+        upsert_source=AsyncMock(side_effect=[SimpleNamespace(id=10), RuntimeError("boom")]),
     )
     monkeypatch.setattr(ingestion_module, "PostgresCatalogRepository", lambda db: SimpleNamespace(upsert_products=AsyncMock()))
     monkeypatch.setattr(ingestion_module, "ParsingRepository", lambda db, redis=None: parsing_repo)
@@ -92,7 +90,8 @@ async def test_ingest_categories_promotes_with_quota_and_tolerates_errors(monkey
     ]
     out = await svc.ingest_categories(cats, activation_quota=1)
     assert out == 1  # only one upsert succeeded
-    parsing_repo.promote_discovered_category.assert_awaited_once()
+    assert disc1.state == "promoted"
+    assert disc1.promoted_source_id == 10
 
 
 @pytest.mark.anyio
@@ -102,4 +101,3 @@ async def test_ingest_categories_empty_returns_zero(monkeypatch):
     monkeypatch.setattr(ingestion_module, "ParsingRepository", lambda db, redis=None: SimpleNamespace(count_promoted_categories_today=AsyncMock()))
     svc = ingestion_module.IngestionService(db)
     assert await svc.ingest_categories([]) == 0
-

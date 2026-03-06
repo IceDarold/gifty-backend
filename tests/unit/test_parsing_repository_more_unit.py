@@ -81,6 +81,86 @@ async def test_get_aggregate_history_returns_rows():
 
 
 @pytest.mark.anyio
+async def test_mark_missing_spiders_marks_hubs_and_hub_sources_and_returns_report():
+    session = AsyncMock()
+    session.commit = AsyncMock()
+
+    hub = SimpleNamespace(site_key="miss", url="u", config={}, is_active=True, status="waiting")
+    hub_source = SimpleNamespace(site_key="miss", type="hub", url="u", config={}, is_active=True, status="waiting")
+
+    session.execute = AsyncMock(
+        side_effect=[
+            _Res(scalars_items=[hub]),  # hubs not in available
+            _Res(scalars_items=[hub_source]),  # hub mirror sources
+        ]
+    )
+
+    repo = ParsingRepository(session)
+    now = datetime(2026, 3, 6, 12, 0, 0, tzinfo=timezone.utc)
+    out = await repo.mark_missing_spiders(["present"], grace_minutes=60, now=now)
+
+    assert out["missing_spiders"] == ["miss"]
+    assert out["newly_missing_spiders"] == ["miss"]
+    assert out["disabled_spiders"] == []
+    assert out["grace_minutes"] == 60
+    assert out["ts"] == now.isoformat()
+
+    assert hub.is_active is False
+    assert hub.status == "missing"
+    assert hub.config["missing_in_code"] is True
+    assert hub.config["missing_in_code_since"] == now.isoformat()
+    assert hub.config["missing_in_code_last_seen_at"] == now.isoformat()
+
+    assert hub_source.is_active is False
+    assert hub_source.status == "missing"
+    assert hub_source.config["missing_in_code"] is True
+    assert hub_source.config["disabled_due_to_missing_in_code"] is True
+
+    session.commit.assert_awaited()
+
+
+@pytest.mark.anyio
+async def test_get_missing_spiders_report_empty_when_no_missing_flags():
+    session = AsyncMock()
+    session.execute = AsyncMock(return_value=_Res(scalars_items=[SimpleNamespace(site_key="ok", config={})]))
+    repo = ParsingRepository(session)
+    out = await repo.get_missing_spiders_report(limit=10)
+    assert out == []
+    assert session.execute.await_count == 1
+
+
+@pytest.mark.anyio
+async def test_get_missing_spiders_report_includes_stats():
+    session = AsyncMock()
+    hub = SimpleNamespace(
+        site_key="miss",
+        url="u",
+        config={"missing_in_code": True, "missing_in_code_since": "t0", "missing_in_code_last_seen_at": "t1"},
+    )
+    rows = [
+        SimpleNamespace(
+            site_key="miss",
+            sources_total=3,
+            sources_active=1,
+            sources_missing=1,
+            sources_disabled=1,
+        )
+    ]
+    session.execute = AsyncMock(
+        side_effect=[
+            _Res(scalars_items=[hub]),
+            _Res(all_rows=rows),
+        ]
+    )
+    repo = ParsingRepository(session)
+    out = await repo.get_missing_spiders_report(limit=10)
+    assert out and out[0]["site_key"] == "miss"
+    assert out[0]["hub_url"] == "u"
+    assert out[0]["stats"]["sources_total"] == 3
+    assert out[0]["hub_config"]["missing_in_code"] is True
+
+
+@pytest.mark.anyio
 async def test_get_last_full_cycle_stats_no_hub_time_and_with_time():
     session = AsyncMock()
     session.execute = AsyncMock(side_effect=[_Res(scalar_value=None)])
@@ -213,14 +293,13 @@ async def test_report_source_error_returns_none_when_source_missing():
 async def test_sync_spiders_updates_placeholder_urls_when_default_url_provided():
     session = AsyncMock()
     session.commit = AsyncMock()
-    hub = SimpleNamespace(site_key="s1", url="https://s1.placeholder")
-    src = SimpleNamespace(site_key="s1", type="hub", url="https://s1.placeholder")
+    hub = SimpleNamespace(site_key="s1", url="https://s1.placeholder", config={}, status="waiting")
+    src = SimpleNamespace(site_key="s1", type="hub", url="https://s1.placeholder", config={}, status="waiting")
 
     session.execute = AsyncMock(
         side_effect=[
-            _Res(scalars_items=["s1"]),  # existing hubs
-            _Res(scalars_items=[hub]),  # select hub by site_key
-            _Res(scalars_items=[src]),  # select runtime source
+            _Res(scalars_items=[hub]),  # existing hubs
+            _Res(scalars_items=[src]),  # existing runtime hub source
         ]
     )
     repo = ParsingRepository(session)
