@@ -4978,6 +4978,145 @@ async def get_llm_logs(
     }
 
 
+@router.get("/analytics/llm/logs/{log_id}", summary="LLM call log details (full)")
+async def get_llm_log_details(
+    log_id: str,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    import uuid
+    from sqlalchemy import select
+    from app.models import LLMLog, LLMPayload, LLMPromptTemplate
+
+    def safe_render(template_text: str, params: Optional[dict]) -> str:
+        if not template_text:
+            return ""
+        try:
+            class _SafeDict(dict):
+                def __missing__(self, key):
+                    return "{" + str(key) + "}"
+
+            return template_text.format_map(_SafeDict(params or {}))
+        except Exception:
+            return template_text
+
+    try:
+        log_uuid = uuid.UUID(log_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid log id")
+
+    row = (await db.execute(select(LLMLog).where(LLMLog.id == log_uuid))).scalar_one_or_none()
+
+    if row is None:
+        # FastAPI will convert to 404 via raised HTTPException if imported earlier in file.
+        raise HTTPException(status_code=404, detail="LLM log not found")
+
+    system_tpl = None
+    user_tpl = None
+    if row.system_prompt_template_id:
+        system_tpl = (
+            await db.execute(select(LLMPromptTemplate).where(LLMPromptTemplate.id == row.system_prompt_template_id))
+        ).scalar_one_or_none()
+    if row.user_prompt_template_id:
+        user_tpl = (
+            await db.execute(select(LLMPromptTemplate).where(LLMPromptTemplate.id == row.user_prompt_template_id))
+        ).scalar_one_or_none()
+
+    output_payload = None
+    if row.output_payload_id:
+        output_payload = (
+            await db.execute(select(LLMPayload).where(LLMPayload.id == row.output_payload_id))
+        ).scalar_one_or_none()
+
+    raw_payload = None
+    if row.raw_response_payload_id:
+        raw_payload = (
+            await db.execute(select(LLMPayload).where(LLMPayload.id == row.raw_response_payload_id))
+        ).scalar_one_or_none()
+
+    system_rendered = safe_render(system_tpl.content, row.system_prompt_params) if system_tpl else (row.system_prompt or "")
+    user_rendered = safe_render(user_tpl.content, row.user_prompt_params) if user_tpl else ""
+
+    if not user_rendered and row.input_messages:
+        try:
+            msgs = row.input_messages if isinstance(row.input_messages, list) else []
+            user_rendered = "\n\n".join([m.get("content", "") for m in msgs if m.get("role") == "user"])
+        except Exception:
+            user_rendered = ""
+
+    output_text = output_payload.content_text if output_payload and output_payload.content_text is not None else (row.output_content or "")
+    raw_json = raw_payload.content_json if raw_payload and raw_payload.content_json is not None else None
+
+    related = []
+    if row.session_id:
+        rel_rows = (
+            await db.execute(
+                select(LLMLog)
+                .where(LLMLog.session_id == row.session_id)
+                .order_by(LLMLog.created_at.desc())
+                .limit(50)
+            )
+        ).scalars().all()
+        for r in rel_rows:
+            related.append(
+                {
+                    "id": str(r.id),
+                    "created_at": r.created_at.isoformat() if r.created_at else None,
+                    "provider": r.provider,
+                    "model": r.model,
+                    "call_type": r.call_type,
+                    "status": r.status,
+                    "latency_ms": r.latency_ms,
+                    "total_tokens": r.total_tokens,
+                    "cost_usd": float(r.cost_usd) if r.cost_usd is not None else 0.0,
+                }
+            )
+
+    return {
+        "id": str(row.id),
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+        "provider": row.provider,
+        "model": row.model,
+        "call_type": row.call_type,
+        "status": row.status,
+        "finish_reason": row.finish_reason,
+        "latency_ms": row.latency_ms,
+        "provider_latency_ms": row.provider_latency_ms,
+        "queue_latency_ms": row.queue_latency_ms,
+        "postprocess_latency_ms": row.postprocess_latency_ms,
+        "prompt_tokens": row.prompt_tokens,
+        "completion_tokens": row.completion_tokens,
+        "total_tokens": row.total_tokens,
+        "cost_usd": float(row.cost_usd) if row.cost_usd is not None else 0.0,
+        "provider_request_id": row.provider_request_id,
+        "prompt_hash": row.prompt_hash,
+        "session_id": row.session_id,
+        "experiment_id": row.experiment_id,
+        "variant_id": row.variant_id,
+        "params": row.params,
+        "error_type": row.error_type,
+        "error_message": row.error_message,
+        "system_prompt": {
+            "name": system_tpl.name if system_tpl else None,
+            "template_hash": system_tpl.template_hash if system_tpl else None,
+            "params": row.system_prompt_params,
+            "rendered": system_rendered,
+        },
+        "user_prompt": {
+            "name": user_tpl.name if user_tpl else None,
+            "template_hash": user_tpl.template_hash if user_tpl else None,
+            "params": row.user_prompt_params,
+            "rendered": user_rendered,
+        },
+        "response": {
+            "output_text": output_text,
+            "raw_response": raw_json,
+        },
+        "messages": row.input_messages,
+        "related_calls": related,
+    }
+
+
 @router.get("/analytics/llm/throughput", summary="LLM throughput time-series")
 async def get_llm_throughput(
     days: int = 7,
@@ -5032,6 +5171,10 @@ async def get_llm_breakdown(
     days: int = 7,
     group_by: str = "provider",  # provider|model|call_type|status
     limit: int = 20,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    call_type: Optional[str] = None,
+    status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     _ = Depends(verify_internal_token),
 ):
@@ -5068,6 +5211,10 @@ async def get_llm_breakdown(
             func.avg(LLMLog.latency_ms).label("avg_latency_ms"),
         )
         .where(LLMLog.created_at >= since)
+        .where(LLMLog.provider == provider if provider else sa.true())
+        .where(LLMLog.model == model if model else sa.true())
+        .where(LLMLog.call_type == call_type if call_type else sa.true())
+        .where(LLMLog.status == status if status else sa.true())
         .group_by(dim)
         .order_by(func.count(LLMLog.id).desc())
         .limit(limit)
@@ -5089,6 +5236,162 @@ async def get_llm_breakdown(
         )
 
     return {"group_by": group_by, "days": days, "items": items}
+
+
+@router.get("/analytics/llm/stats", summary="LLM stats for current filters")
+async def get_llm_stats(
+    days: int = 7,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    call_type: Optional[str] = None,
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from sqlalchemy import select, func
+    from app.models import LLMLog
+
+    if days < 1:
+        days = 1
+    if days > 90:
+        days = 90
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    base = select(LLMLog).where(LLMLog.created_at >= since)
+    if provider:
+        base = base.where(LLMLog.provider == provider)
+    if model:
+        base = base.where(LLMLog.model == model)
+    if call_type:
+        base = base.where(LLMLog.call_type == call_type)
+    if status:
+        base = base.where(LLMLog.status == status)
+
+    subq = base.subquery()
+
+    latency_col = subq.c.latency_ms
+    tokens_col = subq.c.total_tokens
+    cost_col = subq.c.cost_usd
+
+    stmt = select(
+        func.count().label("total"),
+        func.sum(sa.case((subq.c.status == "error", 1), else_=0)).label("errors"),
+        func.avg(latency_col).label("avg_latency"),
+        func.percentile_cont(0.5).within_group(latency_col).label("p50_latency"),
+        func.percentile_cont(0.95).within_group(latency_col).label("p95_latency"),
+        func.avg(tokens_col).label("avg_tokens"),
+        func.percentile_cont(0.5).within_group(tokens_col).label("p50_tokens"),
+        func.percentile_cont(0.95).within_group(tokens_col).label("p95_tokens"),
+        func.sum(cost_col).label("total_cost"),
+        func.avg(cost_col).label("avg_cost"),
+    )
+
+    res = await db.execute(stmt)
+    row = res.first()
+    if not row:
+        return {"days": days, "total": 0}
+
+    def to_float(v):
+        if v is None:
+            return None
+        if isinstance(v, Decimal):
+            return float(v)
+        try:
+            return float(v)
+        except Exception:
+            return None
+
+    total = int(row.total or 0)
+    errors = int(row.errors or 0)
+    return {
+        "days": days,
+        "total": total,
+        "errors": errors,
+        "ok": total - errors,
+        "error_rate": (errors / total) if total else 0.0,
+        "avg_latency_ms": to_float(row.avg_latency),
+        "p50_latency_ms": to_float(row.p50_latency),
+        "p95_latency_ms": to_float(row.p95_latency),
+        "avg_total_tokens": to_float(row.avg_tokens),
+        "p50_total_tokens": to_float(row.p50_tokens),
+        "p95_total_tokens": to_float(row.p95_tokens),
+        "total_cost_usd": to_float(row.total_cost) or 0.0,
+        "avg_cost_usd": to_float(row.avg_cost),
+    }
+
+
+@router.get("/analytics/llm/outliers", summary="LLM outliers for quick debugging")
+async def get_llm_outliers(
+    days: int = 7,
+    metric: str = "latency",  # latency|tokens|cost
+    limit: int = 10,
+    provider: Optional[str] = None,
+    model: Optional[str] = None,
+    call_type: Optional[str] = None,
+    status: Optional[str] = None,
+    db: AsyncSession = Depends(get_db),
+    _ = Depends(verify_internal_token),
+):
+    from datetime import datetime, timedelta, timezone
+    from decimal import Decimal
+    from sqlalchemy import select
+    from app.models import LLMLog
+
+    if days < 1:
+        days = 1
+    if days > 90:
+        days = 90
+    if limit < 1:
+        limit = 1
+    if limit > 50:
+        limit = 50
+
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+    stmt = select(LLMLog).where(LLMLog.created_at >= since)
+    if provider:
+        stmt = stmt.where(LLMLog.provider == provider)
+    if model:
+        stmt = stmt.where(LLMLog.model == model)
+    if call_type:
+        stmt = stmt.where(LLMLog.call_type == call_type)
+    if status:
+        stmt = stmt.where(LLMLog.status == status)
+
+    metric_norm = (metric or "").lower()
+    if metric_norm == "tokens":
+        order_col = LLMLog.total_tokens
+    elif metric_norm == "cost":
+        order_col = LLMLog.cost_usd
+    else:
+        order_col = LLMLog.latency_ms
+
+    rows = (await db.execute(stmt.order_by(order_col.desc().nullslast()).limit(limit))).scalars().all()
+    items = []
+    for r in rows:
+        cost_val = r.cost_usd
+        if isinstance(cost_val, Decimal):
+            cost_val = float(cost_val)
+        items.append(
+            {
+                "id": str(r.id),
+                "created_at": r.created_at.isoformat() if r.created_at else None,
+                "provider": r.provider,
+                "model": r.model,
+                "call_type": r.call_type,
+                "status": r.status,
+                "latency_ms": r.latency_ms,
+                "total_tokens": r.total_tokens,
+                "cost_usd": cost_val,
+                "error_type": r.error_type,
+            }
+        )
+
+    return {"days": days, "metric": metric_norm or "latency", "items": items}
+
+
 @router.get("/health", summary="Detailed system health monitoring")
 async def get_system_health(
     db: AsyncSession = Depends(get_db),
