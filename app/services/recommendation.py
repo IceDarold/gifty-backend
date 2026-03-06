@@ -11,6 +11,10 @@ from app.services.embeddings import EmbeddingService
 from app.services.intelligence import IntelligenceAPIClient, get_intelligence_client
 from app.services.notifications import get_notification_service
 
+from recommendations.models import QuizAnswers, Language, EffortLevel, RecipientRelation
+from recommendations.ranker_v1 import rank_candidates
+from integrations.takprodam.models import GiftCandidate
+
 logger = logging.getLogger(__name__)
 
 class RecommendationService:
@@ -23,7 +27,7 @@ class RecommendationService:
     async def generate_recommendations(
         self, 
         request: RecommendationRequest,
-        engine_version: str = "vector_v1"
+        engine_version: str = "vector_v2"
     ) -> RecommendationResponse:
         """
         Main orchestration method for recommendation generation.
@@ -33,15 +37,25 @@ class RecommendationService:
         
         # Stage A: Vector Retrieval
         candidates = await self._retrieve_candidates(request)
+        if not candidates:
+             return RecommendationResponse(
+                quiz_run_id="stub-id",
+                engine_version=engine_version,
+                featured_gift=None,
+                gifts=[],
+                debug={"status": "no_candidates_found"} if request.debug else None
+            )
+
+        # Stage B: CPU Ranker (Initial scoring and diversity)
+        ranked_result = await self._rank_candidates(request, candidates)
         
-        # Stage B: CPU Ranker
-        ranked_candidates = await self._rank_candidates(request, candidates)
+        # Stage C: LLM-as-judge Rerank (Deep reasoning)
+        # We rerank only the top candidates from Stage B to save tokens/time
+        reranked_gifts = await self._judge_rerank(request, ranked_result.gifts)
         
-        # Stage C: LLM-as-judge Rerank (Stub)
-        final_candidates = await self._judge_rerank(request, ranked_candidates)
-        
-        # Stage D: Constraints Re-ranking (Diversity)
-        final_gifts_data = self._apply_final_rank_and_diversity(request, final_candidates)
+        # Stage D: Final check (Diversity is already handled by ranker_v1 in Stage B, 
+        # but we can enforce constraints here if needed)
+        final_gifts_data = reranked_gifts[:request.top_n]
 
         gifts = [
             GiftDTO(
@@ -49,7 +63,7 @@ class RecommendationService:
                 title=g.title,
                 description=g.description,
                 price=g.price,
-                currency=g.currency,
+                currency=g.currency or "RUB",
                 image_url=g.image_url,
                 product_url=g.product_url,
                 merchant=g.merchant,
@@ -63,7 +77,7 @@ class RecommendationService:
             engine_version=engine_version,
             featured_gift=featured_gift,
             gifts=gifts,
-            debug={"status": "candidates_retrieved", "count": len(candidates)} if request.debug else None
+            debug=ranked_result.debug if request.debug else None
         )
 
     def _build_query_text(self, request: RecommendationRequest) -> str:
@@ -86,27 +100,97 @@ class RecommendationService:
         
         # 1. Generate Query Embedding
         query_vector = await self.embedding_service.embed_batch_async([query_text])
+        if not query_vector:
+            return []
         query_vector = query_vector[0]
         
-        # 2. Search in Repo (Top 50 candidates for further ranking)
+        # 2. Search in Repo (Top 100 candidates for further ranking)
         candidates = await self.repo.search_similar_products(
             embedding=query_vector, 
-            limit=50,
+            limit=100,
             is_active_only=True
         )
         return candidates
 
-    async def _rank_candidates(self, request: RecommendationRequest, candidates: list[Any]) -> list[Any]:
-        """Stage B: CPU Ranker (Logic from SoT Section 5)"""
-        return candidates
+    def _map_request_to_quiz(self, request: RecommendationRequest) -> QuizAnswers:
+        """Maps API RecommendationRequest to internal QuizAnswers for ranker compatibility."""
+        # Simple relation mapping
+        rel_map = {
+            "partner": RecipientRelation.PARTNER,
+            "friend": RecipientRelation.FRIEND,
+            "colleague": RecipientRelation.COLLEAGUE,
+            "child": RecipientRelation.CHILD,
+            "relative": RecipientRelation.RELATIVE,
+        }
+        
+        return QuizAnswers(
+            relationship=rel_map.get(str(request.relationship).lower(), RecipientRelation.UNKNOWN),
+            recipient_age=request.recipient_age,
+            recipient_gender=request.recipient_gender,
+            occasion=request.occasion,
+            vibe=request.vibe,
+            interests=request.interests,
+            interests_description=request.interests_description,
+            budget=int(request.budget) if request.budget else None,
+            effort_level=EffortLevel.LOW, # Default or from elsewhere
+            language=Language.RU
+        )
 
-    async def _judge_rerank(self, request: RecommendationRequest, candidates: list[Any]) -> list[Any]:
-        """Stage C: LLM-as-judge Rerank (Stub for now)"""
-        return candidates
+    async def _rank_candidates(self, request: RecommendationRequest, products: list[Any]) -> Any:
+        """Stage B: CPU Ranker (Logic from ranker_v1)"""
+        quiz = self._map_request_to_quiz(request)
+        
+        # Convert DB products to GiftCandidate models for ranker
+        candidates = [
+            GiftCandidate(
+                gift_id=p.gift_id,
+                title=p.title,
+                description=p.description,
+                price=float(p.price) if p.price is not None else None,
+                currency=p.currency,
+                image_url=p.image_url,
+                product_url=p.product_url,
+                merchant=p.merchant,
+                category=p.category,
+                raw=p.raw or {}
+            )
+            for p in products
+        ]
+        
+        # Use ranker_v1 which handles scoring, filtering and diversity
+        result = rank_candidates(
+            quiz=quiz,
+            candidates=candidates,
+            top_n=max(request.top_n * 2, 20), # Keep more for Stage C
+            debug=request.debug
+        )
+        return result
 
-    def _apply_final_rank_and_diversity(self, request: RecommendationRequest, candidates: list[Any]) -> list[Any]:
-        """Stage D: Constraints Re-ranking & Diversity"""
-        return candidates[:request.top_n]
+    async def _judge_rerank(self, request: RecommendationRequest, candidates: list[GiftCandidate]) -> list[GiftCandidate]:
+        """Stage C: LLM-as-judge Rerank using Intelligence API"""
+        if not candidates:
+            return []
+            
+        # 1. Prepare data for reranking
+        doc_texts = [f"{c.title}: {c.description or ''}" for c in candidates]
+        query_context = self._build_query_text(request)
+        
+        try:
+            # 2. Call Intelligence API for cross-attention scores
+            scores = await self.intelligence_client.rerank(query_context, doc_texts)
+            
+            # 3. Apply scores and sort
+            # Zip candidates with scores and sort by score descending
+            scored_candidates = sorted(
+                zip(candidates, scores),
+                key=lambda x: x[1],
+                reverse=True
+            )
+            
+            return [c for c, score in scored_candidates]
+        except Exception as e:
+            logger.error(f"LLM Reranking failed, using CPU Ranker order: {e}")
+            return candidates
 
     async def find_preview_products(
         self, 
