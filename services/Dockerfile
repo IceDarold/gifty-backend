@@ -9,10 +9,15 @@ RUN apt-get update && apt-get install -y \
     zlib1g-dev \
     libffi-dev \
     libssl-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Scrapy spiders rely on Playwright for a number of JS-heavy sites.
+# Python Playwright package does not ship browsers, so we must download them at build time.
+RUN python -m playwright install --with-deps chromium
 
 COPY . .
 

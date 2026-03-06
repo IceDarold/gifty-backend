@@ -10,6 +10,8 @@ class GiftyBaseSpider(scrapy.Spider):
 
     def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
         super(GiftyBaseSpider, self).__init__(*args, **kwargs)
+        # Many spiders rely on `self.url` inside start_requests().
+        self.url = url
         self.start_urls = [url] if url else []
         self.strategy = strategy
         self.source_id = source_id

@@ -48,7 +48,7 @@
     "hub_url": "https://russianlegacy.com/"
   },
   "sokolov": {
-    "hub_url": "https://catalog.sokolov.ru/api/v2/catalog"
+    "hub_url": "https://catalog.sokolov.ru/api/v2/filters"
   },
   "sportmaster": {
     "hub_url": "https://www.sportmaster.ru/"

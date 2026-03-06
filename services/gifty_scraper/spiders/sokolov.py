@@ -1,5 +1,6 @@
 import json
 import re
+import scrapy
 from gifty_scraper.base_spider import GiftyBaseSpider
 from gifty_scraper.items import CategoryItem
 
@@ -11,6 +12,7 @@ class SokolovSpider(GiftyBaseSpider):
     # Base URLs
     WEB_BASE_URL = "https://sokolov.ru"
     API_BASE_URL = "https://catalog.sokolov.ru/api/v2/catalog"
+    FILTERS_URL = "https://catalog.sokolov.ru/api/v2/filters"
     
     custom_settings = {
         "ROBOTSTXT_OBEY": False,
@@ -22,6 +24,21 @@ class SokolovSpider(GiftyBaseSpider):
             "Referer": "https://sokolov.ru/",
         },
     }
+
+    def start_requests(self):
+        # The public web catalog may return 401 from this environment. For discovery, rely on the
+        # API filters endpoint which provides a stable category tree.
+        start_url = self.url or (self.start_urls[0] if self.start_urls else None)
+        if self.strategy == "discovery":
+            yield scrapy.Request(
+                start_url or self.FILTERS_URL,
+                callback=self.parse,
+                dont_filter=True,
+                headers={"Accept": "application/json"},
+            )
+        else:
+            if start_url:
+                yield scrapy.Request(start_url, callback=self.parse, dont_filter=True)
 
     def parse(self, response):
         """
@@ -37,35 +54,54 @@ class SokolovSpider(GiftyBaseSpider):
         """
         Discovery strategy: find category links.
         """
-        # Sokolov catalog links usually start with /jewelry-catalog/
-        # We look for links in menus or main content
-        links = response.css('a[href^="/jewelry-catalog/"]')
+        # Preferred discovery mode: parse the category tree from `/api/v2/filters`.
+        content_type = response.headers.get("Content-Type", b"").decode().lower()
+        if "application/json" not in content_type:
+            yield response.follow(self.FILTERS_URL, callback=self.parse_discovery, dont_filter=True)
+            return
+
+        try:
+            data = json.loads(response.text)
+        except Exception as e:
+            self.logger.error(f"Failed to parse filters JSON: {e}")
+            return
+
+        category = data.get("category") if isinstance(data, dict) else None
+        fields = category.get("fields") if isinstance(category, dict) else None
+        if not isinstance(fields, list) or not fields:
+            self.logger.warning(f"No category fields found in filters response: {response.url}")
+            return
+
         seen = set()
-        for link in links:
-            url = response.urljoin(link.css("::attr(href)").get())
-            if not url or url in seen or url == response.url:
-                continue
-            
-            # Avoid product pages and filtered pages in discovery if possible
-            if "/product/" in url or "?" in url:
-                continue
-                
+
+        def emit(node: dict, parent_url: str | None):
+            name = (node.get("name") or "").strip()
+            value = (node.get("value") or "").strip()
+            if not name or not value:
+                return
+            # Use API catalog URLs so deep parsing works even if web catalog is blocked.
+            url = f"{self.API_BASE_URL}/jewelry-catalog/{value}/?per_page=72&page=1"
+            if url in seen:
+                return
             seen.add(url)
-            name = link.xpath(".//text()").get()
-            if not name:
-                name = link.css("::text").get()
-            
-            name = name.strip() if name else None
-            if not name or len(name) < 2:
-                continue
-                
-            yield CategoryItem(
+            yield self.create_category(
                 name=name,
-                title=name,
                 url=url,
-                parent_url=response.url,
-                site_key=self.site_key
+                parent_url=parent_url or response.url,
             )
+
+        def walk(nodes: list, parent_url: str | None):
+            for node in nodes:
+                if not isinstance(node, dict):
+                    continue
+                for item in emit(node, parent_url):
+                    yield item
+                children = node.get("children")
+                if isinstance(children, list) and children:
+                    child_parent = f"{self.API_BASE_URL}/jewelry-catalog/{(node.get('value') or '').strip()}/?per_page=72&page=1"
+                    yield from walk(children, child_parent)
+
+        yield from walk(fields, response.url)
 
     def parse_catalog(self, response):
         """
