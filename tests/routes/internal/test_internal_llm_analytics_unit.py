@@ -42,6 +42,11 @@ class _ScalarsAllResult:
         return SimpleNamespace(all=lambda: list(self._items))
 
 
+class _Row:
+    def __init__(self, mapping: dict):
+        self._mapping = mapping
+
+
 @pytest.mark.anyio
 async def test_internal_intelligence_stats_converts_decimals(fake_db):
     metrics = SimpleNamespace(
@@ -70,35 +75,37 @@ async def test_internal_intelligence_stats_converts_decimals(fake_db):
 
 @pytest.mark.anyio
 async def test_internal_llm_logs_clamps_and_serializes_decimals(fake_db):
-    log = SimpleNamespace(
-        id="1",
-        created_at=datetime(2025, 1, 1, tzinfo=timezone.utc),
-        provider="p",
-        model="m",
-        call_type="c",
-        status="ok",
-        error_type=None,
-        error_message=None,
-        provider_request_id=None,
-        prompt_hash="h",
-        params={"k": "v"},
-        cost_usd=Decimal("0.12"),
-        total_tokens=3,
-        prompt_tokens=1,
-        completion_tokens=2,
-        latency_ms=10,
-        session_id="s",
-        experiment_id=None,
-        variant_id=None,
-        request=None,
-        response=None,
-        error=None,
+    fake_redis = AsyncMock()
+    fake_redis.get.return_value = None
+
+    log = _Row(
+        {
+            "id": "1",
+            "created_at": datetime(2025, 1, 1, tzinfo=timezone.utc),
+            "provider": "p",
+            "model": "m",
+            "call_type": "c",
+            "status": "ok",
+            "error_type": None,
+            "error_message": None,
+            "provider_request_id": None,
+            "prompt_hash": "h",
+            "params": {"k": "v"},
+            "cost_usd": Decimal("0.12"),
+            "total_tokens": 3,
+            "prompt_tokens": 1,
+            "completion_tokens": 2,
+            "latency_ms": 10,
+            "session_id": "s",
+            "experiment_id": None,
+            "variant_id": None,
+        }
     )
 
     fake_db.execute = AsyncMock(
         side_effect=[
             _ScalarOneResult(1),  # total
-            _ScalarsAllResult([log]),  # rows
+            _AllResult([log]),  # rows
         ]
     )
     out = await internal_routes.get_llm_logs(
@@ -113,6 +120,7 @@ async def test_internal_llm_logs_clamps_and_serializes_decimals(fake_db):
         experiment_id="e",
         variant_id="v",
         db=fake_db,
+        redis=fake_redis,
         _="internal",
     )
     assert out["total"] == 1
@@ -123,6 +131,9 @@ async def test_internal_llm_logs_clamps_and_serializes_decimals(fake_db):
 
 @pytest.mark.anyio
 async def test_internal_llm_throughput_and_breakdown(fake_db):
+    fake_redis = AsyncMock()
+    fake_redis.get.return_value = None
+
     ts = datetime(2025, 1, 1, tzinfo=timezone.utc)
     fake_db.execute = AsyncMock(
         side_effect=[
@@ -131,11 +142,11 @@ async def test_internal_llm_throughput_and_breakdown(fake_db):
         ]
     )
 
-    out = await internal_routes.get_llm_throughput(days=0, bucket="bad", provider=None, model=None, call_type=None, status=None, db=fake_db, _="internal")
+    out = await internal_routes.get_llm_throughput(days=0, bucket="bad", provider=None, model=None, call_type=None, status=None, db=fake_db, redis=fake_redis, _="internal")
     assert out["days"] == 1
     assert out["bucket"] == "hour"
     assert out["points"][0]["count"] == 3
 
-    out2 = await internal_routes.get_llm_breakdown(days=0, group_by="provider", limit=999, db=fake_db, _="internal")
+    out2 = await internal_routes.get_llm_breakdown(days=0, group_by="provider", limit=999, db=fake_db, redis=fake_redis, _="internal")
     assert out2["days"] == 1
     assert out2["items"][0]["total_cost_usd"] == 1.0

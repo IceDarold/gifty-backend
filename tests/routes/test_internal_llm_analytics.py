@@ -14,7 +14,8 @@ def _override_redis_dependency():
     Some endpoints reference app.state.redis in other code paths.
     Keep a lightweight override to avoid AttributeError during app startup.
     """
-    from app.redis_client import get_redis
+    from app.redis_client import get_redis as get_redis_from_state
+    from app.db import get_redis as get_redis_from_db
     from fastapi import Request
     from unittest.mock import AsyncMock
 
@@ -24,10 +25,12 @@ def _override_redis_dependency():
     async def _get_redis_override(request: Request):
         return mock_redis
 
-    app.dependency_overrides[get_redis] = _get_redis_override
+    app.dependency_overrides[get_redis_from_state] = _get_redis_override
+    app.dependency_overrides[get_redis_from_db] = lambda: mock_redis
     app.state.redis = mock_redis
     yield
-    app.dependency_overrides.pop(get_redis, None)
+    app.dependency_overrides.pop(get_redis_from_state, None)
+    app.dependency_overrides.pop(get_redis_from_db, None)
 
 
 @pytest.fixture

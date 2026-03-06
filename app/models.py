@@ -544,6 +544,9 @@ class LLMLog(TimestampMixin, Base):
     
     # Input/Output
     input_messages: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    input_messages_payload_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("llm_payloads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     output_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 

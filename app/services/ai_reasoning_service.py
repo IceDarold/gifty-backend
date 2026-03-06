@@ -99,7 +99,7 @@ class AIReasoningService:
         """Asynchronously logs LLM call to database if session is available."""
         if not self.db:
             return
-            
+
         try:
             prompt_tokens = 0
             completion_tokens = 0
@@ -107,6 +107,7 @@ class AIReasoningService:
             output_content = None
             raw_response = None
             finish_reason = None
+            input_messages_payload_id = None
 
             if response is not None:
                 usage = response.usage or {}
@@ -134,21 +135,27 @@ class AIReasoningService:
                 provider_request_id = None
 
             prompt_hash = _hash_prompt(system_prompt, messages)
-            
+
             # Determine actual provider name
             provider_name = getattr(self.llm_client, "provider", logic_config.llm.default_provider)
             if hasattr(self.llm_client, "__class__"):
                 class_name = self.llm_client.__class__.__name__.lower()
-                if "groq" in class_name: provider_name = "groq"
-                elif "anthropic" in class_name: provider_name = "anthropic"
-                elif "gemini" in class_name: provider_name = "gemini"
-                elif "openrouter" in class_name: provider_name = "openrouter"
-                elif "together" in class_name: provider_name = "together"
+                if "groq" in class_name:
+                    provider_name = "groq"
+                elif "anthropic" in class_name:
+                    provider_name = "anthropic"
+                elif "gemini" in class_name:
+                    provider_name = "gemini"
+                elif "openrouter" in class_name:
+                    provider_name = "openrouter"
+                elif "together" in class_name:
+                    provider_name = "together"
 
             system_template_id = None
             user_template_id = None
             output_payload_id = None
             raw_payload_id = None
+            input_messages = [m.model_dump() for m in messages] if messages else None
 
             if system_prompt_template_name and system_prompt_template_content:
                 system_template_id = await get_or_create_prompt_template(
@@ -165,18 +172,30 @@ class AIReasoningService:
                     content=user_prompt_template_content,
                     kind="user",
                 )
+                # Template already defines the user prompt; avoid duplicating raw input messages.
+                input_messages = None
 
             if output_content is not None:
-                output_payload_id = await get_or_create_payload(self.db, kind="output_text", content_text=output_content)
+                output_payload_id = await get_or_create_payload(
+                    self.db, kind="output_text", content_text=output_content
+                )
 
             if raw_response is not None:
                 raw_payload_id = await get_or_create_payload(self.db, kind="raw_response", content_json=raw_response)
+
+            if user_template_id is None and input_messages is not None:
+                # Avoid duplicating large message arrays per log row.
+                input_messages_payload_id = await get_or_create_payload(
+                    self.db, kind="input_messages", content_json=input_messages
+                )
+                input_messages = None
 
             log = LLMLog(
                 provider=provider_name,
                 model=model,
                 call_type=call_type,
-                input_messages=None if user_template_id else ([m.model_dump() for m in messages] if messages else None),
+                input_messages=input_messages,
+                input_messages_payload_id=input_messages_payload_id,
                 system_prompt=None if system_template_id else system_prompt,
                 output_content=None if output_payload_id else output_content,
                 system_prompt_template_id=system_template_id,

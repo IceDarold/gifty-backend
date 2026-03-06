@@ -4887,6 +4887,35 @@ async def get_intelligence_stats(
     }
 
 
+_LLM_ANALYTICS_CACHE_TTL_SEC = 30
+_LLM_LOGS_CACHE_TTL_SEC = 5
+
+
+def _llm_cache_key(prefix: str, params: dict) -> str:
+    blob = json.dumps(params, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    digest = hashlib.sha256(blob.encode("utf-8", errors="ignore")).hexdigest()
+    return f"llm:analytics:{prefix}:{digest}"
+
+
+async def _redis_get_json(redis: Redis, key: str) -> Optional[dict]:
+    try:
+        raw = await redis.get(key)
+        if not raw:
+            return None
+        if isinstance(raw, (bytes, bytearray)):
+            raw = raw.decode("utf-8", errors="replace")
+        return json.loads(raw)
+    except Exception:
+        return None
+
+
+async def _redis_set_json(redis: Redis, key: str, value: dict, ttl_sec: int) -> None:
+    try:
+        await redis.setex(key, int(ttl_sec), json.dumps(value, ensure_ascii=False, default=str))
+    except Exception:
+        return
+
+
 @router.get("/analytics/llm/logs", summary="LLM call logs (paginated)")
 async def get_llm_logs(
     days: int = 7,
@@ -4900,6 +4929,7 @@ async def get_llm_logs(
     experiment_id: Optional[str] = None,
     variant_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     from datetime import datetime, timedelta, timezone
@@ -4919,63 +4949,106 @@ async def get_llm_logs(
         offset = 0
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    stmt = select(LLMLog).where(LLMLog.created_at >= since)
+    cache_key = _llm_cache_key(
+        "logs",
+        {
+            "days": days,
+            "limit": limit,
+            "offset": offset,
+            "provider": provider,
+            "model": model,
+            "call_type": call_type,
+            "status": status,
+            "session_id": session_id,
+            "experiment_id": experiment_id,
+            "variant_id": variant_id,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
 
+    where = [LLMLog.created_at >= since]
     if provider:
-        stmt = stmt.where(LLMLog.provider == provider)
+        where.append(LLMLog.provider == provider)
     if model:
-        stmt = stmt.where(LLMLog.model == model)
+        where.append(LLMLog.model == model)
     if call_type:
-        stmt = stmt.where(LLMLog.call_type == call_type)
+        where.append(LLMLog.call_type == call_type)
     if status:
-        stmt = stmt.where(LLMLog.status == status)
+        where.append(LLMLog.status == status)
     if session_id:
-        stmt = stmt.where(LLMLog.session_id == session_id)
+        where.append(LLMLog.session_id == session_id)
     if experiment_id:
-        stmt = stmt.where(LLMLog.experiment_id == experiment_id)
+        where.append(LLMLog.experiment_id == experiment_id)
     if variant_id:
-        stmt = stmt.where(LLMLog.variant_id == variant_id)
+        where.append(LLMLog.variant_id == variant_id)
 
-    total_stmt = select(func.count()).select_from(stmt.subquery())
+    total_stmt = select(func.count(LLMLog.id)).where(*where)
     total = (await db.execute(total_stmt)).scalar_one() or 0
 
-    rows = (await db.execute(stmt.order_by(LLMLog.created_at.desc()).offset(offset).limit(limit))).scalars().all()
+    stmt = (
+        select(
+            LLMLog.id,
+            LLMLog.created_at,
+            LLMLog.provider,
+            LLMLog.model,
+            LLMLog.call_type,
+            LLMLog.status,
+            LLMLog.error_type,
+            LLMLog.error_message,
+            LLMLog.provider_request_id,
+            LLMLog.prompt_hash,
+            LLMLog.params,
+            LLMLog.latency_ms,
+            LLMLog.prompt_tokens,
+            LLMLog.completion_tokens,
+            LLMLog.total_tokens,
+            LLMLog.cost_usd,
+            LLMLog.session_id,
+            LLMLog.experiment_id,
+            LLMLog.variant_id,
+        )
+        .where(*where)
+        .order_by(LLMLog.created_at.desc(), LLMLog.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
 
+    res = await db.execute(stmt)
     items = []
-    for r in rows:
-        cost_val = r.cost_usd
+    for row in res.all():
+        m = row._mapping
+        cost_val = m["cost_usd"]
         if isinstance(cost_val, Decimal):
             cost_val = float(cost_val)
         items.append(
             {
-                "id": str(r.id),
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-                "provider": r.provider,
-                "model": r.model,
-                "call_type": r.call_type,
-                "status": r.status,
-                "error_type": r.error_type,
-                "error_message": r.error_message,
-                "provider_request_id": r.provider_request_id,
-                "prompt_hash": r.prompt_hash,
-                "params": r.params,
-                "latency_ms": r.latency_ms,
-                "prompt_tokens": r.prompt_tokens,
-                "completion_tokens": r.completion_tokens,
-                "total_tokens": r.total_tokens,
+                "id": str(m["id"]),
+                "created_at": m["created_at"].isoformat() if m["created_at"] else None,
+                "provider": m["provider"],
+                "model": m["model"],
+                "call_type": m["call_type"],
+                "status": m["status"],
+                "error_type": m["error_type"],
+                "error_message": m["error_message"],
+                "provider_request_id": m["provider_request_id"],
+                "prompt_hash": m["prompt_hash"],
+                "params": m["params"],
+                "latency_ms": m["latency_ms"],
+                "prompt_tokens": m["prompt_tokens"],
+                "completion_tokens": m["completion_tokens"],
+                "total_tokens": m["total_tokens"],
                 "cost_usd": cost_val,
-                "session_id": r.session_id,
-                "experiment_id": r.experiment_id,
-                "variant_id": r.variant_id,
+                "session_id": m["session_id"],
+                "experiment_id": m["experiment_id"],
+                "variant_id": m["variant_id"],
             }
         )
 
-    return {
-        "total": int(total),
-        "limit": limit,
-        "offset": offset,
-        "items": items,
-    }
+    payload = {"total": int(total), "limit": limit, "offset": offset, "items": items}
+    await _redis_set_json(redis, cache_key, payload, _LLM_LOGS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/analytics/llm/logs/{log_id}", summary="LLM call log details (full)")
@@ -5034,12 +5107,20 @@ async def get_llm_log_details(
             await db.execute(select(LLMPayload).where(LLMPayload.id == row.raw_response_payload_id))
         ).scalar_one_or_none()
 
+    input_messages = row.input_messages
+    if input_messages is None and getattr(row, "input_messages_payload_id", None):
+        input_payload = (
+            await db.execute(select(LLMPayload).where(LLMPayload.id == row.input_messages_payload_id))
+        ).scalar_one_or_none()
+        if input_payload is not None and input_payload.content_json is not None:
+            input_messages = input_payload.content_json
+
     system_rendered = safe_render(system_tpl.content, row.system_prompt_params) if system_tpl else (row.system_prompt or "")
     user_rendered = safe_render(user_tpl.content, row.user_prompt_params) if user_tpl else ""
 
-    if not user_rendered and row.input_messages:
+    if not user_rendered and input_messages:
         try:
-            msgs = row.input_messages if isinstance(row.input_messages, list) else []
+            msgs = input_messages if isinstance(input_messages, list) else []
             user_rendered = "\n\n".join([m.get("content", "") for m in msgs if m.get("role") == "user"])
         except Exception:
             user_rendered = ""
@@ -5118,7 +5199,7 @@ async def get_llm_log_details(
             "output_text": output_text,
             "raw_response": raw_json,
         },
-        "messages": row.input_messages,
+        "messages": input_messages,
         "messages_rendered": messages_rendered,
         "related_calls": related,
     }
@@ -5133,6 +5214,7 @@ async def get_llm_throughput(
     call_type: Optional[str] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     from datetime import datetime, timedelta, timezone
@@ -5154,6 +5236,21 @@ async def get_llm_throughput(
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
+    cache_key = _llm_cache_key(
+        "throughput",
+        {
+            "days": days,
+            "bucket": granularity,
+            "provider": provider,
+            "model": model,
+            "call_type": call_type,
+            "status": status,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
+
     ts = func.date_trunc(granularity, LLMLog.created_at).label("ts")
     stmt = select(ts, func.count().label("count")).where(LLMLog.created_at >= since)
 
@@ -5170,7 +5267,9 @@ async def get_llm_throughput(
     res = await db.execute(stmt)
 
     points = [{"ts": r.ts.isoformat(), "count": int(r.count or 0)} for r in res.all() if r.ts is not None]
-    return {"bucket": granularity, "days": days, "points": points}
+    payload = {"bucket": granularity, "days": days, "points": points}
+    await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/analytics/llm/breakdown", summary="LLM breakdown by dimension")
@@ -5183,6 +5282,7 @@ async def get_llm_breakdown(
     call_type: Optional[str] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     from datetime import datetime, timedelta, timezone
@@ -5209,6 +5309,22 @@ async def get_llm_breakdown(
         limit = 100
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    cache_key = _llm_cache_key(
+        "breakdown",
+        {
+            "days": days,
+            "group_by": (group_by or "").lower(),
+            "limit": limit,
+            "provider": provider,
+            "model": model,
+            "call_type": call_type,
+            "status": status,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
 
     stmt = (
         select(
@@ -5247,7 +5363,9 @@ async def get_llm_breakdown(
             }
         )
 
-    return {"group_by": group_by, "days": days, "items": items}
+    payload = {"group_by": group_by, "days": days, "items": items}
+    await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/analytics/llm/stats", summary="LLM stats for current filters")
@@ -5258,6 +5376,7 @@ async def get_llm_stats(
     call_type: Optional[str] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     from datetime import datetime, timedelta, timezone
@@ -5273,25 +5392,37 @@ async def get_llm_stats(
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
 
-    base = select(LLMLog).where(LLMLog.created_at >= since)
+    cache_key = _llm_cache_key(
+        "stats",
+        {
+            "days": days,
+            "provider": provider,
+            "model": model,
+            "call_type": call_type,
+            "status": status,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
+
+    where = [LLMLog.created_at >= since]
     if provider:
-        base = base.where(LLMLog.provider == provider)
+        where.append(LLMLog.provider == provider)
     if model:
-        base = base.where(LLMLog.model == model)
+        where.append(LLMLog.model == model)
     if call_type:
-        base = base.where(LLMLog.call_type == call_type)
+        where.append(LLMLog.call_type == call_type)
     if status:
-        base = base.where(LLMLog.status == status)
+        where.append(LLMLog.status == status)
 
-    subq = base.subquery()
-
-    latency_col = subq.c.latency_ms
-    tokens_col = subq.c.total_tokens
-    cost_col = subq.c.cost_usd
+    latency_col = func.coalesce(LLMLog.latency_ms, 0)
+    tokens_col = func.coalesce(LLMLog.total_tokens, 0)
+    cost_col = func.coalesce(LLMLog.cost_usd, 0)
 
     stmt = select(
-        func.count().label("total"),
-        func.sum(sa.case((subq.c.status == "error", 1), else_=0)).label("errors"),
+        func.count(LLMLog.id).label("total"),
+        func.sum(sa.case((LLMLog.status == "error", 1), else_=0)).label("errors"),
         func.avg(latency_col).label("avg_latency"),
         func.percentile_cont(0.5).within_group(latency_col).label("p50_latency"),
         func.percentile_cont(0.95).within_group(latency_col).label("p95_latency"),
@@ -5300,7 +5431,7 @@ async def get_llm_stats(
         func.percentile_cont(0.95).within_group(tokens_col).label("p95_tokens"),
         func.sum(cost_col).label("total_cost"),
         func.avg(cost_col).label("avg_cost"),
-    )
+    ).where(*where)
 
     res = await db.execute(stmt)
     row = res.first()
@@ -5319,7 +5450,7 @@ async def get_llm_stats(
 
     total = int(row.total or 0)
     errors = int(row.errors or 0)
-    return {
+    payload = {
         "days": days,
         "total": total,
         "errors": errors,
@@ -5334,6 +5465,8 @@ async def get_llm_stats(
         "total_cost_usd": to_float(row.total_cost) or 0.0,
         "avg_cost_usd": to_float(row.avg_cost),
     }
+    await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/analytics/llm/outliers", summary="LLM outliers for quick debugging")
@@ -5346,6 +5479,7 @@ async def get_llm_outliers(
     call_type: Optional[str] = None,
     status: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     from datetime import datetime, timedelta, timezone
@@ -5363,16 +5497,6 @@ async def get_llm_outliers(
         limit = 50
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
-    stmt = select(LLMLog).where(LLMLog.created_at >= since)
-    if provider:
-        stmt = stmt.where(LLMLog.provider == provider)
-    if model:
-        stmt = stmt.where(LLMLog.model == model)
-    if call_type:
-        stmt = stmt.where(LLMLog.call_type == call_type)
-    if status:
-        stmt = stmt.where(LLMLog.status == status)
-
     metric_norm = (metric or "").lower()
     if metric_norm == "tokens":
         order_col = LLMLog.total_tokens
@@ -5380,29 +5504,74 @@ async def get_llm_outliers(
         order_col = LLMLog.cost_usd
     else:
         order_col = LLMLog.latency_ms
+    cache_key = _llm_cache_key(
+        "outliers",
+        {
+            "days": days,
+            "metric": metric_norm or "latency",
+            "limit": limit,
+            "provider": provider,
+            "model": model,
+            "call_type": call_type,
+            "status": status,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
 
-    rows = (await db.execute(stmt.order_by(order_col.desc().nullslast()).limit(limit))).scalars().all()
+    where = [LLMLog.created_at >= since]
+    if provider:
+        where.append(LLMLog.provider == provider)
+    if model:
+        where.append(LLMLog.model == model)
+    if call_type:
+        where.append(LLMLog.call_type == call_type)
+    if status:
+        where.append(LLMLog.status == status)
+
+    stmt = (
+        select(
+            LLMLog.id,
+            LLMLog.created_at,
+            LLMLog.provider,
+            LLMLog.model,
+            LLMLog.call_type,
+            LLMLog.status,
+            LLMLog.latency_ms,
+            LLMLog.total_tokens,
+            LLMLog.cost_usd,
+            LLMLog.error_type,
+        )
+        .where(*where)
+        .order_by(order_col.desc().nullslast())
+        .limit(limit)
+    )
+    res = await db.execute(stmt)
     items = []
-    for r in rows:
-        cost_val = r.cost_usd
+    for row in res.all():
+        m = row._mapping
+        cost_val = m["cost_usd"]
         if isinstance(cost_val, Decimal):
             cost_val = float(cost_val)
         items.append(
             {
-                "id": str(r.id),
-                "created_at": r.created_at.isoformat() if r.created_at else None,
-                "provider": r.provider,
-                "model": r.model,
-                "call_type": r.call_type,
-                "status": r.status,
-                "latency_ms": r.latency_ms,
-                "total_tokens": r.total_tokens,
+                "id": str(m["id"]),
+                "created_at": m["created_at"].isoformat() if m["created_at"] else None,
+                "provider": m["provider"],
+                "model": m["model"],
+                "call_type": m["call_type"],
+                "status": m["status"],
+                "latency_ms": m["latency_ms"],
+                "total_tokens": m["total_tokens"],
                 "cost_usd": cost_val,
-                "error_type": r.error_type,
+                "error_type": m["error_type"],
             }
         )
 
-    return {"days": days, "metric": metric_norm or "latency", "items": items}
+    payload = {"days": days, "metric": metric_norm or "latency", "items": items}
+    await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/health", summary="Detailed system health monitoring")
