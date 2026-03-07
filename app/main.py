@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.auth.routes import router as auth_router
 from routes.recommendations import router as recommendations_router
 from routes.internal import router as internal_router
+from routes.internal_posthog import router as internal_posthog_router
 from routes.analytics import router as analytics_router
 from routes.public import router as public_router
 from routes.recipients import router as recipients_router
@@ -114,6 +115,7 @@ app.include_router(auth_router)
 app.include_router(recommendations_router)
 app.include_router(recipients_router)
 app.include_router(internal_router)
+app.include_router(internal_posthog_router)
 app.include_router(analytics_router)
 app.include_router(integrations_router)
 app.include_router(workers_router)
