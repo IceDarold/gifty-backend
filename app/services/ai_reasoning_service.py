@@ -9,8 +9,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.prompts import registry
 from app.core.logic_config import logic_config
 from app.services.llm.factory import LLMFactory
-from app.services.llm.interface import Message, LLMResponse
+from app.services.llm.interface import (
+    Message,
+    LLMResponse,
+    extract_finish_reason,
+    extract_provider_request_id,
+    normalize_usage,
+    serialize_raw_response,
+)
 from app.services.llm.cost_estimator import estimate_cost
+from app.services.llm.observability_store import get_or_create_payload, get_or_create_prompt_template
 from app.services.experiments import ExperimentService
 from app.models import LLMLog
 
@@ -81,6 +89,12 @@ class AIReasoningService:
         latency_ms: int,
         messages: List[Message],
         system_prompt: Optional[str] = None,
+        system_prompt_template_name: Optional[str] = None,
+        system_prompt_template_content: Optional[str] = None,
+        system_prompt_template_params: Optional[dict] = None,
+        user_prompt_template_name: Optional[str] = None,
+        user_prompt_template_content: Optional[str] = None,
+        user_prompt_template_params: Optional[dict] = None,
         session_id: Optional[str] = None,
         experiment_id: Optional[str] = None,
         variant_id: Optional[str] = None,
@@ -92,50 +106,98 @@ class AIReasoningService:
         """Asynchronously logs LLM call to database if session is available."""
         if not self.db:
             return
-            
+
         try:
             prompt_tokens = 0
             completion_tokens = 0
             total_tokens = 0
             output_content = None
             raw_response = None
+            finish_reason = None
+            input_messages_payload_id = None
 
             if response is not None:
-                usage = response.usage or {}
-                prompt_tokens = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
-                completion_tokens = int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
+                raw_response = serialize_raw_response(response.raw_response)
+                usage = normalize_usage(response.usage or {}, raw_response)
+                prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                completion_tokens = int(usage.get("completion_tokens") or 0)
                 total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
                 output_content = response.content
-                raw_response = response.raw_response
+                finish_reason = extract_finish_reason(raw_response, response.finish_reason)
 
-            provider_request_id = None
-            try:
-                if isinstance(raw_response, dict):
-                    provider_request_id = raw_response.get("id") or raw_response.get("request_id")
-                else:
-                    provider_request_id = getattr(raw_response, "id", None)
-            except Exception:
-                provider_request_id = None
+            provider_request_id = extract_provider_request_id(raw_response, getattr(response, "provider_request_id", None))
 
             prompt_hash = _hash_prompt(system_prompt, messages)
-            
+
             # Determine actual provider name
             provider_name = getattr(self.llm_client, "provider", logic_config.llm.default_provider)
             if hasattr(self.llm_client, "__class__"):
                 class_name = self.llm_client.__class__.__name__.lower()
-                if "groq" in class_name: provider_name = "groq"
-                elif "anthropic" in class_name: provider_name = "anthropic"
-                elif "gemini" in class_name: provider_name = "gemini"
-                elif "openrouter" in class_name: provider_name = "openrouter"
-                elif "together" in class_name: provider_name = "together"
+                if "groq" in class_name:
+                    provider_name = "groq"
+                elif "anthropic" in class_name:
+                    provider_name = "anthropic"
+                elif "gemini" in class_name:
+                    provider_name = "gemini"
+                elif "openrouter" in class_name:
+                    provider_name = "openrouter"
+                elif "together" in class_name:
+                    provider_name = "together"
+
+            system_template_id = None
+            user_template_id = None
+            output_payload_id = None
+            raw_payload_id = None
+            input_messages = [m.model_dump() for m in messages] if messages else None
+
+            if system_prompt_template_name and system_prompt_template_content:
+                system_template_id = await get_or_create_prompt_template(
+                    self.db,
+                    name=system_prompt_template_name,
+                    content=system_prompt_template_content,
+                    kind="system",
+                )
+
+            if user_prompt_template_name and user_prompt_template_content:
+                user_template_id = await get_or_create_prompt_template(
+                    self.db,
+                    name=user_prompt_template_name,
+                    content=user_prompt_template_content,
+                    kind="user",
+                )
+                # Template already defines the user prompt; avoid duplicating raw input messages.
+                input_messages = None
+
+            if output_content is not None:
+                output_payload_id = await get_or_create_payload(
+                    self.db, kind="output_text", content_text=output_content
+                )
+
+            if raw_response is not None:
+                raw_payload_id = await get_or_create_payload(self.db, kind="raw_response", content_json=raw_response)
+
+            if user_template_id is None and input_messages is not None:
+                # Avoid duplicating large message arrays per log row.
+                input_messages_payload_id = await get_or_create_payload(
+                    self.db, kind="input_messages", content_json=input_messages
+                )
+                input_messages = None
 
             log = LLMLog(
                 provider=provider_name,
                 model=model,
                 call_type=call_type,
-                input_messages=_redact_messages(messages),
-                system_prompt=_redact_text(system_prompt),
-                output_content=_redact_text(output_content),
+                input_messages=input_messages,
+                input_messages_payload_id=input_messages_payload_id,
+                system_prompt=None if system_template_id else system_prompt,
+                output_content=None if output_payload_id else output_content,
+                system_prompt_template_id=system_template_id,
+                system_prompt_params=system_prompt_template_params,
+                user_prompt_template_id=user_template_id,
+                user_prompt_params=user_prompt_template_params,
+                output_payload_id=output_payload_id,
+                raw_response_payload_id=raw_payload_id,
+                finish_reason=finish_reason,
                 prompt_tokens=prompt_tokens,
                 completion_tokens=completion_tokens,
                 total_tokens=total_tokens,
@@ -146,7 +208,7 @@ class AIReasoningService:
                 variant_id=variant_id,
                 status=status,
                 error_type=error_type,
-                error_message=_redact_text(error_message),
+                error_message=error_message,
                 provider_request_id=provider_request_id,
                 prompt_hash=prompt_hash,
                 params=params,
@@ -167,6 +229,12 @@ class AIReasoningService:
         temperature: float = 0.7,
         stops: Optional[List[str]] = None,
         json_mode: bool = False,
+        system_prompt_template_name: Optional[str] = None,
+        system_prompt_template_content: Optional[str] = None,
+        system_prompt_template_params: Optional[dict] = None,
+        user_prompt_template_name: Optional[str] = None,
+        user_prompt_template_content: Optional[str] = None,
+        user_prompt_template_params: Optional[dict] = None,
     ) -> Any:
         # A/B Testing Overrides
         experiment_id = None
@@ -210,6 +278,12 @@ class AIReasoningService:
                 latency_ms,
                 messages,
                 system_prompt,
+                system_prompt_template_name=system_prompt_template_name,
+                system_prompt_template_content=system_prompt_template_content,
+                system_prompt_template_params=system_prompt_template_params,
+                user_prompt_template_name=user_prompt_template_name,
+                user_prompt_template_content=user_prompt_template_content,
+                user_prompt_template_params=user_prompt_template_params,
                 session_id=session_id,
                 experiment_id=experiment_id,
                 variant_id=variant_id,
@@ -227,6 +301,12 @@ class AIReasoningService:
                 latency_ms,
                 messages,
                 system_prompt,
+                system_prompt_template_name=system_prompt_template_name,
+                system_prompt_template_content=system_prompt_template_content,
+                system_prompt_template_params=system_prompt_template_params,
+                user_prompt_template_name=user_prompt_template_name,
+                user_prompt_template_content=user_prompt_template_content,
+                user_prompt_template_params=user_prompt_template_params,
                 session_id=session_id,
                 experiment_id=experiment_id,
                 variant_id=variant_id,
@@ -242,33 +322,57 @@ class AIReasoningService:
         if not topics:
             return []
             
-        template = registry.get_prompt("normalize_topics")
+        template_name = "normalize_topics"
+        template = registry.get_prompt(template_name)
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
         clean_topics = [self._sanitize_input(t) for t in topics]
-        prompt = template.format(topics=json.dumps(clean_topics, ensure_ascii=False), language=language)
+        user_params = {"topics": json.dumps(clean_topics, ensure_ascii=False), "language": language}
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
         
         return await self._generate_with_logging(
             call_type="normalize_topics",
             model=self.default_model,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=template_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
 
     async def classify_topic(self, topic: str, quiz_data: Dict[str, Any], language: str = "ru", session_id: Optional[str] = None) -> Dict[str, Any]:
         """Determines if a topic is 'wide' and needs branching."""
-        template = registry.get_prompt("classify_topic")
-        prompt = template.format(
-            topic=self._sanitize_input(topic), 
-            quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
-            language=language
-        )
+        template_name = "classify_topic"
+        template = registry.get_prompt(template_name)
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
+        user_params = {
+            "topic": self._sanitize_input(topic),
+            "quiz_json": json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
+            "language": language,
+        }
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
         
         return await self._generate_with_logging(
             call_type="classify_topic",
             model=self.model_fast,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=template_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
 
     async def generate_hypotheses(
@@ -282,40 +386,62 @@ class AIReasoningService:
         session_id: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """Generates 3-4 GUTG hypotheses for a topic using raw quiz data."""
-        template = registry.get_prompt("generate_hypotheses")
-        prompt = template.format(
-            topic=self._sanitize_input(topic), 
-            quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
-            liked_concepts=", ".join([self._sanitize_input(c) for c in liked_concepts]) if liked_concepts else "None",
-            disliked_concepts=", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None",
-            shown_concepts=", ".join([self._sanitize_input(c) for c in shown_concepts]) if shown_concepts else "None"
-        )
+        template_name = "generate_hypotheses"
+        template = registry.get_prompt(template_name)
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
+        user_params = {
+            "topic": self._sanitize_input(topic),
+            "quiz_json": json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
+            "liked_concepts": ", ".join([self._sanitize_input(c) for c in liked_concepts]) if liked_concepts else "None",
+            "disliked_concepts": ", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None",
+            "shown_concepts": ", ".join([self._sanitize_input(c) for c in shown_concepts]) if shown_concepts else "None",
+        }
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
         
         return await self._generate_with_logging(
             call_type="generate_hypotheses",
             model=self.model_smart,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
             max_tokens=1500,
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=template_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
 
     async def generate_personalized_probe(self, context_type: str, quiz_data: Dict[str, Any], topic: Optional[str] = None, language: str = "ru", session_id: Optional[str] = None) -> Dict[str, Any]:
         """Generates a high-quality follow-up question when more info is needed."""
         prompt_name = f"personalized_probe_{context_type}"
         template = registry.get_prompt(prompt_name)
-        
-        prompt = template.format(
-            topic=self._sanitize_input(topic or "general"),
-            quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2)
-        )
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
+        user_params = {
+            "topic": self._sanitize_input(topic or "general"),
+            "quiz_json": json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
+        }
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
 
         return await self._generate_with_logging(
             call_type=f"probe_{context_type}",
             model=self.model_fast,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=prompt_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
 
     async def generate_hypotheses_bulk(
@@ -328,38 +454,62 @@ class AIReasoningService:
         session_id: Optional[str] = None
     ) -> Dict[str, Any]:
         """Generates hypotheses for multiple topics in one prompt."""
-        template = registry.get_prompt("generate_hypotheses_bulk")
-        prompt = template.format(
-            topics_str=json.dumps([self._sanitize_input(t) for t in topics], ensure_ascii=False),
-            quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
-            liked_concepts=", ".join([self._sanitize_input(c) for c in liked_concepts]) if liked_concepts else "None",
-            disliked_concepts=", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None",
-            language=language
-        )
+        template_name = "generate_hypotheses_bulk"
+        template = registry.get_prompt(template_name)
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
+        user_params = {
+            "topics_str": json.dumps([self._sanitize_input(t) for t in topics], ensure_ascii=False),
+            "quiz_json": json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
+            "liked_concepts": ", ".join([self._sanitize_input(c) for c in liked_concepts]) if liked_concepts else "None",
+            "disliked_concepts": ", ".join([self._sanitize_input(c) for c in disliked_concepts]) if disliked_concepts else "None",
+            "language": language,
+        }
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
         
         return await self._generate_with_logging(
             call_type="generate_hypotheses_bulk",
             model=self.model_smart,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
             max_tokens=2500,
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=template_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
 
     async def generate_topic_hints(self, quiz_data: Dict[str, Any], topics_explored: List[str], language: str = "ru", session_id: Optional[str] = None) -> List[Dict[str, Any]]:
         """Generates 3-5 guiding questions to help user discover new topics."""
-        template = registry.get_prompt("generate_topic_hints")
-        prompt = template.format(
-            quiz_json=json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
-            topics_explored=", ".join([self._sanitize_input(t) for t in topics_explored]) if topics_explored else "None"
-        )
+        template_name = "generate_topic_hints"
+        template = registry.get_prompt(template_name)
+        system_template_name = "system"
+        system_template = registry.get_prompt(system_template_name)
+        user_params = {
+            "quiz_json": json.dumps(self._sanitize_dict(quiz_data), ensure_ascii=False, indent=2),
+            "topics_explored": ", ".join([self._sanitize_input(t) for t in topics_explored]) if topics_explored else "None",
+        }
+        prompt = template.format(**user_params)
+        system_params = {"language": language}
+        system_prompt = system_template.format(**system_params)
         
         data = await self._generate_with_logging(
             call_type="generate_topic_hints",
             model=self.model_fast,
-            system_prompt=registry.get_prompt("system").format(language=language),
+            system_prompt=system_prompt,
             messages=[Message(role="user", content=prompt)],
-            session_id=session_id
+            session_id=session_id,
+            system_prompt_template_name=system_template_name,
+            system_prompt_template_content=system_template,
+            system_prompt_template_params=system_params,
+            user_prompt_template_name=template_name,
+            user_prompt_template_content=template,
+            user_prompt_template_params=user_params,
         )
         return data.get("hints", [])
 

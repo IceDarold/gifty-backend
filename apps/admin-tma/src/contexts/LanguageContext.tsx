@@ -58,6 +58,17 @@ const STRINGS: Record<Language, Record<string, string>> = {
     "settings.topics.monitoring": "Мониторинг",
     "settings.topics.scraping": "Скрапинг",
     "settings.topics.global": "Общие",
+
+    "settings.internal_api": "Internal API",
+    "settings.internal_token_desc": "Нужен для внутренних эндпоинтов (LLM Logs, Operations). Сохраняется в этом браузере.",
+    "settings.internal_token_placeholder": "Вставьте x-internal-token",
+    "settings.internal_token_save": "Сохранить",
+    "settings.internal_token_clear": "Очистить",
+    "settings.internal_token_saved": "Токен сохранён",
+    "settings.internal_token_missing": "Токен не задан",
+    "settings.internal_token_error": "Не удалось сохранить токен",
+    "settings.internal_token_show": "Показать",
+    "settings.internal_token_hide": "Скрыть",
   },
   en: {
     "common.no_data": "No data available",
@@ -100,6 +111,17 @@ const STRINGS: Record<Language, Record<string, string>> = {
     "settings.topics.monitoring": "Monitoring",
     "settings.topics.scraping": "Scraping",
     "settings.topics.global": "Global",
+
+    "settings.internal_api": "Internal API",
+    "settings.internal_token_desc": "Required for internal endpoints (LLM Logs, Operations). Stored in this browser.",
+    "settings.internal_token_placeholder": "Paste x-internal-token",
+    "settings.internal_token_save": "Save",
+    "settings.internal_token_clear": "Clear",
+    "settings.internal_token_saved": "Token saved",
+    "settings.internal_token_missing": "Token not set",
+    "settings.internal_token_error": "Failed to save token",
+    "settings.internal_token_show": "Show",
+    "settings.internal_token_hide": "Hide",
   },
 };
 

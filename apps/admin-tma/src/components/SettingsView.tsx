@@ -72,9 +72,25 @@ export function SettingsView({
     const { t, setLanguage: setUiLanguage, language } = useLanguage();
     const [weeekToken, setWeeekToken] = useState("");
     const [weeekStatus, setWeeekStatus] = useState<"idle" | "success" | "error">("idle");
+    const [internalTokenDraft, setInternalTokenDraft] = useState("");
+    const [internalTokenSaved, setInternalTokenSaved] = useState(false);
+    const [internalTokenVisible, setInternalTokenVisible] = useState(false);
+    const [internalTokenStatus, setInternalTokenStatus] = useState<"idle" | "saved" | "cleared" | "error">("idle");
     const [perfDraft, setPerfDraft] = useState<Record<string, any>>({});
     const [merchantQuery, setMerchantQuery] = useState("");
     const [merchantEditing, setMerchantEditing] = useState<Record<string, { name?: string; base_url?: string; field?: "name" | "base_url" }>>({});
+
+    useEffect(() => {
+        try {
+            const fromStorage =
+                window.localStorage.getItem("internal_api_token") ||
+                window.localStorage.getItem("internal_token") ||
+                "";
+            setInternalTokenSaved(!!fromStorage.trim());
+        } catch {
+            // ignore
+        }
+    }, []);
 
     const topics = [
         { id: 'investors', label: t('settings.topics.investors'), icon: TOPIC_ICONS.investors },
@@ -94,6 +110,32 @@ export function SettingsView({
             setWeeekToken("");
         } catch (e) {
             setWeeekStatus("error");
+        }
+    };
+
+    const saveInternalToken = () => {
+        const token = internalTokenDraft.trim();
+        if (!token) return;
+        try {
+            window.localStorage.setItem("internal_api_token", token);
+            window.localStorage.setItem("internal_token", token);
+            setInternalTokenSaved(true);
+            setInternalTokenDraft("");
+            setInternalTokenStatus("saved");
+        } catch {
+            setInternalTokenStatus("error");
+        }
+    };
+
+    const clearInternalToken = () => {
+        try {
+            window.localStorage.removeItem("internal_api_token");
+            window.localStorage.removeItem("internal_token");
+            setInternalTokenSaved(false);
+            setInternalTokenDraft("");
+            setInternalTokenStatus("cleared");
+        } catch {
+            setInternalTokenStatus("error");
         }
     };
 
@@ -192,38 +234,100 @@ export function SettingsView({
             {/* Weeek Connection */}
             <section className="space-y-3">
                 <h3 className="text-xs font-bold text-[var(--tg-theme-hint-color)] uppercase tracking-wider px-1">{t('settings.integrations')}</h3>
-                <div className="glass card p-4 space-y-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
-                            <Link2 size={22} />
+                <div className="space-y-3">
+                    <div className="glass card p-4 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white shadow-lg">
+                                <Link2 size={22} />
+                            </div>
+                            <div>
+                                <h4 className="font-bold text-sm">{t('settings.weeek_projects')}</h4>
+                                <p className="text-[10px] text-[var(--tg-theme-hint-color)]">{t('settings.weeek_desc')}</p>
+                            </div>
                         </div>
-                        <div>
-                            <h4 className="font-bold text-sm">{t('settings.weeek_projects')}</h4>
-                            <p className="text-[10px] text-[var(--tg-theme-hint-color)]">{t('settings.weeek_desc')}</p>
+
+                        <div className="space-y-2">
+                            <input
+                                type="password"
+                                placeholder={t('settings.enter_token')}
+                                className="w-full bg-[var(--tg-theme-secondary-bg-color)] border border-[var(--tg-theme-secondary-bg-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--tg-theme-button-color)] transition-all"
+                                value={weeekToken}
+                                onChange={(e) => setWeeekToken(e.target.value)}
+                            />
+                            <button
+                                onClick={handleConnectWeeek}
+                                disabled={isConnectingWeeek || !weeekToken}
+                                className="w-full bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 hover:brightness-110"
+                            >
+                                {isConnectingWeeek ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
+                                {weeekStatus === "success" ? t('settings.connected') : t('settings.connect_weeek')}
+                            </button>
+                        </div>
+
+                        <div className="flex items-center gap-2 text-[10px] text-[var(--tg-theme-hint-color)] justify-center">
+                            <ExternalLink size={12} />
+                            <a href="https://app.weeek.net/settings/api" target="_blank" className="hover:underline">{t('settings.get_token')}</a>
                         </div>
                     </div>
 
-                    <div className="space-y-2">
-                        <input
-                            type="password"
-                            placeholder={t('settings.enter_token')}
-                            className="w-full bg-[var(--tg-theme-secondary-bg-color)] border border-[var(--tg-theme-secondary-bg-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--tg-theme-button-color)] transition-all"
-                            value={weeekToken}
-                            onChange={(e) => setWeeekToken(e.target.value)}
-                        />
-                        <button
-                            onClick={handleConnectWeeek}
-                            disabled={isConnectingWeeek || !weeekToken}
-                            className="w-full bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all flex items-center justify-center gap-2 hover:brightness-110"
-                        >
-                            {isConnectingWeeek ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />}
-                            {weeekStatus === "success" ? t('settings.connected') : t('settings.connect_weeek')}
-                        </button>
-                    </div>
+                    <div className="glass card p-4 space-y-4">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-lg">
+                                <ShieldCheck size={22} />
+                            </div>
+                            <div className="min-w-0">
+                                <h4 className="font-bold text-sm">{t("settings.internal_api")}</h4>
+                                <p className="text-[10px] text-[var(--tg-theme-hint-color)]">
+                                    {t("settings.internal_token_desc")}
+                                </p>
+                            </div>
+                        </div>
 
-                    <div className="flex items-center gap-2 text-[10px] text-[var(--tg-theme-hint-color)] justify-center">
-                        <ExternalLink size={12} />
-                        <a href="https://app.weeek.net/settings/api" target="_blank" className="hover:underline">{t('settings.get_token')}</a>
+                        <div className="space-y-2">
+                            <input
+                                type={internalTokenVisible ? "text" : "password"}
+                                placeholder={t("settings.internal_token_placeholder")}
+                                className="w-full bg-[var(--tg-theme-secondary-bg-color)] border border-[var(--tg-theme-secondary-bg-color)] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--tg-theme-button-color)] transition-all"
+                                value={internalTokenDraft}
+                                onChange={(e) => setInternalTokenDraft(e.target.value)}
+                                autoComplete="off"
+                                inputMode="text"
+                            />
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <button
+                                    onClick={saveInternalToken}
+                                    disabled={!internalTokenDraft.trim()}
+                                    className="w-full bg-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-text-color)] py-3 rounded-xl font-bold text-sm shadow-lg shadow-blue-500/20 active:scale-95 transition-all hover:brightness-110 disabled:opacity-60"
+                                >
+                                    {t("settings.internal_token_save")}
+                                </button>
+                                <button
+                                    onClick={clearInternalToken}
+                                    disabled={!internalTokenSaved}
+                                    className="w-full py-3 rounded-xl font-bold text-sm border border-white/15 bg-white/5 active:scale-95 transition-all disabled:opacity-60"
+                                >
+                                    {t("settings.internal_token_clear")}
+                                </button>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-2 text-[10px] text-[var(--tg-theme-hint-color)]">
+                                <span>
+                                    {internalTokenStatus === "error"
+                                        ? t("settings.internal_token_error")
+                                        : internalTokenSaved
+                                            ? t("settings.internal_token_saved")
+                                            : t("settings.internal_token_missing")}
+                                </span>
+                                <button
+                                    type="button"
+                                    onClick={() => setInternalTokenVisible((v) => !v)}
+                                    className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold hover:bg-white/10"
+                                >
+                                    {internalTokenVisible ? t("settings.internal_token_hide") : t("settings.internal_token_show")}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </section>

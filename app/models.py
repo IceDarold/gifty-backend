@@ -534,6 +534,16 @@ class LLMLog(TimestampMixin, Base):
     Stores prompt, response, usage metrics and timing.
     """
     __tablename__ = "llm_logs"
+    __table_args__ = (
+        sa.Index("ix_llm_logs_created_at_id", "created_at", "id"),
+        sa.Index("ix_llm_logs_provider_created_at", "provider", "created_at"),
+        sa.Index("ix_llm_logs_model_created_at", "model", "created_at"),
+        sa.Index("ix_llm_logs_call_type_created_at", "call_type", "created_at"),
+        sa.Index("ix_llm_logs_status_created_at", "status", "created_at"),
+        sa.Index("ix_llm_logs_session_id_created_at", "session_id", "created_at"),
+        sa.Index("ix_llm_logs_experiment_id_created_at", "experiment_id", "created_at"),
+        sa.Index("ix_llm_logs_variant_id_created_at", "variant_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider: Mapped[str] = mapped_column(String, nullable=False, index=True)
@@ -544,8 +554,29 @@ class LLMLog(TimestampMixin, Base):
     
     # Input/Output
     input_messages: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    input_messages_payload_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("llm_payloads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     system_prompt: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     output_content: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Normalized prompt/payload refs (preferred for new logs)
+    system_prompt_template_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("llm_prompt_templates.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    system_prompt_params: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+    user_prompt_template_id: Mapped[Optional[int]] = mapped_column(
+        Integer, ForeignKey("llm_prompt_templates.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    user_prompt_params: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
+
+    output_payload_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("llm_payloads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    raw_response_payload_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("llm_payloads.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    finish_reason: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
 
     # Status / error info
     status: Mapped[str] = mapped_column(String, nullable=False, index=True, server_default="ok")
@@ -564,6 +595,9 @@ class LLMLog(TimestampMixin, Base):
     completion_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     total_tokens: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    provider_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    queue_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    postprocess_latency_ms: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     
     # Cost (estimated)
     cost_usd: Mapped[Optional[float]] = mapped_column(Numeric(10, 6), nullable=True)
@@ -575,6 +609,46 @@ class LLMLog(TimestampMixin, Base):
     # A/B Testing
     experiment_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
     variant_id: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)
+
+
+class LLMPromptTemplate(TimestampMixin, Base):
+    """
+    Stores versioned prompt templates (system/user) by content hash.
+    Used to avoid duplicating template text per LLM call while keeping full fidelity.
+    """
+
+    __tablename__ = "llm_prompt_templates"
+    __table_args__ = (
+        UniqueConstraint("name", "template_hash", name="uq_llm_prompt_templates_name_hash"),
+    )
+
+    id: Mapped[int] = mapped_column(sa.Integer, primary_key=True, autoincrement=True)
+    name: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    kind: Mapped[Optional[str]] = mapped_column(String, nullable=True, index=True)  # system|user|other
+    template_hash: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+
+
+class LLMPayload(TimestampMixin, Base):
+    """
+    Content-addressable storage for heavy LLM payloads (output text, raw provider JSON, etc).
+    De-duplicates identical content across calls via sha256.
+    """
+
+    __tablename__ = "llm_payloads"
+    __table_args__ = (
+        UniqueConstraint("sha256", name="uq_llm_payloads_sha256"),
+        CheckConstraint(
+            "(content_text IS NOT NULL) <> (content_json IS NOT NULL)",
+            name="ck_llm_payloads_exactly_one_content",
+        ),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    kind: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    sha256: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    content_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    content_json: Mapped[Optional[dict]] = mapped_column(JSONB, nullable=True)
 
 
 class FrontendApp(TimestampMixin, Base):

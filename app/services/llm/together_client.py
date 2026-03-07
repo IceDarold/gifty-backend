@@ -4,7 +4,15 @@ from typing import List, Optional
 
 import httpx
 
-from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.services.llm.interface import (
+    LLMClient,
+    Message,
+    LLMResponse,
+    extract_finish_reason,
+    extract_provider_request_id,
+    normalize_usage,
+    serialize_raw_response,
+)
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -78,11 +86,10 @@ class TogetherClient(LLMClient):
 
                 return LLMResponse(
                     content=content,
-                    raw_response=data,
-                    usage={
-                        "input_tokens": usage_data.get("prompt_tokens", 0),
-                        "output_tokens": usage_data.get("completion_tokens", 0),
-                    },
+                    raw_response=serialize_raw_response(data),
+                    usage=normalize_usage(usage_data, data),
+                    provider_request_id=extract_provider_request_id(data),
+                    finish_reason=extract_finish_reason(data),
                 )
             except httpx.HTTPStatusError as e:
                 last_error = e
