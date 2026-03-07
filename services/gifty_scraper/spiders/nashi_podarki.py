@@ -3,9 +3,10 @@ from gifty_scraper.items import CategoryItem
 
 
 class NashiPodarkiSpider(GiftyBaseSpider):
-    name = "nashipodarki"
+    name = "nashi_podarki"
     allowed_domains = ["nashipodarki.ru"]
-    site_key = "nashipodarki"
+    site_key = "nashi_podarki"
+
 
     def parse_discovery(self, response):
         """
@@ -75,6 +76,9 @@ class NashiPodarkiSpider(GiftyBaseSpider):
 
         # Pagination
         if self.strategy in ["deep", "discovery"]:
-            next_page = response.css("div.nums a.next::attr(href)").get()
+            next_page = response.css("div.nums a.next::attr(href)").get() or \
+                        response.css(".module-pagination .next a::attr(href)").get() or \
+                        response.css(".flex-direction-nav .next a::attr(href)").get()
             if next_page:
+                self.logger.info(f"Following pagination: {next_page}")
                 yield response.follow(next_page, self.parse_catalog)

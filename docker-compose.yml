@@ -22,9 +22,6 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
-      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
-      REDIS_URL: "redis://redis:6379/0"
-      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
       LLM_PROXY_URL: "socks5://host.docker.internal:3128"
       # Tracing (Tempo via OpenTelemetry Collector)
       OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
@@ -85,10 +82,9 @@ services:
     env_file: .env
     environment:
       CORE_API_URL: http://api:8000/api/v1/internal/ingest-batch
-      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
-      REDIS_URL: "redis://redis:6379/0"
-      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
     depends_on:
+      api:
+        condition: service_healthy
       rabbitmq:
         condition: service_healthy
       postgres:
@@ -107,9 +103,6 @@ services:
       rabbitmq:
         condition: service_healthy
     environment:
-      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
-      REDIS_URL: "redis://redis:6379/0"
-      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
       OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_SERVICE_NAME: "${OTEL_SCHEDULER_SERVICE_NAME:-gifty-scheduler}"
@@ -216,9 +209,6 @@ services:
       - .:/app
     environment:
       API_BASE: "http://api:8000"
-      DATABASE_URL: "postgresql+asyncpg://giftyai_user:kG7pZ3vQ2mL9sT4xN8wC@postgres:5432/giftyai"
-      REDIS_URL: "redis://redis:6379/0"
-      RABBITMQ_URL: "amqp://guest:guest@rabbitmq:5672/"
     depends_on:
       - postgres
       - redis

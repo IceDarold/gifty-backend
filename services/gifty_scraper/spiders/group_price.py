@@ -1,55 +1,72 @@
 from gifty_scraper.base_spider import GiftyBaseSpider
 from gifty_scraper.items import CategoryItem
+from urllib.parse import urlparse
 
 
 class GroupPriceSpider(GiftyBaseSpider):
-    name = "groupprice"
+    name = "group_price"
     allowed_domains = ["groupprice.ru"]
-    site_key = "groupprice"
+    site_key = "group_price"
+
     
     def parse_discovery(self, response):
         """
         Parses the gifts hub page to find all specific gift categories (hubs).
         """
-        # 1. Try carousel (usually has good text names)
-        carousel_links = response.css("div.__carousel a._button")
-        # 2. Try grid (has nicer images, but often lacks text)
-        grid_links = response.css("div.gifts-grid a")
-        
-        found_hubs = {} # url -> name
+        # Page markup changed (Vite/Turbo). Keep discovery resilient by extracting
+        # gift landing links from anchors instead of relying on old carousel/grid selectors.
+        found_hubs = {}  # url -> name
 
         def clean_name(n):
-            return n.strip() if n else None
+            if not n:
+                return None
+            return " ".join(str(n).split()).strip() or None
 
-        # Process carousel first as it has better names
-        for hub in carousel_links:
-            url = response.urljoin(hub.css("::attr(href)").get())
-            name = clean_name(hub.xpath("string(.)").get())
+        def is_candidate(url: str) -> bool:
+            try:
+                parsed = urlparse(url)
+            except Exception:
+                return False
+            if parsed.netloc and parsed.netloc not in {"groupprice.ru", "www.groupprice.ru"}:
+                return False
+            path = parsed.path or ""
+            return path.startswith("/l/") or path.startswith("/categories/")
+
+        for a in response.css("a"):
+            href = a.attrib.get("href") or ""
+            if not href.strip():
+                continue
+            url = response.urljoin(href.strip())
+            if not is_candidate(url):
+                continue
+
+            # Skip header category menu links to reduce noise.
+            cls = (a.attrib.get("class") or "").strip()
+            if cls.split() == ["_link"] or "_category-links" in cls:
+                continue
+            if "_link" in cls and "_category" in cls:
+                continue
+
+            name = clean_name(
+                a.attrib.get("title")
+                or a.css("img::attr(alt)").get()
+                or a.xpath("string(.)").get()
+            )
+            if not name:
+                slug = (urlparse(url).path or "").rstrip("/").split("/")[-1]
+                name = clean_name(slug.replace("-", " ").replace("_", " ").title())
+
             if url:
                 found_hubs[url] = name
 
-        # Process grid to find any missing hubs
-        for hub in grid_links:
-            url = response.urljoin(hub.css("::attr(href)").get())
-            if url and (url not in found_hubs or not found_hubs[url]):
-                name = clean_name(hub.css("::attr(title)").get() or \
-                                 hub.css("img::attr(alt)").get() or \
-                                 hub.xpath("string(following-sibling::p)").get())
-                
-                if not name:
-                    # Fallback: pretty-print the URL slug
-                    slug = url.split("/")[-1]
-                    name = slug.replace("-", " ").replace("_", " ").title()
-                
-                found_hubs[url] = name
+        self.logger.info(f"Discovery hubs extracted: {len(found_hubs)} from {response.url}")
 
         for url, name in found_hubs.items():
             # Yield CategoryItem to be saved as a new ParsingSource
-            yield CategoryItem(
+            yield self.create_category(
                 name=name,
                 url=url,
-                parent_url=response.url,
-                site_key=self.site_key
+                parent_url=response.url
             )
 
     def parse_catalog(self, response):
@@ -89,7 +106,7 @@ class GroupPriceSpider(GiftyBaseSpider):
                 }
             )
 
-        if self.strategy in ["deep", "discovery"]:
+        if self.strategy == "deep":
             next_page = response.css("a.__ajax-pagination::attr(href)").get()
             if not next_page:
                 next_page = response.css("nav.pagy a[rel='next']::attr(href)").get()

@@ -1,12 +1,16 @@
 from __future__ import annotations
 from datetime import datetime, timedelta
+import json
+import logging
 from typing import Optional, List, Sequence, Any
 
-from sqlalchemy import select, update, and_, func, case
+from sqlalchemy import select, update, and_, or_, func, case
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import ParsingSource, CategoryMap, ParsingRun
+from app.models import ParsingSource, CategoryMap, ParsingRun, ParsingHub, DiscoveredCategory
+
+logger = logging.getLogger(__name__)
 
 class ParsingRepository:
     def __init__(self, session: AsyncSession, redis: Optional[Any] = None):
@@ -16,15 +20,19 @@ class ParsingRepository:
     async def get_due_sources(self, limit: int = 10) -> Sequence[ParsingSource]:
         stmt = (
             select(ParsingSource)
+            .outerjoin(ParsingHub, ParsingHub.site_key == ParsingSource.site_key)
             .where(
                 and_(
                     ParsingSource.is_active.is_(True),
-                    ParsingSource.next_sync_at <= func.now()
+                    ParsingSource.next_sync_at <= func.now(),
+                    or_(ParsingHub.id.is_(None), ParsingHub.status != "missing"),
                 )
             )
             .order_by(ParsingSource.priority.desc(), ParsingSource.next_sync_at.asc())
             .limit(limit)
-            .with_for_update(skip_locked=True)
+            # Postgres does not allow `FOR UPDATE` on the nullable side of an OUTER JOIN.
+            # We only need to lock the due `parsing_sources` rows.
+            .with_for_update(skip_locked=True, of=ParsingSource)
         )
         result = await self.session.execute(stmt)
         return result.scalars().all()
@@ -48,9 +56,14 @@ class ParsingRepository:
 
     async def set_queued(self, source_id: int):
         """Marks source as queued in RabbitMQ. Status 'running' will be set by worker."""
-        stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
-            status="queued", 
-            next_sync_at=datetime.now() + timedelta(minutes=15)
+        # Avoid a race where the worker starts quickly and reports `running` before we persist `queued`.
+        stmt = (
+            update(ParsingSource)
+            .where(ParsingSource.id == source_id, ParsingSource.status != "running")
+            .values(
+                status="queued",
+                next_sync_at=datetime.now() + timedelta(minutes=15),
+            )
         )
         await self.session.execute(stmt)
         await self.session.commit()
@@ -120,6 +133,15 @@ class ParsingRepository:
 
     async def get_all_sources(self) -> Sequence[ParsingSource]:
         stmt = select(ParsingSource).order_by(ParsingSource.id.asc())
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get_all_active_sources(self) -> Sequence[ParsingSource]:
+        stmt = (
+            select(ParsingSource)
+            .where(ParsingSource.is_active.is_(True))
+            .order_by(ParsingSource.id.asc())
+        )
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -227,34 +249,309 @@ class ParsingRepository:
             return source
         return None
 
-    async def sync_spiders(self, available_spiders: List[str]) -> List[str]:
+    async def sync_spiders(
+        self,
+        available_spiders: List[str],
+        *,
+        default_urls: Optional[dict[str, str]] = None,
+        seen_at: Optional[datetime] = None,
+    ) -> List[str]:
         """
-        Synchronizes the list of spiders from the scraper with the database.
-        Returns a list of NEW spider keys that were not in the database.
+        Synchronizes spiders with discovery hubs and keeps runtime hub sources for compatibility.
         """
-        stmt = select(ParsingSource.site_key)
-        result = await self.session.execute(stmt)
-        existing_keys = set(result.scalars().all())
-        
-        new_spiders = []
-        for spider_key in available_spiders:
-            if spider_key not in existing_keys:
-                # Add new inactive source
-                new_source = ParsingSource(
-                    site_key=spider_key,
-                    url=f"https://{spider_key}.placeholder", # Needs to be filled
-                    type="hub",
-                    strategy="discovery",
-                    is_active=False,
-                    config={"is_new": True, "note": "Automatically detected, please configure"}
+        default_urls = default_urls or {}
+        seen_at = seen_at or datetime.now()
+        normalized_spiders = [
+            str(s).strip()
+            for s in (available_spiders or [])
+            if isinstance(s, str) and str(s).strip()
+        ]
+
+        if not normalized_spiders:
+            return []
+
+        # Batch load existing hubs for these spiders (remote DB latency makes per-spider queries too slow).
+        hubs = (
+            await self.session.execute(
+                select(ParsingHub).where(ParsingHub.site_key.in_(normalized_spiders))
+            )
+        ).scalars().all()
+        hub_by_key = {h.site_key: h for h in hubs if h.site_key}
+
+        # Batch load hub mirror sources.
+        hub_sources = (
+            await self.session.execute(
+                select(ParsingSource).where(
+                    and_(
+                        ParsingSource.site_key.in_(normalized_spiders),
+                        ParsingSource.type == "hub",
+                    )
                 )
-                self.session.add(new_source)
+            )
+        ).scalars().all()
+        hub_source_by_key = {s.site_key: s for s in hub_sources if s.site_key}
+
+        new_spiders: list[str] = []
+        for spider_key in normalized_spiders:
+            default_url = default_urls.get(spider_key)
+            if isinstance(default_url, str):
+                default_url = default_url.strip()
+                if not default_url.startswith("http"):
+                    default_url = None
+            else:
+                default_url = None
+
+            hub = hub_by_key.get(spider_key)
+            if not hub:
+                self.session.add(
+                    ParsingHub(
+                        site_key=spider_key,
+                        url=default_url or f"https://{spider_key}.placeholder",
+                        strategy="discovery",
+                        is_active=False,
+                        status="waiting",
+                        config={
+                            "is_new": True,
+                            "note": "Automatically detected, please configure",
+                            "last_seen_in_code_at": seen_at.isoformat(),
+                        },
+                    )
+                )
                 new_spiders.append(spider_key)
-        
-        if new_spiders:
-            await self.session.commit()
+            else:
+                if default_url and isinstance(hub.url, str) and hub.url.endswith(".placeholder"):
+                    hub.url = default_url
+                cfg = dict(hub.config or {})
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                hub.config = cfg
+                if str(hub.status or "").strip() == "missing":
+                    hub.status = "waiting"
+
+            # Runtime compatibility: keep one hub source entry for manual run/detail screens.
+            existing_source = hub_source_by_key.get(spider_key)
+            if not existing_source:
+                self.session.add(
+                    ParsingSource(
+                        site_key=spider_key,
+                        url=default_url or f"https://{spider_key}.placeholder",
+                        type="hub",
+                        strategy="discovery",
+                        is_active=False,
+                        config={
+                            "is_new": True,
+                            "note": "Runtime mirror of parsing_hubs",
+                            "last_seen_in_code_at": seen_at.isoformat(),
+                        },
+                    )
+                )
+            elif default_url and isinstance(existing_source.url, str) and existing_source.url.endswith(".placeholder"):
+                existing_source.url = default_url
+                cfg = dict(existing_source.config or {})
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                # Auto-restore if we previously disabled due to missing in code.
+                if cfg.get("disabled_due_to_missing_in_code"):
+                    prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
+                    prev_status = cfg.get("disabled_due_to_missing_prev_status")
+                    if isinstance(prev_active, bool):
+                        existing_source.is_active = prev_active
+                    if isinstance(prev_status, str) and prev_status:
+                        existing_source.status = prev_status
+                    cfg.pop("disabled_due_to_missing_in_code", None)
+                    cfg.pop("disabled_due_to_missing_prev_is_active", None)
+                    cfg.pop("disabled_due_to_missing_prev_status", None)
+                    cfg.pop("disabled_due_to_missing_at", None)
+                existing_source.config = cfg
+            else:
+                cfg = dict(existing_source.config or {})
+                cfg["last_seen_in_code_at"] = seen_at.isoformat()
+                cfg.pop("missing_in_code", None)
+                cfg.pop("missing_in_code_since", None)
+                cfg.pop("missing_in_code_last_seen_at", None)
+                # Auto-restore if we previously disabled due to missing in code.
+                if cfg.get("disabled_due_to_missing_in_code"):
+                    prev_active = cfg.get("disabled_due_to_missing_prev_is_active")
+                    prev_status = cfg.get("disabled_due_to_missing_prev_status")
+                    if isinstance(prev_active, bool):
+                        existing_source.is_active = prev_active
+                    if isinstance(prev_status, str) and prev_status:
+                        existing_source.status = prev_status
+                    cfg.pop("disabled_due_to_missing_in_code", None)
+                    cfg.pop("disabled_due_to_missing_prev_is_active", None)
+                    cfg.pop("disabled_due_to_missing_prev_status", None)
+                    cfg.pop("disabled_due_to_missing_at", None)
+                existing_source.config = cfg
+
+        await self.session.commit()
             
         return new_spiders
+
+    async def mark_missing_spiders(
+        self,
+        available_spiders: List[str],
+        *,
+        grace_minutes: int = 360,
+        now: Optional[datetime] = None,
+    ) -> dict[str, Any]:
+        """
+        Marks spiders that exist in DB but are missing from the codebase.
+
+        This does NOT delete anything. It "quarantines" missing spiders:
+        - adds flags into ParsingHub.config / ParsingSource.config (hub mirror)
+        - after a grace period, disables all parsing_sources for that site_key so scheduler won't queue them.
+
+        Why grace period:
+        - during rolling deploy, an older worker image might report a partial spider list.
+        """
+        now = now or datetime.now()
+        grace_minutes = max(0, int(grace_minutes or 0))
+        available = {s for s in (available_spiders or []) if isinstance(s, str) and s.strip()}
+
+        if available:
+            hubs = (
+                await self.session.execute(
+                    select(ParsingHub)
+                    .where(ParsingHub.site_key.notin_(list(available)))
+                    .order_by(ParsingHub.site_key.asc())
+                )
+            ).scalars().all()
+        else:
+            hubs = (
+                await self.session.execute(
+                    select(ParsingHub).order_by(ParsingHub.site_key.asc())
+                )
+            ).scalars().all()
+
+        hub_by_key = {h.site_key: h for h in hubs if h.site_key}
+        missing_keys = sorted(hub_by_key.keys())
+
+        newly_missing: list[str] = []
+        for key in missing_keys:
+            hub = hub_by_key.get(key)
+            if not hub:
+                continue
+            cfg = dict(hub.config or {})
+            if not cfg.get("missing_in_code"):
+                newly_missing.append(key)
+            cfg["missing_in_code"] = True
+            cfg.setdefault("missing_in_code_since", now.isoformat())
+            cfg["missing_in_code_last_seen_at"] = now.isoformat()
+            hub.config = cfg
+            hub.is_active = False
+            if str(hub.status or "").strip() != "disabled":
+                hub.status = "missing"
+
+        # NOTE: We intentionally do NOT bulk-disable all sources here.
+        # Disabling all list sources can be extremely expensive (many rows) and can stall workers.
+        # Scheduler skips sources for missing spiders by joining ParsingHub status/config.
+        disabled: list[str] = []
+
+        # UI/Operator friendliness: immediately mark hub-mirror sources as missing (inactive),
+        # even before grace disables all sources. This makes it visible in the parsers UI.
+        if missing_keys:
+            hub_sources = (
+                await self.session.execute(
+                    select(ParsingSource).where(
+                        and_(ParsingSource.site_key.in_(missing_keys), ParsingSource.type == "hub")
+                    )
+                )
+            ).scalars().all()
+            for s in hub_sources:
+                cfg = dict(s.config or {})
+                cfg["missing_in_code"] = True
+                cfg.setdefault("missing_in_code_since", now.isoformat())
+                cfg["missing_in_code_last_seen_at"] = now.isoformat()
+                # Only flip active->inactive for UI if it isn't already disabled by grace.
+                if s.status != "disabled":
+                    if not cfg.get("disabled_due_to_missing_in_code"):
+                        cfg["disabled_due_to_missing_in_code"] = True
+                        cfg["disabled_due_to_missing_prev_is_active"] = bool(s.is_active)
+                        cfg["disabled_due_to_missing_prev_status"] = str(s.status or "waiting")
+                        cfg["disabled_due_to_missing_at"] = now.isoformat()
+                    s.is_active = False
+                    s.status = "missing"
+                s.config = cfg
+
+        await self.session.commit()
+        return {
+            "missing_spiders": missing_keys,
+            "newly_missing_spiders": sorted(newly_missing),
+            "disabled_spiders": disabled,
+            "grace_minutes": grace_minutes,
+            "ts": now.isoformat(),
+        }
+
+    async def get_missing_spiders_report(self, *, limit: int = 200) -> list[dict[str, Any]]:
+        """
+        Returns a list of spiders that are missing from the codebase
+        (as last observed by the workers via sync-spiders).
+        """
+        limit = max(1, min(int(limit or 200), 1000))
+
+        hubs = (
+            await self.session.execute(
+                select(ParsingHub).order_by(ParsingHub.site_key.asc()).limit(limit)
+            )
+        ).scalars().all()
+
+        missing_keys = []
+        hub_by_key: dict[str, ParsingHub] = {}
+        for hub in hubs:
+            if not hub.site_key:
+                continue
+            cfg = hub.config or {}
+            if isinstance(cfg, dict) and cfg.get("missing_in_code"):
+                missing_keys.append(hub.site_key)
+                hub_by_key[hub.site_key] = hub
+
+        if not missing_keys:
+            return []
+
+        # Aggregate sources stats for these site_keys.
+        stmt = (
+            select(
+                ParsingSource.site_key,
+                func.count(ParsingSource.id).label("sources_total"),
+                func.sum(case((ParsingSource.is_active.is_(True), 1), else_=0)).label("sources_active"),
+                func.sum(case((ParsingSource.status == "missing", 1), else_=0)).label("sources_missing"),
+                func.sum(case((ParsingSource.status == "disabled", 1), else_=0)).label("sources_disabled"),
+            )
+            .where(ParsingSource.site_key.in_(missing_keys))
+            .group_by(ParsingSource.site_key)
+        )
+        rows = (await self.session.execute(stmt)).all()
+        stats_by_key = {
+            str(r.site_key): {
+                "sources_total": int(r.sources_total or 0),
+                "sources_active": int(r.sources_active or 0),
+                "sources_missing": int(r.sources_missing or 0),
+                "sources_disabled": int(r.sources_disabled or 0),
+            }
+            for r in rows
+            if r and r.site_key
+        }
+
+        report: list[dict[str, Any]] = []
+        for key in sorted(missing_keys):
+            hub = hub_by_key.get(key)
+            cfg = dict(hub.config or {}) if hub else {}
+            report.append(
+                {
+                    "site_key": key,
+                    "hub_url": hub.url if hub else None,
+                    "missing_since": cfg.get("missing_in_code_since"),
+                    "last_seen_in_code_at": cfg.get("last_seen_in_code_at"),
+                    "last_missing_seen_at": cfg.get("missing_in_code_last_seen_at"),
+                    "stats": stats_by_key.get(key, {}),
+                    "hub_config": cfg,
+                }
+            )
+        return report
 
     async def set_source_active_status(self, source_id: int, is_active: bool) -> bool:
         stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
@@ -310,17 +607,83 @@ class ParsingRepository:
             return source
         return None
 
-    async def log_parsing_run(self, source_id: int, status: str, items_scraped: int, items_new: int, error_message: str = None):
-        from app.models import ParsingRun
+    async def log_parsing_run(
+        self,
+        source_id: int,
+        status: str,
+        items_scraped: int,
+        items_new: int,
+        error_message: str | None = None,
+    ) -> ParsingRun:
         run = ParsingRun(
-            source_id=source_id,
-            status=status,
-            items_scraped=items_scraped,
-            items_new=items_new,
-            error_message=error_message
+            source_id=int(source_id),
+            status=str(status),
+            items_scraped=int(items_scraped or 0),
+            items_new=int(items_new or 0),
+            error_message=error_message,
         )
         self.session.add(run)
         await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
+    async def create_parsing_run(
+        self,
+        *,
+        source_id: int,
+        status: str,
+        items_scraped: int = 0,
+        items_new: int = 0,
+        error_message: str | None = None,
+        duration_seconds: float | None = None,
+        logs: str | None = None,
+    ) -> ParsingRun:
+        run = ParsingRun(
+            source_id=int(source_id),
+            status=str(status),
+            items_scraped=int(items_scraped or 0),
+            items_new=int(items_new or 0),
+            error_message=error_message,
+            duration_seconds=duration_seconds,
+            logs=logs,
+        )
+        self.session.add(run)
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
+
+    async def update_parsing_run(
+        self,
+        run_id: int,
+        *,
+        status: str | None = None,
+        items_scraped: int | None = None,
+        items_new: int | None = None,
+        error_message: str | None = None,
+        duration_seconds: float | None = None,
+        logs: str | None = None,
+    ) -> ParsingRun | None:
+        stmt = select(ParsingRun).where(ParsingRun.id == int(run_id))
+        run = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not run:
+            return None
+
+        if status is not None:
+            run.status = str(status)
+        if items_scraped is not None:
+            run.items_scraped = int(items_scraped or 0)
+        if items_new is not None:
+            run.items_new = int(items_new or 0)
+        if error_message is not None:
+            run.error_message = error_message
+        if duration_seconds is not None:
+            run.duration_seconds = duration_seconds
+        if logs is not None:
+            run.logs = logs
+
+        await self.session.commit()
+        await self.session.refresh(run)
+        return run
 
     async def get_source_history(self, source_id: int, limit: int = 15):
         from app.models import ParsingRun
@@ -569,40 +932,137 @@ class ParsingRepository:
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def count_discovered_today(self) -> int:
-        """Counts how many sources were discovered/activated today."""
-        stmt = select(func.count(ParsingSource.id)).where(
+    async def get_hub_by_site_key(self, site_key: str) -> Optional[ParsingHub]:
+        stmt = select(ParsingHub).where(ParsingHub.site_key == site_key)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_discovered_category_by_site_url(self, site_key: str, url: str) -> Optional[DiscoveredCategory]:
+        stmt = select(DiscoveredCategory).where(
             and_(
-                ParsingSource.status != "discovered", # already activated
-                ParsingSource.created_at >= func.now() - timedelta(days=1)
+                DiscoveredCategory.site_key == site_key,
+                DiscoveredCategory.url == url,
+            )
+        )
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def upsert_discovered_category(self, data: dict) -> DiscoveredCategory:
+        site_key = data["site_key"]
+        url = data["url"]
+        category = await self.get_discovered_category_by_site_url(site_key, url)
+
+        if category:
+            for key, value in data.items():
+                if hasattr(category, key) and value is not None:
+                    setattr(category, key, value)
+            await self.session.flush()
+            return category
+
+        category = DiscoveredCategory(**data)
+        self.session.add(category)
+        await self.session.flush()
+        return category
+
+    async def promote_discovered_category(self, category_id: int) -> Optional[ParsingSource]:
+        stmt = select(DiscoveredCategory).where(DiscoveredCategory.id == category_id)
+        result = await self.session.execute(stmt)
+        category = result.scalar_one_or_none()
+        if not category:
+            return None
+
+        src_stmt = select(ParsingSource).where(
+            and_(
+                ParsingSource.site_key == category.site_key,
+                ParsingSource.url == category.url,
+                ParsingSource.type == "list",
+            )
+        )
+        src_res = await self.session.execute(src_stmt)
+        source = src_res.scalar_one_or_none()
+
+        if source is None:
+            source = ParsingSource(
+                url=category.url,
+                type="list",
+                site_key=category.site_key,
+                strategy="deep",
+                priority=50,
+                refresh_interval_hours=24,
+                is_active=True,
+                status="waiting",
+                category_id=category.id,
+                config={
+                    "discovery_name": category.name,
+                    "parent_url": category.parent_url,
+                    "discovered_category_id": category.id,
+                },
+            )
+            self.session.add(source)
+            await self.session.flush()
+        else:
+            source.is_active = True
+            source.status = "waiting"
+            source.category_id = category.id
+            cfg = dict(source.config or {})
+            if category.name:
+                cfg["discovery_name"] = category.name
+            if category.parent_url:
+                cfg["parent_url"] = category.parent_url
+            cfg["discovered_category_id"] = category.id
+            source.config = cfg
+            await self.session.flush()
+
+        category.state = "promoted"
+        category.promoted_source_id = source.id
+        await self.session.flush()
+        return source
+
+    async def get_discovered_categories(self, limit: int = 50, states: Optional[List[str]] = None) -> List[DiscoveredCategory]:
+        stmt = select(DiscoveredCategory)
+        if states:
+            stmt = stmt.where(DiscoveredCategory.state.in_(states))
+        stmt = stmt.order_by(DiscoveredCategory.created_at.desc()).limit(limit)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def count_promoted_categories_today(self) -> int:
+        stmt = select(func.count(DiscoveredCategory.id)).where(
+            and_(
+                DiscoveredCategory.state == "promoted",
+                DiscoveredCategory.updated_at >= func.now() - timedelta(days=1),
             )
         )
         result = await self.session.execute(stmt)
         return result.scalar() or 0
 
+    async def count_discovered_today(self) -> int:
+        """Backward-compatible alias: number of promoted categories for last 24h."""
+        return await self.count_promoted_categories_today()
+
     async def get_discovered_sources(self, limit: int = 50) -> List[ParsingSource]:
-        """Fetches inactive 'discovered' sources from the backlog."""
-        stmt = (
-            select(ParsingSource)
-            .where(ParsingSource.status == "discovered")
-            .order_by(ParsingSource.priority.desc(), ParsingSource.created_at.asc())
-            .limit(limit)
-        )
+        """
+        Backward-compatible alias:
+        returns promoted runtime sources for new backlog semantics.
+        Prefer get_discovered_categories() in new code.
+        """
+        categories = await self.get_discovered_categories(limit=limit, states=["new"])
+        source_ids = [c.promoted_source_id for c in categories if c.promoted_source_id]
+        if not source_ids:
+            return []
+        stmt = select(ParsingSource).where(ParsingSource.id.in_(source_ids))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
     async def activate_sources(self, source_ids: List[int]):
-        """Activates sources from the backlog."""
+        """Backward-compatible alias: promotes discovered_categories by their ids."""
         if not source_ids:
-            return
-        stmt = (
-            update(ParsingSource)
-            .where(ParsingSource.id.in_(source_ids))
-            .values(
-                is_active=True,
-                status="waiting",
-                next_sync_at=func.now()
-            )
-        )
-        await self.session.execute(stmt)
+            return 0
+        promoted = 0
+        for category_id in source_ids:
+            source = await self.promote_discovered_category(category_id)
+            if source:
+                source.next_sync_at = func.now()
+                promoted += 1
         await self.session.commit()
+        return promoted

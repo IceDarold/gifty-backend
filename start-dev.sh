@@ -199,7 +199,24 @@ if [ ! -x "$NGROK_BIN" ]; then
 fi
 if [ -z "$NGROK_BIN" ]; then
   echo "ngrok binary not found (set NGROK_BIN or install ngrok)"
-  exit 1
+  echo "Skipping ngrok; TELEGRAM_WEBAPP_URL will point to localhost (Telegram WebApp may not work remotely)."
+  NGROK_URL="http://localhost:${ADMIN_TMA_PORT}"
+  echo "[5/5] Update TELEGRAM_WEBAPP_URL and restart bot"
+  update_env_webapp_url "$NGROK_URL"
+  docker compose up -d telegram-bot >/dev/null 2>&1 || true
+
+  echo
+  echo "Dev environment ready (ngrok skipped)"
+  echo "Dashboard:     $NGROK_URL"
+  echo "Local admin:   http://localhost:${ADMIN_TMA_PORT}"
+  echo "Local API:     http://localhost:8000"
+  if [ "$DB_MODE" = "remote" ]; then
+    echo "DB mode:       remote (tunnel localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT})"
+  else
+    echo "DB mode:       local"
+  fi
+  echo "Next log:      $NEXT_LOG"
+  exit 0
 fi
 
 pkill -f "ngrok http ${ADMIN_TMA_PORT}" 2>/dev/null || true

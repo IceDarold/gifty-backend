@@ -15,7 +15,7 @@ import sqlalchemy as sa
 revision: str = '9b6dcf704bbf'
 # Merge the frontend routing control-plane branch with the parsing branch.
 # This file was introduced via cherry-pick and originally referenced a non-existent placeholder revision.
-down_revision: Union[str, None] = ('9f2a7c1d4b8e', '041553a0e7bb')
+down_revision: Union[str, None] = ('9f2a7c1d4b8e', 'a4b1c2d3e4f5')
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

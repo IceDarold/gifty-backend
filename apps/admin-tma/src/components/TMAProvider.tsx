@@ -1,57 +1,108 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
-import { postEvent, initData, viewport, miniApp, themeParams } from "@telegram-apps/sdk";
+import { initData, miniApp, themeParams, viewport } from "@telegram-apps/sdk";
+import { ShieldAlert, Send } from "lucide-react";
+import { authWithTelegram, getInitDataRaw } from "@/lib/api";
+
+interface AuthUser {
+    id: number;
+    name?: string;
+    role?: string;
+    permissions?: string[];
+}
 
 interface TMAContextType {
     user: any;
+    authUser: AuthUser | null;
     startParam: string | null;
     platform: string;
+    initDataRaw: string;
 }
 
 const TMAContext = createContext<TMAContextType | null>(null);
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || "GiftyAIBot";
+const BOT_LINK = `https://t.me/${BOT_USERNAME}`;
+const TEST_MODE = process.env.NEXT_PUBLIC_TEST_MODE === "1";
+
+const readTestUser = (): AuthUser => {
+    const raw = process.env.NEXT_PUBLIC_TEST_USER_JSON;
+    if (!raw) return { id: 1, role: "superadmin", permissions: ["*"] };
+    try {
+        const parsed = JSON.parse(raw);
+        if (parsed && typeof parsed === "object" && typeof parsed.id === "number") {
+            return parsed as AuthUser;
+        }
+    } catch {
+        // ignore
+    }
+    return { id: 1, role: "superadmin", permissions: ["*"] };
+};
 
 export function TMAProvider({ children }: { children: React.ReactNode }) {
     const [isReady, setIsReady] = useState(false);
+    const [isAuthorized, setIsAuthorized] = useState(false);
     const [context, setContext] = useState<TMAContextType | null>(null);
 
     useEffect(() => {
+        if (TEST_MODE) {
+            const authUser = readTestUser();
+            const rawInitData = getInitDataRaw();
+            setContext({
+                user: authUser,
+                authUser,
+                startParam: null,
+                platform: "test",
+                initDataRaw: rawInitData,
+            });
+            setIsAuthorized(true);
+            setIsReady(true);
+            return;
+        }
+
+        const getUnsafeUser = () => (window as any)?.Telegram?.WebApp?.initDataUnsafe?.user || null;
+        const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
         const init = async () => {
             try {
-                // Initialize Mini App
-                if (miniApp.mount.isAvailable()) {
-                    miniApp.mount();
-                }
+                if (miniApp.mount.isAvailable()) miniApp.mount();
+                if (miniApp.ready.isAvailable()) miniApp.ready();
 
-                if (miniApp.ready.isAvailable()) {
-                    miniApp.ready();
-                }
-
-                // Initialize Viewport
                 if (viewport.mount.isAvailable()) {
                     await viewport.mount();
-                    if (viewport.expand.isAvailable()) {
-                        viewport.expand();
-                    }
+                    if (viewport.expand.isAvailable()) viewport.expand();
                 }
 
-                // Sync Theme
-                if (themeParams.mount.isAvailable()) {
-                    themeParams.mount();
+                if (themeParams.mount.isAvailable()) themeParams.mount();
+
+                let rawInitData = "";
+                for (let i = 0; i < 20; i++) {
+                    rawInitData = getInitDataRaw();
+                    if (rawInitData) break;
+                    await sleep(120);
                 }
 
-                // Get Init Data
-                const data = initData.user();
+                const sdkUser = initData.user();
+                const unsafeUser = getUnsafeUser();
+                const tmaUser = sdkUser || unsafeUser;
+
+                const auth = await authWithTelegram();
+                const authUser = auth?.user || null;
+
                 setContext({
-                    user: data || null,
+                    user: tmaUser || authUser || null,
+                    authUser,
                     startParam: initData.startParam() || null,
-                    platform: "unknown", // platform not directly on initData in this way
+                    platform: "unknown",
+                    initDataRaw: rawInitData,
                 });
 
-                setIsReady(true);
+                setIsAuthorized(true);
             } catch (e) {
-                console.error("TMA Initialization failed", e);
-                setIsReady(true); // Fallback
+                console.error("TMA auth initialization failed", e);
+                setIsAuthorized(false);
+            } finally {
+                setIsReady(true);
             }
         };
 
@@ -69,10 +120,41 @@ export function TMAProvider({ children }: { children: React.ReactNode }) {
         );
     }
 
+    if (!isAuthorized) {
+        return (
+            <div className="min-h-screen bg-gradient-to-b from-[#17212b] via-[#111c28] to-[#0d141d] px-6 py-8 flex items-center justify-center">
+                <div className="max-w-md w-full rounded-3xl border border-[#ec3942]/30 bg-[#0e1621]/95 p-7 text-center shadow-2xl">
+                    <div className="mx-auto w-14 h-14 rounded-2xl bg-[#ec3942]/15 border border-[#ec3942]/35 flex items-center justify-center">
+                        <ShieldAlert size={28} className="text-[#ec3942]" />
+                    </div>
+
+                    <h2 className="mt-4 text-xl font-extrabold text-white">Доступ запрещен</h2>
+                    <p className="mt-2 text-sm text-[#9fb3c8]">
+                        Требуется авторизация через Telegram WebApp и права администратора.
+                    </p>
+
+                    <div className="mt-4 rounded-xl border border-[#5288c1]/30 bg-[#5288c1]/10 p-3 text-left">
+                        <p className="text-xs font-semibold text-[#9ec8f0]">Как войти:</p>
+                        <p className="mt-1 text-xs text-[#c7d8ea]">
+                            Открой бота в Telegram и запусти дашборд кнопкой меню.
+                        </p>
+                    </div>
+
+                    <a
+                        href={BOT_LINK}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="mt-5 w-full inline-flex items-center justify-center gap-2 rounded-xl bg-[#2481cc] text-white px-4 py-3 font-bold shadow-lg shadow-[#2481cc]/30 hover:brightness-110 active:scale-[0.98] transition-all"
+                    >
+                        <Send size={16} />
+                        Открыть в Telegram
+                    </a>
+                </div>
+            </div>
+        );
+    }
+
     return <TMAContext.Provider value={context}>{children}</TMAContext.Provider>;
 }
 
-export const useTMA = () => {
-    const context = useContext(TMAContext);
-    return context;
-};
+export const useTMA = () => useContext(TMAContext);

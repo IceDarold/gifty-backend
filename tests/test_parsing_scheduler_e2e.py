@@ -8,7 +8,7 @@ from sqlalchemy.dialects.postgresql import UUID, JSONB
 from pgvector.sqlalchemy import Vector
 
 from app.db import Base
-from app.models import ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, Merchant, ProductCategoryLink
+from app.models import ParsingHub, ParsingSource, ParsingRun, CategoryMap, Product, DiscoveredCategory, Merchant, ProductCategoryLink
 from app.repositories.parsing import ParsingRepository
 from app.jobs.parsing_scheduler import run_parsing_scheduler
 from app.repositories.catalog import PostgresCatalogRepository
@@ -35,6 +35,7 @@ async def sqlite_db_session(tmp_path):
         await conn.run_sync(
             Base.metadata.create_all,
             tables=[
+                ParsingHub.__table__,
                 ParsingSource.__table__,
                 DiscoveredCategory.__table__,
                 ProductCategoryLink.__table__,
@@ -66,7 +67,7 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
     due_source = ParsingSource(
         site_key="test_site",
         url="https://test.com/due",
-        type="list",
+        type="hub",
         strategy="deep",
         is_active=True,
         next_sync_at=datetime.utcnow() - timedelta(hours=1),
@@ -77,7 +78,7 @@ async def test_parsing_scheduler_flow(sqlite_db_session):
     future_source = ParsingSource(
         site_key="test_site",
         url="https://test.com/future",
-        type="list",
+        type="hub",
         strategy="deep",
         is_active=True,
         next_sync_at=datetime.utcnow() + timedelta(hours=1),
@@ -138,7 +139,7 @@ async def test_scraper_ingestion_with_stats(sqlite_db_session):
     source = ParsingSource(
         site_key="mrgeek",
         url="https://mrgeek.ru/cat",
-        type="list",
+        type="hub",
         is_active=True,
         status="running",
         category_id=cat.id,
@@ -176,13 +177,17 @@ async def test_scraper_ingestion_with_stats(sqlite_db_session):
     new_count = await service.ingest_products(products, source.id)
     assert new_count > 0
 
-    # Verify run history (ParsingRun)
+    # Verify the product was upserted
     from sqlalchemy import select
-    runs_result = await sqlite_db_session.execute(select(ParsingRun))
-    runs = runs_result.scalars().all()
-    assert len(runs) == 1
-    assert runs[0].items_scraped == 1
-    assert runs[0].items_new == 1
-    assert runs[0].status == "completed"
+    products_result = await sqlite_db_session.execute(select(Product))
+    stored = products_result.scalars().all()
+    assert len(stored) == 1
+    assert stored[0].site_key == "mrgeek"
 
-    print("✅ Ingestion flow with stats logging passed!")
+    # Verify source stats were updated (update_source_stats stores into config.last_stats)
+    await sqlite_db_session.refresh(source)
+    last_stats = (source.config or {}).get("last_stats") or {}
+    assert last_stats.get("processed_items") == 1
+    assert last_stats.get("new_items") == new_count
+
+    print("✅ Ingestion flow (products + source stats) passed!")

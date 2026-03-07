@@ -55,6 +55,7 @@ class IngestionPipeline:
             self.api_url = f"{normalized}/api/v1/internal/ingest-batch"
         self.token = os.getenv("INTERNAL_API_TOKEN", "default_internal_token")
         self.batch_size = int(os.getenv("SCRAPY_BATCH_SIZE", "50"))
+        self.category_batch_size = int(os.getenv("SCRAPY_CATEGORY_BATCH_SIZE", "25"))
         self.items_buffer = []
         self.item_count = 0
         self._redis = None
@@ -163,34 +164,57 @@ class IngestionPipeline:
             return
 
         first_item = products[0] if products else categories[0]
-        source_id = _as_int_or_none(first_item.get("source_id", getattr(spider, 'source_id', None)))
+        source_id = _as_int_or_none(first_item.get("source_id", getattr(spider, "source_id", None)))
         source_id = source_id if source_id is not None else 0
-        run_id = _as_int_or_none(first_item.get("run_id", getattr(spider, 'run_id', None)))
+        run_id = _as_int_or_none(first_item.get("run_id", getattr(spider, "run_id", None)))
         spider_name = first_item.get("site_key", spider.name)
 
-        payload = {
-            "items": products,
-            "categories": categories,
-            "source_id": source_id,
-            "run_id": run_id,
-            "stats": {"count": len(batch)}
-        }
-
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
+        async def _post_payload(items_chunk, categories_chunk, *, chunk_stats_count: int):
+            payload = {
+                "items": items_chunk,
+                "categories": categories_chunk,
+                "source_id": source_id,
+                "run_id": run_id,
+                "stats": {"count": chunk_stats_count},
+            }
+            async with httpx.AsyncClient(timeout=60.0) as client:
                 response = await client.post(
                     self.api_url,
                     json=payload,
-                    headers={"X-Internal-Token": self.token}
+                    headers={"X-Internal-Token": self.token},
                 )
                 response.raise_for_status()
 
-                ingestion_batches_total.labels(spider=spider_name, status="success").inc()
-                ingestion_items_total.labels(spider=spider_name).inc(len(batch))
+        def _chunks(seq, size: int):
+            if size <= 0:
+                yield seq
+                return
+            for i in range(0, len(seq), size):
+                yield seq[i : i + size]
 
-                msg = f"[PROGRESS] [{_ts()}] 💾 Batch ingested: {len(products)} products, {len(categories)} categories (total so far: {self.item_count})"
-                self.logger.info(f"Successfully ingested {len(products)} products and {len(categories)} categories for {spider_name}")
-                await self._publish(source_id, msg)
+        try:
+            # Ingest products in a single request (keeps run logging semantics simple).
+            if products:
+                await _post_payload(products, [], chunk_stats_count=len(batch))
+
+            # Ingest categories separately in smaller chunks to avoid timeouts
+            # (ingest_categories does per-row work and can be slow on remote DB).
+            if categories:
+                chunk_size = max(1, min(int(self.category_batch_size), 100))
+                for cat_chunk in _chunks(categories, chunk_size):
+                    await _post_payload([], cat_chunk, chunk_stats_count=len(cat_chunk))
+
+            ingestion_batches_total.labels(spider=spider_name, status="success").inc()
+            ingestion_items_total.labels(spider=spider_name).inc(len(batch))
+
+            msg = (
+                f"[PROGRESS] [{_ts()}] 💾 Batch ingested: {len(products)} products, "
+                f"{len(categories)} categories (total so far: {self.item_count})"
+            )
+            self.logger.info(
+                f"Successfully ingested {len(products)} products and {len(categories)} categories for {spider_name}"
+            )
+            await self._publish(source_id, msg)
 
         except Exception as e:
             ingestion_batches_total.labels(spider=spider_name, status="error").inc()
@@ -201,5 +225,6 @@ class IngestionPipeline:
                 except Exception:
                     details = ""
             extra = f" response={details}" if details else ""
-            self.logger.error(f"Failed to ingest batch for {spider_name}: {e}{extra}")
-            await self._publish(source_id, f"[ERROR] [{_ts()}] ❌ Batch failed: {e}{extra}")
+            err = repr(e)
+            self.logger.error(f"Failed to ingest batch for {spider_name}: {err}{extra}")
+            await self._publish(source_id, f"[ERROR] [{_ts()}] ❌ Batch failed: {err}{extra}")

@@ -32,27 +32,57 @@ class KassirSpider(GiftyBaseSpider):
     }
 
     def start_requests(self):
-        # Use starting URL from kwargs or default to concerts
-        url = getattr(self, 'url', "https://msk.kassir.ru/bilety-na-koncert")
-        
-        urls = [url]
-        if not url and self.strategy == "discovery":
-             urls = ["https://msk.kassir.ru/"]
+        if not self.url:
+            self.url = "https://msk.kassir.ru/bilety-na-koncert"
 
-        for u in urls:
-            yield scrapy.Request(
-                u,
-                callback=self.parse,
-                meta={
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_page_methods": [
-                        PageMethod("wait_for_timeout", 5000), # Wait for potential redirect to settle
-                        PageMethod("wait_for_selector", ".event-card, article[class*='event-card'], .event-item", timeout=20000),
-                    ],
-                },
-                errback=self.errback_close_page,
-            )
+        self.logger.info("Initializing session via Playwright (HP)...")
+        yield scrapy.Request(
+            "https://kassir.ru/",
+            callback=self.parse_homepage,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_methods": [
+                    PageMethod("wait_for_timeout", 3000),
+                ],
+            },
+            dont_filter=True
+        )
+
+    def parse_homepage(self, response):
+        self.logger.info("Session initialized. Going to target URL: %s", self.url)
+        yield scrapy.Request(
+            self.url,
+            callback=self.parse_rendered,
+            meta={
+                "playwright": True,
+                "playwright_include_page": True,
+                "playwright_page_methods": [
+                    PageMethod("wait_for_timeout", 10000), # Wait for potential redirect/captcha to settle
+                ],
+            },
+            errback=self.errback_close_page,
+            dont_filter=True
+        )
+
+    async def parse_rendered(self, response):
+        """
+        Called after Playwright renders the page. Gets the fully rendered HTML
+        via page.content() so we can parse JS-rendered event cards.
+        """
+        page = response.meta.get("playwright_page")
+        if page:
+            rendered_html = await page.content()
+            with open("kassir_spider_debug.html", "w") as f:
+                f.write(rendered_html)
+            await page.close()
+            rendered_response = response.replace(body=rendered_html.encode("utf-8"))
+            for item in self.parse(rendered_response):
+                yield item
+        else:
+            for item in self.parse(response):
+                yield item
+
 
     async def errback_close_page(self, failure):
         page = failure.request.meta.get("playwright_page")
@@ -72,11 +102,10 @@ class KassirSpider(GiftyBaseSpider):
             name = link.css('::text').get()
             if url and url not in seen and '/bilety-' in url:
                 seen.add(url)
-                yield CategoryItem(
+                yield self.create_category(
                     name=name.strip() if name else "Category",
                     url=url,
-                    parent_url=response.url,
-                    site_key=self.site_key
+                    parent_url=response.url
                 )
         
         # Fallback if discovery fails due to structure changes
@@ -88,11 +117,10 @@ class KassirSpider(GiftyBaseSpider):
             ]
             for path in fallbacks:
                 url = response.urljoin(path)
-                yield CategoryItem(
+                yield self.create_category(
                     name=path.replace("/bilety-", "").replace("-", " ").title(),
                     url=url,
-                    parent_url=response.url,
-                    site_key=self.site_key
+                    parent_url=response.url
                 )
 
     def parse_catalog(self, response):
@@ -168,18 +196,19 @@ class KassirSpider(GiftyBaseSpider):
             )
 
         # Pagination: "Load more" or numeric pages
-        next_page = response.css('a.pagination__next::attr(href)').get() or \
-                    response.xpath('//a[contains(@class, "next")]/@href').get()
-        
-        if next_page:
-            yield response.follow(
-                next_page, 
-                self.parse_catalog,
-                meta={
-                    "playwright": True,
-                    "playwright_include_page": True,
-                    "playwright_page_methods": [
-                        {"method": "wait_for_selector", "args": [".event-card", {"timeout": 10000}]},
-                    ],
-                }
-            )
+        if self.strategy == "deep":
+            next_page = response.css('a.pagination__next::attr(href)').get() or \
+                        response.xpath('//a[contains(@class, "next")]/@href').get()
+            
+            if next_page:
+                yield response.follow(
+                    next_page, 
+                    self.parse_catalog,
+                    meta={
+                        "playwright": True,
+                        "playwright_include_page": True,
+                        "playwright_page_methods": [
+                            {"method": "wait_for_selector", "args": [".event-card", {"timeout": 10000}]},
+                        ],
+                    }
+                )

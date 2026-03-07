@@ -10,6 +10,8 @@ class GiftyBaseSpider(scrapy.Spider):
 
     def __init__(self, url=None, strategy="deep", source_id=None, *args, **kwargs):
         super(GiftyBaseSpider, self).__init__(*args, **kwargs)
+        # Many spiders rely on `self.url` inside start_requests().
+        self.url = url
         self.start_urls = [url] if url else []
         self.strategy = strategy
         self.source_id = source_id
@@ -40,3 +42,19 @@ class GiftyBaseSpider(scrapy.Spider):
         product['site_key'] = self.site_key
         product['source_id'] = self.source_id
         return product
+
+    def create_category(self, **kwargs):
+        """Helper для создания CategoryItem с общими полями"""
+        category = CategoryItem()
+        for key, value in kwargs.items():
+            category[key] = value
+
+        if "title" in kwargs and "name" not in kwargs:
+            category["name"] = kwargs["title"]
+        if "name" in kwargs and "title" not in kwargs:
+            category["title"] = kwargs["name"]
+        if "price" not in kwargs:
+            category["price"] = None
+
+        category["site_key"] = self.site_key
+        return category

@@ -9,8 +9,9 @@ import { SpiderDetail } from "@/components/SpiderDetail";
 import { UsageChart } from "@/components/UsageChart";
 import { SettingsView } from "@/components/SettingsView";
 import { Intelligence } from "@/components/Intelligence";
+import { LLMLogsView } from "@/components/LLMLogsView";
 import { InfraPanel } from "@/components/InfraPanel";
-import { HealthView } from "@/components/HealthView";
+	import { HealthView } from "@/components/HealthView";
 import { CatalogView } from "@/components/CatalogView";
 import { LogsView } from "@/components/LogsView";
 import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
@@ -19,8 +20,10 @@ import { useCatalogProducts, useDashboardData } from "@/hooks/useDashboard";
 import { OperationsView } from "@/components/operations/OperationsView";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTMA } from "@/components/TMAProvider";
-import { getOpsStreamUrl } from "@/lib/api";
-import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
+	import { getOpsStreamUrl, isSseDisabled } from "@/lib/api";
+	import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
+	import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+	import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
 const AVAILABLE_SPIDERS = [
     "detmir", "group_price", "inteltoys", "kassir",
@@ -65,7 +68,8 @@ export default function Home() {
 
     const tma = useTMA();
     const { t } = useLanguage();
-    const opsRuntimeSettings = useOpsRuntimeSettings();
+	    const opsRuntimeSettings = useOpsRuntimeSettings();
+	    const retryRegistry = useRetryRegistry();
     const chatId = tma?.user?.id || tma?.authUser?.id;
 
     const {
@@ -81,12 +85,86 @@ export default function Home() {
         merchants, updateMerchant, isUpdatingMerchant
     } = useDashboardData(chatId);
 
-    const catalogLimit = 20;
-    const catalogOffset = catalogPage * catalogLimit;
-    const catalogQuery = useCatalogProducts(catalogLimit, catalogOffset, catalogSearch);
+	    const catalogLimit = 20;
+	    const catalogOffset = catalogPage * catalogLimit;
+	    const catalogQuery = useCatalogProducts(catalogLimit, catalogOffset, catalogSearch);
+	
+	    useApiErrorToast({
+	        id: "dashboard-api",
+	        title: "Dashboard API временно недоступен",
+	        retryKey: "dashboard-api",
+	        retryLabel: "Повторить",
+	        errors: [stats.error, health.error, scraping.error, sources.error, trends.error, workers.error, queue.error],
+	        enabled: activeTab === "dashboard",
+	        ttlMs: 10000,
+	    });
+	    useApiErrorToast({
+	        id: "catalog-api",
+	        title: "Catalog API временно недоступен",
+	        retryKey: "catalog-api",
+	        retryLabel: "Повторить",
+	        errors: [catalogQuery.error],
+	        enabled: activeTab === "catalog",
+	        ttlMs: 10000,
+	    });
+	    useApiErrorToast({
+	        id: "health-api",
+	        title: "Health API временно недоступен",
+	        retryKey: "health-api",
+	        retryLabel: "Повторить",
+	        errors: [health.error, workers.error, queue.error],
+	        enabled: activeTab === "health",
+	        ttlMs: 10000,
+	    });
+		    useApiErrorToast({
+		        id: "settings-api",
+		        title: "Settings API временно недоступен",
+		        retryKey: "settings-api",
+		        retryLabel: "Повторить",
+		        errors: [subscriber.error],
+		        enabled: activeTab === "settings",
+		        ttlMs: 10000,
+		    });
+
+		    useEffect(() => {
+		        const unregister = retryRegistry.register("dashboard-api", async () => {
+		            await Promise.allSettled([
+		                stats.refetch(),
+		                health.refetch(),
+		                scraping.refetch(),
+		                sources.refetch(),
+		                trends.refetch(),
+		                workers.refetch(),
+		                queue.refetch(),
+		            ]);
+		        });
+		        return unregister;
+		    }, [retryRegistry, stats.refetch, health.refetch, scraping.refetch, sources.refetch, trends.refetch, workers.refetch, queue.refetch]);
+
+		    useEffect(() => {
+		        const unregister = retryRegistry.register("catalog-api", async () => {
+		            await catalogQuery.refetch();
+		        });
+		        return unregister;
+		    }, [retryRegistry, catalogQuery.refetch]);
+
+		    useEffect(() => {
+		        const unregister = retryRegistry.register("health-api", async () => {
+		            await Promise.allSettled([health.refetch(), workers.refetch(), queue.refetch()]);
+		        });
+		        return unregister;
+		    }, [retryRegistry, health.refetch, workers.refetch, queue.refetch]);
+
+		    useEffect(() => {
+		        const unregister = retryRegistry.register("settings-api", async () => {
+		            await subscriber.refetch();
+		        });
+		        return unregister;
+		    }, [retryRegistry, subscriber.refetch]);
 
     useEffect(() => {
         if (activeTab !== "catalog") return;
+        if (isSseDisabled()) return;
         let source: EventSource | null = null;
 
         try {
@@ -160,6 +238,11 @@ export default function Home() {
                     label: "AI",
                     icon: <Brain size={20} fill={activeTab === "intelligence" ? "currentColor" : "none"} />,
                 },
+                {
+                    key: "llm_logs",
+                    label: "LLM Logs",
+                    icon: <ScrollText size={20} />,
+                },
             ],
         },
         {
@@ -229,7 +312,7 @@ export default function Home() {
         window.addEventListener("pointercancel", handlePointerUp, { once: true });
     };
 
-    const renderContent = () => {
+	const renderContent = () => {
         if (isLoading && activeTab !== "settings" && activeTab !== "catalog" && activeTab !== "ops") {
             return (
                 <div className="flex flex-col items-center justify-center py-24 gap-4">
@@ -240,37 +323,37 @@ export default function Home() {
         }
 
         switch (activeTab) {
-            case "dashboard":
-                return (
-                    <>
-                        <div className="px-4 pt-4">
-                            <ApiServerErrorBanner
-                                errors={[
-                                    stats.error,
-                                    health.error,
-                                    scraping.error,
-                                    sources.error,
-                                    trends.error,
-                                    workers.error,
-                                    queue.error,
-                                ]}
-                                onRetry={async () => {
-                                    await Promise.allSettled([
-                                        stats.refetch(),
-                                        health.refetch(),
-                                        scraping.refetch(),
-                                        sources.refetch(),
-                                        trends.refetch(),
-                                        workers.refetch(),
-                                        queue.refetch(),
-                                    ]);
-                                }}
-                                title="Dashboard API временно недоступен"
-                            />
-                        </div>
-                        <div className="px-4 pt-4">
-                            <div className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border border-white/20 bg-[linear-gradient(120deg,#1a8fe0_0%,#276db6_45%,#1a4e87_100%)]">
-                                <div className="relative z-10">
+				case "dashboard":
+					return (
+						<>
+							<div className="px-4 pt-4">
+								<ApiServerErrorBanner
+									errors={[
+										stats.error,
+										health.error,
+										scraping.error,
+										sources.error,
+										trends.error,
+										workers.error,
+										queue.error,
+									]}
+									onRetry={async () => {
+										await Promise.allSettled([
+											stats.refetch(),
+											health.refetch(),
+											scraping.refetch(),
+											sources.refetch(),
+											trends.refetch(),
+											workers.refetch(),
+											queue.refetch(),
+										]);
+									}}
+									title="Dashboard API временно недоступен"
+								/>
+							</div>
+							<div className="px-4 pt-4">
+								<div className="rounded-3xl p-6 text-white shadow-xl relative overflow-hidden border border-white/20 bg-[linear-gradient(120deg,#1a8fe0_0%,#276db6_45%,#1a4e87_100%)]">
+									<div className="relative z-10">
                                     <div className="inline-flex items-center rounded-full border border-white/30 bg-white/15 px-2.5 py-1 text-[10px] uppercase tracking-[0.14em] text-white/90 mb-3">
                                         Live System
                                     </div>
@@ -305,22 +388,22 @@ export default function Home() {
                 return (
                     <OperationsView onOpenSourceDetails={(id, initial) => openSourceDetail(id, initial)} />
                 );
-            case "catalog":
-                return (
-                    <>
-                        <div className="px-4 pt-4">
-                            <ApiServerErrorBanner
-                                errors={[catalogQuery.error]}
-                                onRetry={async () => {
-                                    await catalogQuery.refetch();
-                                }}
-                                title="Catalog API временно недоступен"
-                            />
-                        </div>
-                        <CatalogView
-                            data={catalogQuery.data}
-                            isLoading={catalogQuery.isLoading || catalogQuery.isFetching}
-                            pendingNewItems={catalogPendingNewItems}
+				case "catalog":
+					return (
+						<>
+							<div className="px-4 pt-4">
+								<ApiServerErrorBanner
+									errors={[catalogQuery.error]}
+									onRetry={async () => {
+										await catalogQuery.refetch();
+									}}
+									title="Catalog API временно недоступен"
+								/>
+							</div>
+							<CatalogView
+								data={catalogQuery.data}
+								isLoading={catalogQuery.isLoading || catalogQuery.isFetching}
+	                            pendingNewItems={catalogPendingNewItems}
                             search={catalogSearch}
                             page={catalogPage}
                             onSearchChange={(value) => {
@@ -343,41 +426,39 @@ export default function Home() {
                 );
             case "intelligence":
                 return <Intelligence />;
-            case "health":
-                return (
-                    <>
-                        <div className="px-4 pt-4">
-                            <ApiServerErrorBanner
-                                errors={[health.error, workers.error, queue.error]}
-                                onRetry={async () => {
-                                    await Promise.allSettled([
-                                        health.refetch(),
-                                        workers.refetch(),
-                                        queue.refetch(),
-                                    ]);
-                                }}
-                                title="Health API временно недоступен"
-                            />
-                        </div>
-                        <HealthView health={health.data} workers={workers.data} queue={queue.data} />
-                    </>
-                );
-            case "settings":
-                return (
-                    <>
-                        <div className="px-4 pt-4">
-                            <ApiServerErrorBanner
-                                errors={[subscriber.error]}
-                                onRetry={async () => {
-                                    await subscriber.refetch();
-                                }}
-                                title="Settings API временно недоступен"
-                            />
-                        </div>
-                        <SettingsView
-                            chatId={chatId}
-                            subscriber={subscriber.data}
-                            onConnectWeeek={(token) => connectWeeek({ token })}
+            case "llm_logs":
+                return <LLMLogsView />;
+				case "health":
+					return (
+						<>
+							<div className="px-4 pt-4">
+								<ApiServerErrorBanner
+									errors={[health.error, workers.error, queue.error]}
+									onRetry={async () => {
+										await Promise.allSettled([health.refetch(), workers.refetch(), queue.refetch()]);
+									}}
+									title="Health API временно недоступен"
+								/>
+							</div>
+							<HealthView health={health.data} workers={workers.data} queue={queue.data} />
+						</>
+					);
+				case "settings":
+					return (
+						<>
+							<div className="px-4 pt-4">
+								<ApiServerErrorBanner
+									errors={[subscriber.error]}
+									onRetry={async () => {
+										await subscriber.refetch();
+									}}
+									title="Settings API временно недоступен"
+								/>
+							</div>
+							<SettingsView
+								chatId={chatId}
+								subscriber={subscriber.data}
+	                            onConnectWeeek={(token) => connectWeeek({ token })}
                             isConnectingWeeek={isConnectingWeeek}
                             toggleSubscription={(topic, active) => toggleSubscription({ topic, active })}
                             setBackendLanguage={(lang) => setBackendLanguage(lang)}
@@ -457,6 +538,7 @@ export default function Home() {
                     {navSections.flatMap((section) => section.items).map((item) => (
                         <button
                             key={`mobile-${item.key}`}
+                            data-testid={`nav-mobile-${item.key}`}
                             onClick={() => setActiveTab(item.key)}
                             className={`nav-item shrink-0 ${activeTab === item.key ? "active" : ""}`}
                         >
@@ -479,6 +561,7 @@ export default function Home() {
                             {section.items.map((item) => (
                                 <button
                                     key={item.key}
+                                    data-testid={`nav-${item.key}`}
                                     onClick={() => setActiveTab(item.key)}
                                     className={`nav-item ${activeTab === item.key ? "active" : ""} ${!sidebarCollapsed ? "md:w-full md:h-auto md:min-h-[2.7rem] md:flex-row md:justify-start md:px-3" : ""}`}
                                 >
@@ -503,6 +586,6 @@ export default function Home() {
                     <div className={`h-7 w-[2px] rounded-full transition-all ${isSidebarDragging ? "bg-sky-300 shadow-[0_0_14px_rgba(56,189,248,0.65)]" : "bg-white/32 group-hover:bg-sky-200/80"}`} />
                 </div>
             </nav>
-        </main>
-    );
-}
+	        </main>
+	    );
+	}

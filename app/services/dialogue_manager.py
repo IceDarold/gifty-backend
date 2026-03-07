@@ -514,8 +514,8 @@ class DialogueManager:
                 session.full_recipient.shortlist.append(value)
 
         elif action == "dislike_hypothesis":
-            if value not in session.ignored_hypotheses:
-                session.ignored_hypotheses.append(value)
+            # Keep canonical ignored list on full_recipient (RecommendationSession has no ignored_hypotheses field).
+            if value not in session.full_recipient.ignored_hypotheses:
                 session.full_recipient.ignored_hypotheses.append(value)
                 
                 # Find title for LLM context
@@ -529,8 +529,7 @@ class DialogueManager:
                         break
 
         elif action == "undislike_hypothesis":
-            if value in session.ignored_hypotheses:
-                session.ignored_hypotheses.remove(value)
+            if value in session.full_recipient.ignored_hypotheses:
                 session.full_recipient.ignored_hypotheses.remove(value)
                 for t in session.tracks:
                     h_obj = next((h for h in t.hypotheses if h.id == value), None)

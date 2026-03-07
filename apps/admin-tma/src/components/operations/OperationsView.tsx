@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState, type ReactNode, type UIEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
 import {
   Activity,
   AlertCircle,
@@ -23,94 +23,28 @@ import {
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useOperationsData } from "@/hooks/useOperations";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
-import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
-import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
+import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
+import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, fetchSources, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
 import { openGrafanaExploreLoki, openGrafanaExplorePrometheus } from "@/lib/grafana";
+import { useApiErrorToast } from "@/hooks/useApiErrorToast";
+import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { CategoriesTable } from "@/components/CategoriesTable";
+import {
+  formatDateTime,
+  formatDayLabel,
+  formatDuration,
+  formatTrendLabel,
+  getRunDisplayTitle,
+  isPlaceholderUrl,
+  parseLogLine,
+  statusBadgeClass,
+  type LogFilter,
+  type LogItem,
+  type ParsedLogLine,
+} from "@/components/operations/operationsUtils";
 
 const SITES_PAGE_SIZE = 12;
-
-const statusBadgeClass = (status?: string) => {
-  switch (status) {
-    case "running":
-      return "bg-sky-500/20 text-sky-100 border-sky-400/45";
-    case "completed":
-      return "bg-emerald-500/20 text-emerald-100 border-emerald-400/45";
-    case "error":
-    case "rejected":
-      return "bg-rose-500/20 text-rose-100 border-rose-400/45";
-    case "queued":
-      return "bg-amber-500/20 text-amber-100 border-amber-400/45";
-    case "promoted":
-      return "bg-violet-500/20 text-violet-100 border-violet-400/45";
-    default:
-      return "bg-white/10 text-white/85 border-white/20";
-  }
-};
-
-const isPlaceholderUrl = (url?: string | null) => {
-  if (!url) return false;
-  return /\.placeholder(?:\/|$)/i.test(url) || /placeholder/i.test(url);
-};
-
-const parseIso = (value?: string | null) => {
-  if (!value) return null;
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? date : null;
-};
-
-const formatDateTime = (value?: string | null) => {
-  const date = parseIso(value);
-  if (!date) return "-";
-  return date.toLocaleString();
-};
-
-const formatDuration = (seconds?: number | null) => {
-  if (seconds == null || Number.isNaN(seconds)) return "-";
-  const total = Math.max(0, Math.floor(seconds));
-  const h = Math.floor(total / 3600);
-  const m = Math.floor((total % 3600) / 60);
-  const s = total % 60;
-  if (h > 0) return `${h}h ${m}m ${s}s`;
-  if (m > 0) return `${m}m ${s}s`;
-  return `${s}s`;
-};
-
-const SYNTHETIC_RUNNING_RUN_ID_PREFIX = 1_000_000_000;
-const SYNTHETIC_QUEUED_RUN_ID_PREFIX = 2_000_000_000;
-
-const getRunDisplayTitle = (runId: unknown, idx = 0) => {
-  const idNum = Number(runId);
-  if (!Number.isFinite(idNum)) return `Run #${String(runId ?? "?")}`;
-  if (idNum >= SYNTHETIC_QUEUED_RUN_ID_PREFIX) {
-    return `Queued task #${Math.max(1, idx + 1)}`;
-  }
-  if (idNum >= SYNTHETIC_RUNNING_RUN_ID_PREFIX) {
-    return `Running task #${idNum - SYNTHETIC_RUNNING_RUN_ID_PREFIX}`;
-  }
-  return `Run #${idNum}`;
-};
-
-const formatDayLabel = (value?: string | null) => {
-  const date = parseIso(value);
-  if (!date) return "-";
-  return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-};
-
-const formatTrendLabel = (value?: string | null, granularity: "week" | "day" | "hour" | "minute" = "day") => {
-  const date = parseIso(value);
-  if (!date) return "-";
-  if (granularity === "week") {
-    return `Wk ${date.toLocaleDateString(undefined, { month: "short", day: "numeric" })}`;
-  }
-  if (granularity === "day") {
-    return date.toLocaleDateString(undefined, { month: "short", day: "numeric" });
-  }
-  if (granularity === "hour") {
-    return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-  }
-  return date.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
-};
 
 interface OperationsViewProps {
   onOpenSourceDetails: (
@@ -118,90 +52,6 @@ interface OperationsViewProps {
     initial?: { name?: string; slug?: string; url?: string },
   ) => void;
 }
-
-type ParsedLogLine = {
-  id: string;
-  raw: string;
-  timestamp: string | null;
-  level: "error" | "warn" | "success" | "info" | "default";
-  message: string;
-};
-
-type LogFilter = "all" | "errors" | "warnings" | "info" | "success";
-
-type LogItem =
-  | { kind: "line"; id: string; line: ParsedLogLine }
-  | { kind: "json"; id: string; lines: ParsedLogLine[]; summary: string; payload: string };
-
-const LEVEL_KEYS = ["level", "levelname", "severity", "log_level", "lvl"];
-const TIME_KEYS = ["timestamp", "time", "ts", "@timestamp", "asctime", "datetime"];
-const MESSAGE_KEYS = ["message", "msg", "event", "text", "detail"];
-
-const stringifyValue = (value: unknown) => {
-  if (typeof value === "string") return value;
-  if (value === null || value === undefined) return "";
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
-
-const detectLevel = (input: string): ParsedLogLine["level"] => {
-  const v = input.toLowerCase();
-  if (/(error|exception|traceback|failed|timeout|fatal|critical)/.test(v)) return "error";
-  if (/(warn|warning|retry|redeliver)/.test(v)) return "warn";
-  if (/(success|completed|done|saved|ingested)/.test(v)) return "success";
-  if (/(info|progress|running|start|queued|scrap)/.test(v)) return "info";
-  return "default";
-};
-
-const parseLogLine = (line: string, idx: number): ParsedLogLine => {
-  const trimmed = line.trim();
-  if (!trimmed) {
-    return {
-      id: `log-${idx}`,
-      raw: line,
-      timestamp: null,
-      level: "default",
-      message: "",
-    };
-  }
-
-  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
-    try {
-      const obj = JSON.parse(trimmed) as Record<string, unknown>;
-      const tsKey = TIME_KEYS.find((k) => obj[k] !== undefined);
-      const lvlKey = LEVEL_KEYS.find((k) => obj[k] !== undefined);
-      const msgKey = MESSAGE_KEYS.find((k) => obj[k] !== undefined);
-      const timestamp = tsKey ? stringifyValue(obj[tsKey]) : null;
-      const levelText = lvlKey ? stringifyValue(obj[lvlKey]) : "";
-      const message = msgKey ? stringifyValue(obj[msgKey]) : trimmed;
-      return {
-        id: `log-${idx}`,
-        raw: line,
-        timestamp,
-        level: detectLevel(`${levelText} ${message}`),
-        message,
-      };
-    } catch {
-      // keep as plain text
-    }
-  }
-
-  const tsMatch = trimmed.match(
-    /^(\d{4}-\d{2}-\d{2}[T\s]\d{2}:\d{2}:\d{2}(?:[.,]\d+)?(?:Z|[+\-]\d{2}:?\d{2})?)\s+(.+)$/,
-  );
-  const timestamp = tsMatch ? tsMatch[1] : null;
-  const message = tsMatch ? tsMatch[2] : trimmed;
-  return {
-    id: `log-${idx}`,
-    raw: line,
-    timestamp,
-    level: detectLevel(message),
-    message,
-  };
-};
 
 const isJsonLikeStart = (line: ParsedLogLine) => {
   const raw = line.raw.trim();
@@ -352,17 +202,15 @@ function MetricCard({ label, value, hint }: { label: string; value: string | num
 }
 
 export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
-  const [activeTab, setActiveTab] = useState<"stats" | "parsers" | "queue" | "workers" | "scheduler">("stats");
+  const [activeTab, setActiveTab] = useState<"stats" | "parsers" | "categories" | "queue" | "workers" | "scheduler">("stats");
   const [siteSearch, setSiteSearch] = useState("");
+  const [categorySearch, setCategorySearch] = useState("");
   const [logsCopied, setLogsCopied] = useState(false);
   const [expandedJsonIds, setExpandedJsonIds] = useState<Record<string, boolean>>({});
   const [logSearchQuery, setLogSearchQuery] = useState("");
   const [activeLogFilter, setActiveLogFilter] = useState<LogFilter>("all");
   const [sitesVisibleCount, setSitesVisibleCount] = useState(SITES_PAGE_SIZE);
   const [runningDiscoveryBySite, setRunningDiscoveryBySite] = useState<Record<string, boolean>>({});
-  const [notifications, setNotifications] = useState<
-    { id: string; status: "running" | "success" | "error"; title: string; message: string }[]
-  >([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
   const [itemsTrendGranularity, setItemsTrendGranularity] = useState<"week" | "day" | "hour" | "minute">("day");
   const [tasksTrendGranularity, setTasksTrendGranularity] = useState<"week" | "day" | "hour" | "minute">("day");
@@ -372,6 +220,8 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   const [workerPausePendingId, setWorkerPausePendingId] = useState<string | null>(null);
   const [schedulerPausePending, setSchedulerPausePending] = useState(false);
   const { getIntervalMs } = useOpsRuntimeSettings();
+  const { toast: showToast, dismissToast } = useNotificationCenter();
+  const retryRegistry = useRetryRegistry();
 
   const {
     selectedSiteKey,
@@ -389,6 +239,16 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     runSiteDiscovery,
   } = useOperationsData();
 
+  useApiErrorToast({
+    id: "ops-run-details-api",
+    title: "Run details API временно недоступен",
+    retryKey: "ops-run-details-api",
+    retryLabel: "Повторить",
+    errors: [runDetails.error],
+    enabled: !!selectedRunId,
+    ttlMs: 10000,
+  });
+
   const filteredSites = useMemo(() => {
     const q = siteSearch.trim().toLowerCase();
     if (!q) return sites.data?.items || [];
@@ -398,6 +258,46 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         String(site.name || "").toLowerCase().includes(q),
     );
   }, [siteSearch, sites.data?.items]);
+
+  const sourcesQuery = useQuery({
+    queryKey: ["sources"],
+    queryFn: fetchSources,
+    staleTime: 10_000,
+    refetchInterval: (query) => (query.state.error ? false : getIntervalMs("dashboard.sources_ms", 30_000)),
+  });
+
+  const categorySources = useMemo(() => {
+    const sources: any[] = Array.isArray(sourcesQuery.data) ? (sourcesQuery.data as any[]) : [];
+    const normalizedSearch = (categorySearch || "").trim().toLowerCase();
+
+    const filtered = sources
+      .filter((s) => s && s.type === "list")
+      .filter((s) => {
+        if (!normalizedSearch) return true;
+        const key = String(s.site_key || "").toLowerCase();
+        const url = String(s.url || "").toLowerCase();
+        const name = String(s?.config?.discovery_name || "").toLowerCase();
+        return key.includes(normalizedSearch) || url.includes(normalizedSearch) || name.includes(normalizedSearch);
+      })
+      .map((s) => ({
+        id: Number(s.id),
+        site_key: String(s.site_key || ""),
+        url: String(s.url || ""),
+        status: String(s.status || ""),
+        last_synced_at: s.last_synced_at ? String(s.last_synced_at) : null,
+        next_sync_at: s.next_sync_at ? String(s.next_sync_at) : "",
+        total_items: Number(s.total_items || 0),
+        is_active: Boolean(s.is_active),
+        config: { discovery_name: s?.config?.discovery_name ? String(s.config.discovery_name) : undefined },
+      }));
+
+    filtered.sort((a, b) => {
+      const keyCmp = a.site_key.localeCompare(b.site_key);
+      if (keyCmp !== 0) return keyCmp;
+      return String(a.config?.discovery_name || "").localeCompare(String(b.config?.discovery_name || ""));
+    });
+    return filtered;
+  }, [sourcesQuery.data, categorySearch]);
   const visibleSites = useMemo(
     () => filteredSites.slice(0, sitesVisibleCount),
     [filteredSites, sitesVisibleCount],
@@ -495,6 +395,44 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     queryFn: () => fetchOpsTasksTrend({ granularity: tasksTrendGranularity, buckets: tasksTrendBuckets }),
     refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.tasks_trend_ms", 30000))),
   });
+
+  useEffect(() => {
+    const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
+      if (!selectedRunId) return;
+      await runDetails.refetch();
+    });
+    const unregisterOps = retryRegistry.register("ops-api-error", async () => {
+      await Promise.allSettled([
+        overview.refetch(),
+        sites.refetch(),
+        activeRuns.refetch(),
+        queuedRuns.refetch(),
+        completedRuns.refetch(),
+        errorRuns.refetch(),
+        schedulerStats.refetch(),
+        itemsTrend.refetch(),
+        tasksTrend.refetch(),
+        selectedRunId ? runDetails.refetch() : Promise.resolve(),
+      ]);
+    });
+    return () => {
+      unregisterDetails();
+      unregisterOps();
+    };
+  }, [
+    retryRegistry,
+    selectedRunId,
+    overview.refetch,
+    sites.refetch,
+    activeRuns.refetch,
+    queuedRuns.refetch,
+    completedRuns.refetch,
+    errorRuns.refetch,
+    schedulerStats.refetch,
+    itemsTrend.refetch,
+    tasksTrend.refetch,
+    runDetails.refetch,
+  ]);
   const queuedItems = useMemo(
     () => (queuedRuns.data?.pages || []).flatMap((page: any) => page?.items || []),
     [queuedRuns.data?.pages],
@@ -589,36 +527,88 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     }
   };
 
-  const retryApiRequests = async () => {
-    await Promise.allSettled([
-      overview.refetch(),
-      sites.refetch(),
-      activeRuns.refetch(),
-      queuedRuns.refetch(),
-      completedRuns.refetch(),
-      errorRuns.refetch(),
-      schedulerStats.refetch(),
-      itemsTrend.refetch(),
-      tasksTrend.refetch(),
-      selectedRunId ? runDetails.refetch() : Promise.resolve(),
-    ]);
-  };
-
   const upsertNotification = (next: { id: string; status: "running" | "success" | "error"; title: string; message: string }) => {
-    setNotifications((prev) => {
-      const idx = prev.findIndex((n) => n.id === next.id);
-      if (idx >= 0) {
-        const copy = [...prev];
-        copy[idx] = next;
-        return copy;
-      }
-      return [...prev, next];
-    });
+    showToast(
+      {
+        id: next.id,
+        level: next.status,
+        title: next.title,
+        message: next.message,
+        dedupeKey: next.id,
+      },
+      { ttlMs: next.status === "running" ? 0 : next.status === "error" ? 10000 : 6000 },
+    );
   };
 
-  const dismissNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id));
-  };
+  const opsApiErrorSignatureRef = useRef<string | null>(null);
+  const opsApiErrorSnapshot = useMemo(() => {
+    const entries: { label: string; error: unknown }[] = [
+      { label: "overview", error: overview.error },
+      { label: "sites", error: sites.error },
+      { label: "active runs", error: activeRuns.error },
+      { label: "queued runs", error: queuedRuns.error },
+      { label: "completed runs", error: completedRuns.error },
+      { label: "error runs", error: errorRuns.error },
+      { label: "scheduler", error: schedulerStats.error },
+      { label: "items trend", error: itemsTrend.error },
+      { label: "tasks trend", error: tasksTrend.error },
+      { label: "run details", error: runDetails.error },
+    ];
+    const apiErrors = entries.filter((e) => isServerApiError(e.error));
+    if (!apiErrors.length) return null;
+
+    const signature = apiErrors
+      .map((e) => {
+        const status = getApiErrorStatus(e.error);
+        const msg = getApiErrorMessage(e.error);
+        return `${e.label}:${status ?? "x"}:${msg}`;
+      })
+      .join("|");
+
+    const labels = apiErrors.map((e) => e.label).join(", ");
+    const firstErr = apiErrors[0]!.error;
+    const status = getApiErrorStatus(firstErr);
+    const msg = getApiErrorMessage(firstErr);
+    const messageRaw = `${labels}: ${msg}${status ? ` (HTTP ${status})` : ""}`;
+    const message = messageRaw.length > 220 ? `${messageRaw.slice(0, 217)}...` : messageRaw;
+
+    return { signature, message };
+  }, [
+    overview.error,
+    sites.error,
+    activeRuns.error,
+    queuedRuns.error,
+    completedRuns.error,
+    errorRuns.error,
+    schedulerStats.error,
+    itemsTrend.error,
+    tasksTrend.error,
+    runDetails.error,
+  ]);
+
+  useEffect(() => {
+    if (!opsApiErrorSnapshot) {
+      opsApiErrorSignatureRef.current = null;
+      return;
+    }
+    if (opsApiErrorSignatureRef.current === opsApiErrorSnapshot.signature) return;
+    opsApiErrorSignatureRef.current = opsApiErrorSnapshot.signature;
+
+    const notifId = "ops-api-error";
+    showToast(
+      {
+        id: notifId,
+        level: "error",
+        title: "Operations API временно недоступен",
+        message: opsApiErrorSnapshot.message,
+        dedupeKey: `ops-api-error:${opsApiErrorSnapshot.signature}`,
+        retryKey: "ops-api-error",
+        retryLabel: "Повторить",
+      },
+      { ttlMs: 10000 },
+    );
+    window.setTimeout(() => dismissToast(notifId), 10000);
+  }, [opsApiErrorSnapshot, dismissToast, showToast]);
 
   const handleRunDiscovery = async (site: any) => {
     const siteKey = String(site?.site_key || "");
@@ -679,7 +669,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setRunningDiscoveryBySite((prev) => ({ ...prev, [siteKey]: false }));
-      window.setTimeout(() => dismissNotification(notifId), 10000);
+      window.setTimeout(() => dismissToast(notifId), 10000);
     }
   };
 
@@ -746,7 +736,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setWorkerPausePendingId(null);
-      window.setTimeout(() => dismissNotification(notifId), 6000);
+      window.setTimeout(() => dismissToast(notifId), 6000);
     }
   };
 
@@ -783,7 +773,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
       });
     } finally {
       setSchedulerPausePending(false);
-      window.setTimeout(() => dismissNotification(notifId), 6000);
+      window.setTimeout(() => dismissToast(notifId), 6000);
     }
   };
 
@@ -849,31 +839,15 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
           </div>
         </div>
 
-        <ApiServerErrorBanner
-          errors={[
-            overview.error,
-            sites.error,
-            activeRuns.error,
-            queuedRuns.error,
-            completedRuns.error,
-            errorRuns.error,
-            schedulerStats.error,
-            itemsTrend.error,
-            tasksTrend.error,
-            runDetails.error,
-          ]}
-          onRetry={retryApiRequests}
-          title="Operations API временно недоступен"
-        />
-
         <div className="flex flex-wrap gap-2">
           {([
             { key: "stats", label: "Stats" },
             { key: "parsers", label: "Parsers" },
+            { key: "categories", label: "Categories" },
             { key: "queue", label: "Queue" },
             { key: "workers", label: "Workers" },
             { key: "scheduler", label: "Scheduler" },
-          ] as { key: "stats" | "parsers" | "queue" | "workers" | "scheduler"; label: string }[]).map((tab) => (
+          ] as { key: "stats" | "parsers" | "categories" | "queue" | "workers" | "scheduler"; label: string }[]).map((tab) => (
             <button
               key={tab.key}
               className={`rounded-lg border px-3 py-1.5 text-xs transition ${
@@ -1216,6 +1190,39 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         </section>
         ) : null}
 
+        {activeTab === "categories" ? (
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <h3 className="text-sm font-semibold text-white">Categories</h3>
+              <p className="text-[11px] text-white/70">All list sources (type=list) across all sites.</p>
+            </div>
+            <input
+              value={categorySearch}
+              onChange={(event) => setCategorySearch(event.target.value)}
+              placeholder="Search site / category / url"
+              className="h-9 w-[280px] max-w-[70vw] rounded-lg border border-white/20 bg-black/20 px-2.5 text-sm text-white placeholder:text-white/45 outline-none"
+            />
+          </div>
+
+          {sourcesQuery.isLoading ? (
+            <div className="rounded-xl border border-white/12 bg-white/[0.03] min-h-[42vh] flex items-center justify-center">
+              <Loader2 className="animate-spin text-[var(--tg-theme-button-color)]" size={28} />
+            </div>
+          ) : sourcesQuery.error ? (
+            <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-100">
+              Failed to load sources: {getApiErrorMessage(sourcesQuery.error)}
+            </div>
+          ) : (
+            <CategoriesTable
+              sources={categorySources}
+              onOpenDetail={(id) => onOpenSourceDetails(id)}
+              onOpenChart={(id) => onOpenSourceDetails(id)}
+            />
+          )}
+        </section>
+        ) : null}
+
         {activeTab === "queue" ? (
         <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
           <h3 className="text-sm font-semibold text-white">Queue Board</h3>
@@ -1438,13 +1445,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
               </button>
             </div>
             <div className="max-h-[82vh] overflow-y-auto p-4">
-              <ApiServerErrorBanner
-                errors={[runDetails.error]}
-                onRetry={async () => {
-                  await runDetails.refetch();
-                }}
-                title="Run details API временно недоступен"
-              />
               <div className="mt-2 rounded-xl border border-white/12 bg-black/25 p-3 min-h-[320px]">
                 {runDetails.isLoading ? (
                   <div className="flex items-center justify-center py-12 text-white/80 text-sm">
@@ -1706,37 +1706,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
           </div>
         </div>
       ) : null}
-      <div className="fixed bottom-4 right-4 z-[80] flex w-[320px] max-w-[calc(100vw-2rem)] flex-col gap-2">
-        {notifications.map((n) => (
-          <div
-            key={n.id}
-            className={`rounded-xl border p-3 shadow-xl ${
-              n.status === "running"
-                ? "border-sky-300/45 bg-sky-500/15 text-sky-100"
-                : n.status === "success"
-                  ? "border-emerald-300/45 bg-emerald-500/15 text-emerald-100"
-                  : "border-rose-300/45 bg-rose-500/15 text-rose-100"
-            }`}
-          >
-            <div className="flex items-start gap-2">
-              {n.status === "running" ? (
-                <Loader2 size={14} className="mt-0.5 animate-spin" />
-              ) : n.status === "success" ? (
-                <CheckCircle2 size={14} className="mt-0.5" />
-              ) : (
-                <AlertCircle size={14} className="mt-0.5" />
-              )}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold leading-tight">{n.title}</p>
-                <p className="mt-0.5 text-xs opacity-90">{n.message}</p>
-              </div>
-              <button className="text-xs opacity-80 hover:opacity-100" onClick={() => dismissNotification(n.id)}>
-                x
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
     </div>
   );
 }

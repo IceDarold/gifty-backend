@@ -20,20 +20,31 @@ export function Modal({ isOpen, onClose, children }: ModalProps) {
     };
 
     document.addEventListener('keydown', onKeyDown);
-    const prevOverflow = document.body.style.overflow;
+    const prevBodyOverflow = document.body.style.overflow;
+    const prevHtmlOverflow = document.documentElement.style.overflow;
     document.body.style.overflow = 'hidden';
+    document.documentElement.style.overflow = 'hidden';
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = prevOverflow;
+      document.body.style.overflow = prevBodyOverflow;
+      document.documentElement.style.overflow = prevHtmlOverflow;
     };
   }, [isOpen, onClose]);
 
   if (!isOpen || typeof window === 'undefined') return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4" onClick={onClose}>
-      <div className="w-full max-w-3xl rounded-2xl border border-white/20 bg-[#0b1626] p-4 text-sm shadow-2xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 p-4 overflow-y-auto overscroll-contain"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-3xl max-h-[calc(100vh-2rem)] overflow-y-auto overscroll-contain rounded-2xl border border-white/20 bg-[#0b1626] p-4 text-sm shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+        onWheel={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+      >
         {children}
       </div>
     </div>,

@@ -6,7 +6,15 @@ from google import genai
 from google.genai import types
 from google.genai.errors import ClientError
 
-from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.services.llm.interface import (
+    LLMClient,
+    Message,
+    LLMResponse,
+    extract_finish_reason,
+    extract_provider_request_id,
+    normalize_usage,
+    serialize_raw_response,
+)
 from app.config import get_settings
 
 logger = logging.getLogger(__name__)
@@ -77,17 +85,21 @@ class GeminiClient(LLMClient):
                 
                 content = response.text
                 
+                raw_response = serialize_raw_response(response)
                 usage = {}
                 if hasattr(response, 'usage_metadata') and response.usage_metadata:
-                    usage = {
-                        "input_tokens": getattr(response.usage_metadata, 'prompt_token_count', 0),
-                        "output_tokens": getattr(response.usage_metadata, 'candidates_token_count', 0)
-                    }
+                    usage = normalize_usage({
+                        "prompt_token_count": getattr(response.usage_metadata, 'prompt_token_count', 0),
+                        "completion_token_count": getattr(response.usage_metadata, 'candidates_token_count', 0),
+                        "total_token_count": getattr(response.usage_metadata, 'total_token_count', 0),
+                    }, raw_response)
                 
                 return LLMResponse(
                     content=content,
-                    raw_response=response,
-                    usage=usage
+                    raw_response=raw_response,
+                    usage=usage,
+                    provider_request_id=extract_provider_request_id(raw_response),
+                    finish_reason=extract_finish_reason(raw_response),
                 )
             except ClientError as e:
                 last_error = e

@@ -1,16 +1,6 @@
 import type { Metadata } from "next";
-import { Manrope, Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { TMAProvider } from "@/components/TMAProvider";
-
-const manrope = Manrope({
-  subsets: ["latin", "cyrillic"],
-  variable: "--font-manrope",
-});
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  variable: "--font-space-grotesk",
-});
 
 export const metadata: Metadata = {
   title: "Gifty Admin TMA",
@@ -21,6 +11,9 @@ import { QueryProvider } from "@/components/QueryProvider";
 
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { OpsRuntimeSettingsProvider } from "@/contexts/OpsRuntimeSettingsContext";
+import { NotificationCenterProvider } from "@/contexts/NotificationCenterContext";
+import { RetryRegistryProvider } from "@/contexts/RetryRegistryContext";
+import { ToastHost } from "@/components/ToastHost";
 import Script from "next/script";
 
 export default function RootLayout({
@@ -48,14 +41,19 @@ export default function RootLayout({
           `}
         </Script>
       </head>
-      <body className={`${manrope.variable} ${spaceGrotesk.variable}`}>
+      <body>
         <QueryProvider>
           <TMAProvider>
             <LanguageProvider>
               <OpsRuntimeSettingsProvider>
-                <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
-                  {children}
-                </div>
+                <RetryRegistryProvider>
+                  <NotificationCenterProvider>
+                    <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+                      {children}
+                      <ToastHost />
+                    </div>
+                  </NotificationCenterProvider>
+                </RetryRegistryProvider>
               </OpsRuntimeSettingsProvider>
             </LanguageProvider>
           </TMAProvider>
