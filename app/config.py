@@ -105,6 +105,12 @@ class Settings(BaseSettings):
     # PostHog Analytics
     posthog_api_key: Optional[str] = Field(None, alias="POSTHOG_API_KEY")
     posthog_project_id: Optional[str] = Field(None, alias="POSTHOG_PROJECT_ID")
+    posthog_timeout_seconds: float = Field(15.0, alias="POSTHOG_TIMEOUT_SECONDS")
+    posthog_max_retries: int = Field(2, alias="POSTHOG_MAX_RETRIES")
+    posthog_stats_cache_ttl_seconds: int = Field(300, alias="POSTHOG_STATS_CACHE_TTL_SECONDS")
+    posthog_stats_stale_ttl_seconds: int = Field(3600, alias="POSTHOG_STATS_STALE_TTL_SECONDS")
+    posthog_stats_rate_limit_per_minute: int = Field(60, alias="POSTHOG_STATS_RATE_LIMIT_PER_MINUTE")
+    posthog_stats_allowlist_ips: Optional[str] = Field(None, alias="POSTHOG_STATS_ALLOWLIST_IPS")
     prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
     loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
 
