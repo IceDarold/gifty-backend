@@ -192,8 +192,9 @@ async def test_llm_logs_pagination_and_filters(_override_internal_auth_and_db, p
         payload = res.json()
         assert payload["limit"] == 2
         assert payload["offset"] == 0
-        assert payload["total"] >= 5
+        assert payload["total"] is None
         assert len(payload["items"]) == 2
+        assert payload["has_prev"] is False
 
         res2 = await ac.get(
             "/api/v1/internal/analytics/llm/logs",
@@ -215,6 +216,32 @@ async def test_llm_logs_pagination_and_filters(_override_internal_auth_and_db, p
         assert res3.status_code == 200
         items3 = res3.json()["items"]
         assert len(items3) == 2
+
+        res4 = await ac.get(
+            "/api/v1/internal/analytics/llm/logs",
+            headers={"X-Internal-Token": "x"},
+            params={"days": 7, "limit": 2, "include_total": "true"},
+        )
+        assert res4.status_code == 200
+        body4 = res4.json()
+        assert body4["total"] >= 5
+        assert body4["has_more"] is True
+        assert body4["next_cursor"]
+
+        res5 = await ac.get(
+            "/api/v1/internal/analytics/llm/logs",
+            headers={"X-Internal-Token": "x"},
+            params={"days": 7, "limit": 2, "cursor": body4["next_cursor"], "include_total": "false"},
+        )
+        assert res5.status_code == 200
+        body5 = res5.json()
+        assert body5["total"] is None
+        assert body5["cursor"] == body4["next_cursor"]
+        assert body5["has_prev"] is True
+        ids4 = [item["id"] for item in body4["items"]]
+        ids5 = [item["id"] for item in body5["items"]]
+        assert ids5
+        assert not set(ids4) & set(ids5)
 
     # ensure we created one details-ready log
     assert seed["logs"][0].system_prompt_template_id is not None
@@ -238,9 +265,34 @@ async def test_llm_log_details_full(_override_internal_auth_and_db, postgres_ses
         assert body["user_prompt"]["name"] == "classify_topic"
         assert body["user_prompt"]["rendered"] == "Topic: cats"
         assert body["response"]["output_text"] == "RAW_OUTPUT"
-        assert body["response"]["raw_response"]["id"] == "req_1"
+        assert body["response"]["raw_response"] is None
+        assert body["response"]["raw_response_available"] is True
+        assert body["response"]["raw_response_included"] is False
         assert isinstance(body.get("related_calls"), list)
         assert any(c["id"] == str(target.id) for c in body["related_calls"])
+
+        res_full = await ac.get(
+            f"/api/v1/internal/analytics/llm/logs/{target.id}",
+            headers={"X-Internal-Token": "x"},
+            params={"include_raw_response": "true", "include_related": "false"},
+        )
+        assert res_full.status_code == 200
+        body_full = res_full.json()
+        assert body_full["response"]["raw_response"]["id"] == "req_1"
+        assert body_full["response"]["raw_response_included"] is True
+        assert body_full["related_calls"] == []
+
+        res_light = await ac.get(
+            f"/api/v1/internal/analytics/llm/logs/{target.id}",
+            headers={"X-Internal-Token": "x"},
+            params={"include_prompts": "false"},
+        )
+        assert res_light.status_code == 200
+        body_light = res_light.json()
+        assert body_light["system_prompt"]["rendered"] == ""
+        assert body_light["user_prompt"]["rendered"] == ""
+        assert body_light["messages"] is None
+        assert body_light["messages_rendered"] == []
 
 
 @pytest.mark.asyncio
@@ -266,6 +318,15 @@ async def test_llm_throughput(_override_internal_auth_and_db, postgres_session):
         assert res2.status_code == 200
         body2 = res2.json()
         assert sum(p["count"] for p in body2["points"]) == 2
+
+        res3 = await ac.get(
+            "/api/v1/internal/analytics/llm/throughput",
+            headers={"X-Internal-Token": "x"},
+            params={"days": 7, "bucket": "day", "session_id": "sess_b"},
+        )
+        assert res3.status_code == 200
+        body3 = res3.json()
+        assert sum(p["count"] for p in body3["points"]) == 2
 
 
 @pytest.mark.asyncio
@@ -309,6 +370,9 @@ async def test_llm_stats(_override_internal_auth_and_db, postgres_session):
         assert 0.0 <= body["error_rate"] <= 1.0
         assert body["p95_latency_ms"] >= body["p50_latency_ms"]
         assert body["total_cost_usd"] > 0
+        assert body["missing_usage_count"] >= 0
+        assert body["missing_cost_count"] >= 0
+        assert body["missing_provider_request_id_count"] >= 0
 
         res2 = await ac.get(
             "/api/v1/internal/analytics/llm/stats",
@@ -319,6 +383,16 @@ async def test_llm_stats(_override_internal_auth_and_db, postgres_session):
         body2 = res2.json()
         assert body2["total"] == 2
         assert body2["errors"] == 1
+
+        res3 = await ac.get(
+            "/api/v1/internal/analytics/llm/stats",
+            headers={"X-Internal-Token": "x"},
+            params={"days": 7, "session_id": "sess_b"},
+        )
+        assert res3.status_code == 200
+        body3 = res3.json()
+        assert body3["total"] == 2
+        assert body3["errors"] == 0
 
 
 @pytest.mark.asyncio

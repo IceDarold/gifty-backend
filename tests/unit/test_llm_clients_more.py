@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock
 import httpx
 import pytest
 
-from app.services.llm.interface import Message
+from app.services.llm.interface import Message, extract_finish_reason, extract_provider_request_id, normalize_usage
 
 
 class _AsyncClientStub:
@@ -145,3 +145,23 @@ def test_proxy_helper_get_proxy_transport_branches(caplog):
     assert mod.get_proxy_transport(None) is None
     assert mod.get_proxy_transport("http://127.0.0.1:1") is None
 
+
+def test_llm_interface_normalizes_usage_and_metadata():
+    raw_response = {
+        "id": "req_123",
+        "usage_metadata": {
+            "prompt_token_count": 11,
+            "candidates_token_count": 7,
+            "total_token_count": 18,
+            "thoughts_token_count": 3,
+        },
+        "candidates": [{"finishReason": "STOP"}],
+    }
+
+    usage = normalize_usage(None, raw_response)
+    assert usage["input_tokens"] == 11
+    assert usage["output_tokens"] == 7
+    assert usage["total_tokens"] == 18
+    assert usage["reasoning_tokens"] == 3
+    assert extract_provider_request_id(raw_response) == "req_123"
+    assert extract_finish_reason(raw_response) == "STOP"

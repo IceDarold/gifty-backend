@@ -9,7 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.prompts import registry
 from app.core.logic_config import logic_config
 from app.services.llm.factory import LLMFactory
-from app.services.llm.interface import Message, LLMResponse
+from app.services.llm.interface import (
+    Message,
+    LLMResponse,
+    extract_finish_reason,
+    extract_provider_request_id,
+    normalize_usage,
+    serialize_raw_response,
+)
 from app.services.llm.cost_estimator import estimate_cost
 from app.services.llm.observability_store import get_or_create_payload, get_or_create_prompt_template
 from app.services.experiments import ExperimentService
@@ -110,29 +117,15 @@ class AIReasoningService:
             input_messages_payload_id = None
 
             if response is not None:
-                usage = response.usage or {}
-                prompt_tokens = int(usage.get("prompt_tokens") or usage.get("input_tokens") or 0)
-                completion_tokens = int(usage.get("completion_tokens") or usage.get("output_tokens") or 0)
+                raw_response = serialize_raw_response(response.raw_response)
+                usage = normalize_usage(response.usage or {}, raw_response)
+                prompt_tokens = int(usage.get("prompt_tokens") or 0)
+                completion_tokens = int(usage.get("completion_tokens") or 0)
                 total_tokens = int(usage.get("total_tokens") or (prompt_tokens + completion_tokens))
                 output_content = response.content
-                raw_response = response.raw_response
-                try:
-                    if isinstance(raw_response, dict):
-                        choices = raw_response.get("choices") or []
-                        if isinstance(choices, list) and choices and isinstance(choices[0], dict):
-                            finish_reason = choices[0].get("finish_reason") or choices[0].get("stop_reason")
-                        finish_reason = finish_reason or raw_response.get("stop_reason")
-                except Exception:
-                    finish_reason = None
+                finish_reason = extract_finish_reason(raw_response, response.finish_reason)
 
-            provider_request_id = None
-            try:
-                if isinstance(raw_response, dict):
-                    provider_request_id = raw_response.get("id") or raw_response.get("request_id")
-                else:
-                    provider_request_id = getattr(raw_response, "id", None)
-            except Exception:
-                provider_request_id = None
+            provider_request_id = extract_provider_request_id(raw_response, getattr(response, "provider_request_id", None))
 
             prompt_hash = _hash_prompt(system_prompt, messages)
 

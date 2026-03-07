@@ -534,6 +534,16 @@ class LLMLog(TimestampMixin, Base):
     Stores prompt, response, usage metrics and timing.
     """
     __tablename__ = "llm_logs"
+    __table_args__ = (
+        sa.Index("ix_llm_logs_created_at_id", "created_at", "id"),
+        sa.Index("ix_llm_logs_provider_created_at", "provider", "created_at"),
+        sa.Index("ix_llm_logs_model_created_at", "model", "created_at"),
+        sa.Index("ix_llm_logs_call_type_created_at", "call_type", "created_at"),
+        sa.Index("ix_llm_logs_status_created_at", "status", "created_at"),
+        sa.Index("ix_llm_logs_session_id_created_at", "session_id", "created_at"),
+        sa.Index("ix_llm_logs_experiment_id_created_at", "experiment_id", "created_at"),
+        sa.Index("ix_llm_logs_variant_id_created_at", "variant_id", "created_at"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     provider: Mapped[str] = mapped_column(String, nullable=False, index=True)

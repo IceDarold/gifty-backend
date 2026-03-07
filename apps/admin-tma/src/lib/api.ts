@@ -196,6 +196,8 @@ export const fetchLLMLogs = (params: {
   days?: number;
   limit?: number;
   offset?: number;
+  cursor?: string;
+  include_total?: boolean;
   provider?: string;
   model?: string;
   call_type?: string;
@@ -212,6 +214,9 @@ export const fetchLLMThroughput = (params: {
   model?: string;
   call_type?: string;
   status?: string;
+  session_id?: string;
+  experiment_id?: string;
+  variant_id?: string;
 }) => getJson(`${INTERNAL_PREFIX}/analytics/llm/throughput`, params);
 
 export const fetchLLMBreakdown = (params: {
@@ -222,10 +227,19 @@ export const fetchLLMBreakdown = (params: {
   model?: string;
   call_type?: string;
   status?: string;
+  session_id?: string;
+  experiment_id?: string;
+  variant_id?: string;
 }) => getJson(`${INTERNAL_PREFIX}/analytics/llm/breakdown`, params);
 
-export const fetchLLMLogDetails = (id: string) =>
-  getJson(`${INTERNAL_PREFIX}/analytics/llm/logs/${encodeURIComponent(id)}`);
+export const fetchLLMLogDetails = (
+  id: string,
+  params?: {
+    include_prompts?: boolean;
+    include_raw_response?: boolean;
+    include_related?: boolean;
+  },
+) => getJson(`${INTERNAL_PREFIX}/analytics/llm/logs/${encodeURIComponent(id)}`, params);
 
 export const fetchLLMStats = (params: {
   days?: number;
@@ -233,6 +247,9 @@ export const fetchLLMStats = (params: {
   model?: string;
   call_type?: string;
   status?: string;
+  session_id?: string;
+  experiment_id?: string;
+  variant_id?: string;
 }) => getJson(`${INTERNAL_PREFIX}/analytics/llm/stats`, params);
 
 export const fetchLLMOutliers = (params: {
@@ -243,6 +260,9 @@ export const fetchLLMOutliers = (params: {
   model?: string;
   call_type?: string;
   status?: string;
+  session_id?: string;
+  experiment_id?: string;
+  variant_id?: string;
 }) => getJson(`${INTERNAL_PREFIX}/analytics/llm/outliers`, params);
 
 // --- Logs (Loki) ---

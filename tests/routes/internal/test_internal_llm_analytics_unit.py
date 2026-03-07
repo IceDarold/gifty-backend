@@ -112,6 +112,7 @@ async def test_internal_llm_logs_clamps_and_serializes_decimals(fake_db):
         days=0,
         limit=999,
         offset=-5,
+        include_total=True,
         provider="p",
         model="m",
         call_type="c",
@@ -127,6 +128,7 @@ async def test_internal_llm_logs_clamps_and_serializes_decimals(fake_db):
     assert out["limit"] == 200
     assert out["offset"] == 0
     assert out["items"][0]["cost_usd"] == 0.12
+    assert out["items"][0]["usage_captured"] is True
 
 
 @pytest.mark.anyio

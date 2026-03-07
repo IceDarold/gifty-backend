@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 from typing import List, Optional, AsyncGenerator, Any
 from datetime import datetime, timezone, timedelta
+import base64
 import json
 import asyncio
 import re
@@ -4916,11 +4917,30 @@ async def _redis_set_json(redis: Redis, key: str, value: dict, ttl_sec: int) -> 
         return
 
 
+def _encode_llm_logs_cursor(created_at: datetime, log_id) -> str:
+    raw = f"{created_at.isoformat()}|{log_id}"
+    return base64.urlsafe_b64encode(raw.encode("utf-8")).decode("ascii")
+
+
+def _decode_llm_logs_cursor(cursor: str):
+    try:
+        decoded = base64.urlsafe_b64decode(cursor.encode("ascii")).decode("utf-8")
+        created_at_raw, log_id_raw = decoded.split("|", 1)
+        created_at = datetime.fromisoformat(created_at_raw)
+        if created_at.tzinfo is None:
+            created_at = created_at.replace(tzinfo=timezone.utc)
+        return created_at, log_id_raw
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+
+
 @router.get("/analytics/llm/logs", summary="LLM call logs (paginated)")
 async def get_llm_logs(
     days: int = 7,
     limit: int = 50,
     offset: int = 0,
+    cursor: Optional[str] = None,
+    include_total: bool = False,
     provider: Optional[str] = None,
     model: Optional[str] = None,
     call_type: Optional[str] = None,
@@ -4934,6 +4954,8 @@ async def get_llm_logs(
 ):
     from datetime import datetime, timedelta, timezone
     from decimal import Decimal
+    import uuid
+    import sqlalchemy as sa
     from sqlalchemy import select, func
     from app.models import LLMLog
 
@@ -4947,6 +4969,8 @@ async def get_llm_logs(
         limit = 200
     if offset < 0:
         offset = 0
+    if cursor:
+        offset = 0
 
     since = datetime.now(timezone.utc) - timedelta(days=days)
     cache_key = _llm_cache_key(
@@ -4955,6 +4979,8 @@ async def get_llm_logs(
             "days": days,
             "limit": limit,
             "offset": offset,
+            "cursor": cursor,
+            "include_total": include_total,
             "provider": provider,
             "model": model,
             "call_type": call_type,
@@ -4984,8 +5010,25 @@ async def get_llm_logs(
     if variant_id:
         where.append(LLMLog.variant_id == variant_id)
 
-    total_stmt = select(func.count(LLMLog.id)).where(*where)
-    total = (await db.execute(total_stmt)).scalar_one() or 0
+    cursor_created_at = None
+    cursor_log_id = None
+    if cursor:
+        cursor_created_at, cursor_log_id_raw = _decode_llm_logs_cursor(cursor)
+        try:
+            cursor_log_id = uuid.UUID(cursor_log_id_raw)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail="Invalid cursor") from exc
+        where.append(
+            sa.or_(
+                LLMLog.created_at < cursor_created_at,
+                sa.and_(LLMLog.created_at == cursor_created_at, LLMLog.id < cursor_log_id),
+            )
+        )
+
+    total = None
+    if include_total:
+        total_stmt = select(func.count(LLMLog.id)).where(*where)
+        total = (await db.execute(total_stmt)).scalar_one() or 0
 
     stmt = (
         select(
@@ -5011,17 +5054,25 @@ async def get_llm_logs(
         )
         .where(*where)
         .order_by(LLMLog.created_at.desc(), LLMLog.id.desc())
-        .offset(offset)
-        .limit(limit)
+        .limit(limit + 1)
     )
+    if not cursor:
+        stmt = stmt.offset(offset)
 
     res = await db.execute(stmt)
+    rows = res.all()
+    has_more = len(rows) > limit
+    rows = rows[:limit]
     items = []
-    for row in res.all():
+    next_cursor = None
+    for row in rows:
         m = row._mapping
         cost_val = m["cost_usd"]
         if isinstance(cost_val, Decimal):
             cost_val = float(cost_val)
+        prompt_tokens = int(m["prompt_tokens"] or 0)
+        completion_tokens = int(m["completion_tokens"] or 0)
+        total_tokens = int(m["total_tokens"] or 0)
         items.append(
             {
                 "id": str(m["id"]),
@@ -5036,17 +5087,34 @@ async def get_llm_logs(
                 "prompt_hash": m["prompt_hash"],
                 "params": m["params"],
                 "latency_ms": m["latency_ms"],
-                "prompt_tokens": m["prompt_tokens"],
-                "completion_tokens": m["completion_tokens"],
-                "total_tokens": m["total_tokens"],
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": total_tokens,
                 "cost_usd": cost_val,
                 "session_id": m["session_id"],
                 "experiment_id": m["experiment_id"],
                 "variant_id": m["variant_id"],
+                "usage_captured": (prompt_tokens + completion_tokens + total_tokens) > 0,
+                "cost_captured": cost_val is not None and float(cost_val or 0) > 0,
+                "provider_request_captured": bool(m["provider_request_id"]),
             }
         )
 
-    payload = {"total": int(total), "limit": limit, "offset": offset, "items": items}
+    if has_more and rows:
+        last_row = rows[-1]._mapping
+        if last_row["created_at"] is not None and last_row["id"] is not None:
+            next_cursor = _encode_llm_logs_cursor(last_row["created_at"], last_row["id"])
+
+    payload = {
+        "total": int(total) if total is not None else None,
+        "limit": limit,
+        "offset": offset,
+        "cursor": cursor,
+        "has_more": has_more,
+        "has_prev": bool(cursor) or offset > 0,
+        "next_cursor": next_cursor,
+        "items": items,
+    }
     await _redis_set_json(redis, cache_key, payload, _LLM_LOGS_CACHE_TTL_SEC)
     return payload
 
@@ -5054,7 +5122,11 @@ async def get_llm_logs(
 @router.get("/analytics/llm/logs/{log_id}", summary="LLM call log details (full)")
 async def get_llm_log_details(
     log_id: str,
+    include_prompts: bool = True,
+    include_raw_response: bool = False,
+    include_related: bool = True,
     db: AsyncSession = Depends(get_db),
+    redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
 ):
     import uuid
@@ -5078,6 +5150,19 @@ async def get_llm_log_details(
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid log id")
 
+    cache_key = _llm_cache_key(
+        "details",
+        {
+            "log_id": str(log_uuid),
+            "include_prompts": include_prompts,
+            "include_raw_response": include_raw_response,
+            "include_related": include_related,
+        },
+    )
+    cached = await _redis_get_json(redis, cache_key)
+    if cached is not None:
+        return cached
+
     row = (await db.execute(select(LLMLog).where(LLMLog.id == log_uuid))).scalar_one_or_none()
 
     if row is None:
@@ -5086,11 +5171,11 @@ async def get_llm_log_details(
 
     system_tpl = None
     user_tpl = None
-    if row.system_prompt_template_id:
+    if include_prompts and row.system_prompt_template_id:
         system_tpl = (
             await db.execute(select(LLMPromptTemplate).where(LLMPromptTemplate.id == row.system_prompt_template_id))
         ).scalar_one_or_none()
-    if row.user_prompt_template_id:
+    if include_prompts and row.user_prompt_template_id:
         user_tpl = (
             await db.execute(select(LLMPromptTemplate).where(LLMPromptTemplate.id == row.user_prompt_template_id))
         ).scalar_one_or_none()
@@ -5102,40 +5187,44 @@ async def get_llm_log_details(
         ).scalar_one_or_none()
 
     raw_payload = None
-    if row.raw_response_payload_id:
+    if include_raw_response and row.raw_response_payload_id:
         raw_payload = (
             await db.execute(select(LLMPayload).where(LLMPayload.id == row.raw_response_payload_id))
         ).scalar_one_or_none()
 
-    input_messages = row.input_messages
-    if input_messages is None and getattr(row, "input_messages_payload_id", None):
-        input_payload = (
-            await db.execute(select(LLMPayload).where(LLMPayload.id == row.input_messages_payload_id))
-        ).scalar_one_or_none()
-        if input_payload is not None and input_payload.content_json is not None:
-            input_messages = input_payload.content_json
+    input_messages = None
+    system_rendered = ""
+    user_rendered = ""
+    if include_prompts:
+        input_messages = row.input_messages
+        if input_messages is None and getattr(row, "input_messages_payload_id", None):
+            input_payload = (
+                await db.execute(select(LLMPayload).where(LLMPayload.id == row.input_messages_payload_id))
+            ).scalar_one_or_none()
+            if input_payload is not None and input_payload.content_json is not None:
+                input_messages = input_payload.content_json
 
-    system_rendered = safe_render(system_tpl.content, row.system_prompt_params) if system_tpl else (row.system_prompt or "")
-    user_rendered = safe_render(user_tpl.content, row.user_prompt_params) if user_tpl else ""
+        system_rendered = safe_render(system_tpl.content, row.system_prompt_params) if system_tpl else (row.system_prompt or "")
+        user_rendered = safe_render(user_tpl.content, row.user_prompt_params) if user_tpl else ""
 
-    if not user_rendered and input_messages:
-        try:
-            msgs = input_messages if isinstance(input_messages, list) else []
-            user_rendered = "\n\n".join([m.get("content", "") for m in msgs if m.get("role") == "user"])
-        except Exception:
-            user_rendered = ""
+        if not user_rendered and input_messages:
+            try:
+                msgs = input_messages if isinstance(input_messages, list) else []
+                user_rendered = "\n\n".join([m.get("content", "") for m in msgs if m.get("role") == "user"])
+            except Exception:
+                user_rendered = ""
 
     output_text = output_payload.content_text if output_payload and output_payload.content_text is not None else (row.output_content or "")
     raw_json = raw_payload.content_json if raw_payload and raw_payload.content_json is not None else None
 
     messages_rendered = []
-    if system_rendered:
+    if include_prompts and system_rendered:
         messages_rendered.append({"role": "system", "content": system_rendered})
-    if user_rendered:
+    if include_prompts and user_rendered:
         messages_rendered.append({"role": "user", "content": user_rendered})
 
     related = []
-    if row.session_id:
+    if include_related and row.session_id:
         rel_stmt = (
             select(
                 LLMLog.id,
@@ -5169,7 +5258,10 @@ async def get_llm_log_details(
                 }
             )
 
-    return {
+    prompt_tokens = int(row.prompt_tokens or 0)
+    completion_tokens = int(row.completion_tokens or 0)
+    total_tokens = int(row.total_tokens or 0)
+    payload = {
         "id": str(row.id),
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "provider": row.provider,
@@ -5181,9 +5273,9 @@ async def get_llm_log_details(
         "provider_latency_ms": row.provider_latency_ms,
         "queue_latency_ms": row.queue_latency_ms,
         "postprocess_latency_ms": row.postprocess_latency_ms,
-        "prompt_tokens": row.prompt_tokens,
-        "completion_tokens": row.completion_tokens,
-        "total_tokens": row.total_tokens,
+        "prompt_tokens": prompt_tokens,
+        "completion_tokens": completion_tokens,
+        "total_tokens": total_tokens,
         "cost_usd": float(row.cost_usd) if row.cost_usd is not None else 0.0,
         "provider_request_id": row.provider_request_id,
         "prompt_hash": row.prompt_hash,
@@ -5196,23 +5288,32 @@ async def get_llm_log_details(
         "system_prompt": {
             "name": system_tpl.name if system_tpl else None,
             "template_hash": system_tpl.template_hash if system_tpl else None,
-            "params": row.system_prompt_params,
-            "rendered": system_rendered,
+            "params": row.system_prompt_params if include_prompts else None,
+            "rendered": system_rendered if include_prompts else "",
         },
         "user_prompt": {
             "name": user_tpl.name if user_tpl else None,
             "template_hash": user_tpl.template_hash if user_tpl else None,
-            "params": row.user_prompt_params,
-            "rendered": user_rendered,
+            "params": row.user_prompt_params if include_prompts else None,
+            "rendered": user_rendered if include_prompts else "",
         },
         "response": {
             "output_text": output_text,
             "raw_response": raw_json,
+            "raw_response_available": bool(row.raw_response_payload_id),
+            "raw_response_included": include_raw_response,
         },
-        "messages": input_messages,
-        "messages_rendered": messages_rendered,
+        "messages": input_messages if include_prompts else None,
+        "messages_rendered": messages_rendered if include_prompts else [],
         "related_calls": related,
+        "usage_captured": (prompt_tokens + completion_tokens + total_tokens) > 0,
+        "cost_captured": row.cost_usd is not None and float(row.cost_usd or 0) > 0,
+        "provider_request_captured": bool(row.provider_request_id),
+        "prompts_included": include_prompts,
+        "related_calls_included": include_related,
     }
+    await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
+    return payload
 
 
 @router.get("/analytics/llm/throughput", summary="LLM throughput time-series")
@@ -5223,6 +5324,9 @@ async def get_llm_throughput(
     model: Optional[str] = None,
     call_type: Optional[str] = None,
     status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    experiment_id: Optional[str] = None,
+    variant_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
@@ -5255,6 +5359,9 @@ async def get_llm_throughput(
             "model": model,
             "call_type": call_type,
             "status": status,
+            "session_id": session_id,
+            "experiment_id": experiment_id,
+            "variant_id": variant_id,
         },
     )
     cached = await _redis_get_json(redis, cache_key)
@@ -5272,6 +5379,12 @@ async def get_llm_throughput(
         stmt = stmt.where(LLMLog.call_type == call_type)
     if status:
         stmt = stmt.where(LLMLog.status == status)
+    if session_id:
+        stmt = stmt.where(LLMLog.session_id == session_id)
+    if experiment_id:
+        stmt = stmt.where(LLMLog.experiment_id == experiment_id)
+    if variant_id:
+        stmt = stmt.where(LLMLog.variant_id == variant_id)
 
     stmt = stmt.group_by(ts).order_by(ts.asc())
     res = await db.execute(stmt)
@@ -5291,6 +5404,9 @@ async def get_llm_breakdown(
     model: Optional[str] = None,
     call_type: Optional[str] = None,
     status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    experiment_id: Optional[str] = None,
+    variant_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
@@ -5330,6 +5446,9 @@ async def get_llm_breakdown(
             "model": model,
             "call_type": call_type,
             "status": status,
+            "session_id": session_id,
+            "experiment_id": experiment_id,
+            "variant_id": variant_id,
         },
     )
     cached = await _redis_get_json(redis, cache_key)
@@ -5357,6 +5476,12 @@ async def get_llm_breakdown(
         stmt = stmt.where(LLMLog.call_type == call_type)
     if status:
         stmt = stmt.where(LLMLog.status == status)
+    if session_id:
+        stmt = stmt.where(LLMLog.session_id == session_id)
+    if experiment_id:
+        stmt = stmt.where(LLMLog.experiment_id == experiment_id)
+    if variant_id:
+        stmt = stmt.where(LLMLog.variant_id == variant_id)
     res = await db.execute(stmt)
     items = []
     for r in res.all():
@@ -5385,6 +5510,9 @@ async def get_llm_stats(
     model: Optional[str] = None,
     call_type: Optional[str] = None,
     status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    experiment_id: Optional[str] = None,
+    variant_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
@@ -5410,6 +5538,9 @@ async def get_llm_stats(
             "model": model,
             "call_type": call_type,
             "status": status,
+            "session_id": session_id,
+            "experiment_id": experiment_id,
+            "variant_id": variant_id,
         },
     )
     cached = await _redis_get_json(redis, cache_key)
@@ -5425,6 +5556,12 @@ async def get_llm_stats(
         where.append(LLMLog.call_type == call_type)
     if status:
         where.append(LLMLog.status == status)
+    if session_id:
+        where.append(LLMLog.session_id == session_id)
+    if experiment_id:
+        where.append(LLMLog.experiment_id == experiment_id)
+    if variant_id:
+        where.append(LLMLog.variant_id == variant_id)
 
     latency_col = func.coalesce(LLMLog.latency_ms, 0)
     tokens_col = func.coalesce(LLMLog.total_tokens, 0)
@@ -5441,6 +5578,9 @@ async def get_llm_stats(
         func.percentile_cont(0.95).within_group(tokens_col).label("p95_tokens"),
         func.sum(cost_col).label("total_cost"),
         func.avg(cost_col).label("avg_cost"),
+        func.sum(sa.case((func.coalesce(LLMLog.total_tokens, 0) == 0, 1), else_=0)).label("missing_usage"),
+        func.sum(sa.case((func.coalesce(LLMLog.cost_usd, 0) == 0, 1), else_=0)).label("missing_cost"),
+        func.sum(sa.case((LLMLog.provider_request_id.is_(None), 1), else_=0)).label("missing_provider_request_id"),
     ).where(*where)
 
     res = await db.execute(stmt)
@@ -5474,6 +5614,9 @@ async def get_llm_stats(
         "p95_total_tokens": to_float(row.p95_tokens),
         "total_cost_usd": to_float(row.total_cost) or 0.0,
         "avg_cost_usd": to_float(row.avg_cost),
+        "missing_usage_count": int(row.missing_usage or 0),
+        "missing_cost_count": int(row.missing_cost or 0),
+        "missing_provider_request_id_count": int(row.missing_provider_request_id or 0),
     }
     await _redis_set_json(redis, cache_key, payload, _LLM_ANALYTICS_CACHE_TTL_SEC)
     return payload
@@ -5488,6 +5631,9 @@ async def get_llm_outliers(
     model: Optional[str] = None,
     call_type: Optional[str] = None,
     status: Optional[str] = None,
+    session_id: Optional[str] = None,
+    experiment_id: Optional[str] = None,
+    variant_id: Optional[str] = None,
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     _ = Depends(verify_internal_token),
@@ -5524,6 +5670,9 @@ async def get_llm_outliers(
             "model": model,
             "call_type": call_type,
             "status": status,
+            "session_id": session_id,
+            "experiment_id": experiment_id,
+            "variant_id": variant_id,
         },
     )
     cached = await _redis_get_json(redis, cache_key)
@@ -5539,6 +5688,12 @@ async def get_llm_outliers(
         where.append(LLMLog.call_type == call_type)
     if status:
         where.append(LLMLog.status == status)
+    if session_id:
+        where.append(LLMLog.session_id == session_id)
+    if experiment_id:
+        where.append(LLMLog.experiment_id == experiment_id)
+    if variant_id:
+        where.append(LLMLog.variant_id == variant_id)
 
     stmt = (
         select(

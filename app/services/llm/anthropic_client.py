@@ -2,7 +2,15 @@ from typing import List, Optional, Any
 from anthropic import AsyncAnthropic
 import logging
 
-from app.services.llm.interface import LLMClient, Message, LLMResponse
+from app.services.llm.interface import (
+    LLMClient,
+    Message,
+    LLMResponse,
+    extract_finish_reason,
+    extract_provider_request_id,
+    normalize_usage,
+    serialize_raw_response,
+)
 from app.services.llm.proxy import build_async_client
 from app.config import get_settings
 
@@ -56,15 +64,15 @@ class AnthropicClient(LLMClient):
             response = await self.client.messages.create(**kwargs)
             
             content = response.content[0].text
-            usage = {
-                "input_tokens": response.usage.input_tokens,
-                "output_tokens": response.usage.output_tokens
-            }
+            raw_response = serialize_raw_response(response)
+            usage = normalize_usage(response.usage, raw_response)
             
             return LLMResponse(
                 content=content,
-                raw_response=response,
-                usage=usage
+                raw_response=raw_response,
+                usage=usage,
+                provider_request_id=extract_provider_request_id(raw_response),
+                finish_reason=extract_finish_reason(raw_response),
             )
 
         except Exception as e:

@@ -43,19 +43,26 @@ export function LLMLogsView() {
   const [sessionId, setSessionId] = useState<string>("");
   const [experimentId, setExperimentId] = useState<string>("");
   const [variantId, setVariantId] = useState<string>("");
-  const [offset, setOffset] = useState<number>(0);
+  const [cursor, setCursor] = useState<string>("");
+  const [cursorStack, setCursorStack] = useState<string[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [selectedRow, setSelectedRow] = useState<any | null>(null);
+  const [includeRawResponse, setIncludeRawResponse] = useState<boolean>(false);
   const [outlierMetric, setOutlierMetric] = useState<"latency" | "tokens" | "cost">("latency");
   const limit = 50;
+  const resetPagination = () => {
+    setCursor("");
+    setCursorStack([]);
+  };
 
   const logsQuery = useQuery({
-    queryKey: ["llm-logs", { days, status, provider, model, callType, sessionId, experimentId, variantId, offset, limit }],
+    queryKey: ["llm-logs", { days, status, provider, model, callType, sessionId, experimentId, variantId, cursor, limit }],
     queryFn: () =>
       fetchLLMLogs({
         days,
         limit,
-        offset,
+        cursor: cursor || undefined,
+        include_total: false,
         status: status || undefined,
         provider: provider || undefined,
         model: model || undefined,
@@ -68,7 +75,7 @@ export function LLMLogsView() {
   });
 
   const throughputQuery = useQuery({
-    queryKey: ["llm-throughput", { days, bucket, status, provider, model, callType }],
+    queryKey: ["llm-throughput", { days, bucket, status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMThroughput({
         days,
@@ -77,6 +84,9 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 60000),
   });
@@ -91,7 +101,7 @@ export function LLMLogsView() {
   }, [throughputQuery.data, bucket]);
 
   const statsQuery = useQuery({
-    queryKey: ["llm-stats", { days, status, provider, model, callType }],
+    queryKey: ["llm-stats", { days, status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMStats({
         days,
@@ -99,12 +109,15 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
   const outliersQuery = useQuery({
-    queryKey: ["llm-outliers", { days, metric: outlierMetric, status, provider, model, callType }],
+    queryKey: ["llm-outliers", { days, metric: outlierMetric, status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMOutliers({
         days,
@@ -114,19 +127,27 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
   const detailsQuery = useQuery({
-    queryKey: ["llm-log-details", { id: selectedId }],
-    queryFn: () => fetchLLMLogDetails(selectedId),
+    queryKey: ["llm-log-details", { id: selectedId, includeRawResponse }],
+    queryFn: () =>
+      fetchLLMLogDetails(selectedId, {
+        include_prompts: true,
+        include_related: true,
+        include_raw_response: includeRawResponse,
+      }),
     enabled: !!selectedId,
     staleTime: 60000,
   });
 
   const providerBreakdown = useQuery({
-    queryKey: ["llm-breakdown", { days, group_by: "provider", status, provider, model, callType }],
+    queryKey: ["llm-breakdown", { days, group_by: "provider", status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMBreakdown({
         days,
@@ -136,12 +157,15 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
   const modelBreakdown = useQuery({
-    queryKey: ["llm-breakdown", { days, group_by: "model", status, provider, model, callType }],
+    queryKey: ["llm-breakdown", { days, group_by: "model", status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMBreakdown({
         days,
@@ -151,12 +175,15 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
   const callTypeBreakdown = useQuery({
-    queryKey: ["llm-breakdown", { days, group_by: "call_type", status, provider, model, callType }],
+    queryKey: ["llm-breakdown", { days, group_by: "call_type", status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMBreakdown({
         days,
@@ -166,12 +193,15 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
 
   const statusBreakdown = useQuery({
-    queryKey: ["llm-breakdown", { days, group_by: "status", status, provider, model, callType }],
+    queryKey: ["llm-breakdown", { days, group_by: "status", status, provider, model, callType, sessionId, experimentId, variantId }],
     queryFn: () =>
       fetchLLMBreakdown({
         days,
@@ -181,6 +211,9 @@ export function LLMLogsView() {
         provider: provider || undefined,
         model: model || undefined,
         call_type: callType || undefined,
+        session_id: sessionId || undefined,
+        experiment_id: experimentId || undefined,
+        variant_id: variantId || undefined,
       }),
     refetchInterval: (q) => (q.state.error ? false : 120000),
   });
@@ -233,10 +266,10 @@ export function LLMLogsView() {
 	    detailsQuery.refetch,
 	  ]);
 
-  const total = Number(logsQuery.data?.total || 0);
   const items = Array.isArray(logsQuery.data?.items) ? logsQuery.data.items : [];
-  const hasPrev = offset > 0;
-  const hasNext = offset + limit < total;
+  const hasPrev = cursorStack.length > 0;
+  const hasNext = Boolean(logsQuery.data?.has_more && logsQuery.data?.next_cursor);
+  const currentPage = cursorStack.length + 1;
 
   const formatMoney = (value: any) => {
     const num = Number(value || 0);
@@ -258,6 +291,18 @@ export function LLMLogsView() {
       return String(value ?? "");
     }
   };
+
+  const hasIncompleteUsage = (value: any) =>
+    value?.usage_captured === false ||
+    value?.provider_request_captured === false ||
+    ((!value?.provider_request_id && String(value?.status || "ok") === "ok") ||
+      ((Number(value?.prompt_tokens || 0) <= 0 || Number(value?.completion_tokens || 0) <= 0) &&
+        Number(value?.total_tokens || 0) <= 0 &&
+        String(value?.status || "ok") === "ok"));
+
+  useEffect(() => {
+    setIncludeRawResponse(false);
+  }, [selectedId]);
 
   const details = detailsQuery.data as any | undefined;
   const modalOpen = !!selectedId;
@@ -336,7 +381,7 @@ export function LLMLogsView() {
               min={1}
               max={90}
               onChange={(e) => {
-                setOffset(0);
+                resetPagination();
                 setDays(clampInt(Number(e.target.value || 7), 1, 90));
               }}
               className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none"
@@ -362,7 +407,7 @@ export function LLMLogsView() {
             <select
               value={status}
               onChange={(e) => {
-                setOffset(0);
+                resetPagination();
                 setStatus(e.target.value);
               }}
               className="rounded-xl bg-white/5 border border-white/10 px-3 py-2 text-sm outline-none"
@@ -378,7 +423,7 @@ export function LLMLogsView() {
 	            <input
 	              value={provider}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setProvider(e.target.value);
 	              }}
 	              placeholder="groq / anthropic / gemini..."
@@ -391,7 +436,7 @@ export function LLMLogsView() {
 	            <input
 	              value={model}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setModel(e.target.value);
 	              }}
 	              placeholder="claude-3-haiku..."
@@ -404,7 +449,7 @@ export function LLMLogsView() {
 	            <input
 	              value={callType}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setCallType(e.target.value);
 	              }}
 	              placeholder="normalize_topics..."
@@ -417,7 +462,7 @@ export function LLMLogsView() {
 	            <input
 	              value={sessionId}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setSessionId(e.target.value);
 	              }}
 	              placeholder="session_id"
@@ -430,7 +475,7 @@ export function LLMLogsView() {
 	            <input
 	              value={experimentId}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setExperimentId(e.target.value);
 	              }}
 	              placeholder="experiment_id"
@@ -443,7 +488,7 @@ export function LLMLogsView() {
 	            <input
 	              value={variantId}
 	              onChange={(e) => {
-	                setOffset(0);
+	                resetPagination();
 	                setVariantId(e.target.value);
 	              }}
 	              placeholder="variant_id"
@@ -466,6 +511,9 @@ export function LLMLogsView() {
 	              <div className="text-[10px] text-[var(--tg-theme-hint-color)]">
 	                errors: {formatNum(statsQuery.data?.errors || 0)} · rate: {((statsQuery.data?.error_rate || 0) * 100).toFixed(1)}%
 	              </div>
+                <div className="mt-1 text-[10px] text-[var(--tg-theme-hint-color)]">
+                  missing usage: {formatNum(statsQuery.data?.missing_usage_count || 0)} · req id: {formatNum(statsQuery.data?.missing_provider_request_id_count || 0)}
+                </div>
 	            </div>
 	            <div className="rounded-xl border border-white/10 bg-white/5 p-3">
 	              <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Cost</div>
@@ -555,7 +603,7 @@ export function LLMLogsView() {
               <button
                 key={String(row.key)}
                 onClick={() => {
-                  setOffset(0);
+                  resetPagination();
                   setStatus(String(row.key || ""));
                 }}
                 className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
@@ -580,7 +628,7 @@ export function LLMLogsView() {
               <button
                 key={String(row.key)}
                 onClick={() => {
-                  setOffset(0);
+                  resetPagination();
                   setProvider(String(row.key || ""));
                 }}
                 className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
@@ -637,7 +685,7 @@ export function LLMLogsView() {
               <button
                 key={String(row.key)}
                 onClick={() => {
-                  setOffset(0);
+                  resetPagination();
                   setCallType(String(row.key || ""));
                 }}
                 className="w-full flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-3 py-2 hover:bg-white/10 transition-colors"
@@ -702,20 +750,31 @@ export function LLMLogsView() {
           <div>
             <h3 className="text-sm font-bold">Calls</h3>
             <p className="text-[10px] text-[var(--tg-theme-hint-color)]">
-              {logsQuery.isLoading ? "Loading..." : `${Math.min(offset + limit, total)} / ${total}`}
+              {logsQuery.isLoading ? "Loading..." : `Page ${currentPage} · ${items.length} rows`}
             </p>
           </div>
           <div className="flex items-center gap-2">
             <button
               disabled={!hasPrev}
-              onClick={() => setOffset((v) => Math.max(0, v - limit))}
+              onClick={() => {
+                setCursorStack((stack) => {
+                  const nextStack = stack.slice(0, -1);
+                  setCursor(nextStack[nextStack.length - 1] || "");
+                  return nextStack;
+                });
+              }}
               className="rounded-xl px-3 py-2 text-xs font-bold border border-white/10 bg-white/5 disabled:opacity-40"
             >
               Prev
             </button>
             <button
               disabled={!hasNext}
-              onClick={() => setOffset((v) => v + limit)}
+              onClick={() => {
+                const nextCursor = String(logsQuery.data?.next_cursor || "");
+                if (!nextCursor) return;
+                setCursorStack((stack) => [...stack, nextCursor]);
+                setCursor(nextCursor);
+              }}
               className="rounded-xl px-3 py-2 text-xs font-bold border border-white/10 bg-white/5 disabled:opacity-40"
             >
               Next
@@ -739,6 +798,7 @@ export function LLMLogsView() {
             <tbody>
 	              {items.map((it: any) => {
                 const isErr = String(it.status) === "error";
+                const incomplete = hasIncompleteUsage(it);
                 const ts = String(it.created_at || "");
                 return (
 	                  <tr
@@ -751,16 +811,23 @@ export function LLMLogsView() {
 	                  >
                     <td className="py-2 pr-3 whitespace-nowrap text-xs">{ts ? formatTsLabel(ts, "minute") : "-"}</td>
                     <td className="py-2 pr-3 whitespace-nowrap">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${
-                          isErr
-                            ? "text-red-300 bg-red-500/10 border-red-400/30"
-                            : "text-emerald-300 bg-emerald-500/10 border-emerald-400/30"
-                        }`}
-                        title={isErr ? String(it.error_type || "error") : "ok"}
-                      >
-                        {String(it.status || "ok")}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border ${
+                            isErr
+                              ? "text-red-300 bg-red-500/10 border-red-400/30"
+                              : "text-emerald-300 bg-emerald-500/10 border-emerald-400/30"
+                          }`}
+                          title={isErr ? String(it.error_type || "error") : "ok"}
+                        >
+                          {String(it.status || "ok")}
+                        </span>
+                        {incomplete ? (
+                          <span className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold border border-amber-400/30 bg-amber-500/10 text-amber-200">
+                            incomplete
+                          </span>
+                        ) : null}
+                      </div>
                     </td>
                     <td className="py-2 pr-3 whitespace-nowrap">
                       <div className="font-bold text-xs">{String(it.provider || "-")}</div>
@@ -824,6 +891,11 @@ export function LLMLogsView() {
 	              <div>
 	                <span className="text-[var(--tg-theme-hint-color)]">Status:</span>{" "}
 	                <span className="font-bold">{modalHeader?.status || "ok"}</span>
+                  {hasIncompleteUsage(details || modalHeader) ? (
+                    <span className="ml-2 inline-flex items-center rounded-full border border-amber-400/30 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold text-amber-200">
+                      incomplete usage
+                    </span>
+                  ) : null}
 	              </div>
 	              <div>
 	                <span className="text-[var(--tg-theme-hint-color)]">Finish reason:</span>{" "}
@@ -861,7 +933,7 @@ export function LLMLogsView() {
 	                  </div>
 	                  <button
 	                    onClick={() => {
-	                      setOffset(0);
+	                      resetPagination();
 	                      setSessionId(String(details.session_id || ""));
 	                      setSelectedId("");
 	                      setSelectedRow(null);
@@ -972,16 +1044,32 @@ export function LLMLogsView() {
 	                </button>
 	              </div>
 	              <div>
-	                <div className="text-[10px] text-[var(--tg-theme-hint-color)]">Raw provider JSON</div>
-	                <pre className="mt-1 max-h-[320px] overflow-auto whitespace-pre rounded-xl border border-white/10 bg-black/20 p-2 text-[11px] leading-snug">
-	                  {toPrettyJson(details?.response?.raw_response)}
-	                </pre>
-	                <button
-	                  onClick={() => void copyToClipboard(toPrettyJson(details?.response?.raw_response))}
-	                  className="mt-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold hover:bg-white/10"
-	                >
-	                  Copy
-	                </button>
+	                <div className="flex items-center justify-between gap-2">
+                    <div className="text-[10px] text-[var(--tg-theme-hint-color)]">Raw provider JSON</div>
+                    {!details?.response?.raw_response_included && details?.response?.raw_response_available ? (
+                      <button
+                        onClick={() => setIncludeRawResponse(true)}
+                        className="rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold hover:bg-white/10"
+                      >
+                        Load raw JSON
+                      </button>
+                    ) : null}
+                  </div>
+                  <pre className="mt-1 max-h-[320px] overflow-auto whitespace-pre rounded-xl border border-white/10 bg-black/20 p-2 text-[11px] leading-snug">
+                    {details?.response?.raw_response_included
+                      ? toPrettyJson(details?.response?.raw_response)
+                      : details?.response?.raw_response_available
+                        ? "Raw provider response is available but loaded on demand."
+                        : ""}
+                  </pre>
+                  {details?.response?.raw_response_included ? (
+                    <button
+                      onClick={() => void copyToClipboard(toPrettyJson(details?.response?.raw_response))}
+                      className="mt-2 rounded-lg border border-white/10 bg-white/5 px-2 py-1 text-[10px] font-semibold hover:bg-white/10"
+                    >
+                      Copy
+                    </button>
+                  ) : null}
 	              </div>
 	            </div>
 	          </div>
