@@ -12,6 +12,7 @@ from app.services.recommendation import RecommendationService
 from app.db import get_db
 from app.services.session_storage import get_session_storage
 from app.services.embeddings import get_embedding_service
+from app.analytics_events.emitters import emit_event
 
 router = APIRouter(prefix="/api/v1/recommendations", tags=["recommendations"])
 
@@ -46,7 +47,23 @@ async def init_discovery(
             raise HTTPException(status_code=400, detail=f"Invalid user_id format: {user_id}")
             
     try:
+        await emit_event(
+            event_type="kpi.quiz_started",
+            source="api",
+            user_id=str(user_uuid) if user_uuid else None,
+            dims={"route": "/api/v1/recommendations/init"},
+            metrics={"value": 1},
+        )
         session = await manager.init_session(quiz, user_id=user_uuid)
+        await emit_event(
+            event_type="kpi.quiz_completed",
+            source="api",
+            session_id=session.session_id,
+            user_id=str(user_uuid) if user_uuid else None,
+            dims={"route": "/api/v1/recommendations/init"},
+            metrics={"value": 1},
+            payload={"tracks": len(session.tracks or [])},
+        )
         return session
     except Exception as e:
         logger.exception("Failed to initialize discovery session")
@@ -65,6 +82,18 @@ async def interact(
             value=req.value,
             metadata=req.metadata
         )
+        shown_count = 0
+        for track in (session.tracks or []):
+            shown_count += len(getattr(track, "hypotheses", []) or [])
+        if shown_count > 0:
+            await emit_event(
+                event_type="kpi.results_shown",
+                source="api",
+                session_id=req.session_id,
+                dims={"action": req.action},
+                metrics={"value": float(shown_count)},
+                payload={"hypotheses_count": shown_count},
+            )
         return session
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
@@ -95,6 +124,14 @@ async def get_hypothesis_products(
         # ... logic for budget ...
 
         # 3. Generate products using recommendation service
+        await emit_event(
+            event_type="kpi.gift_clicked",
+            source="api",
+            session_id=getattr(db_h, "session_id", None),
+            dims={"hypothesis_id": str(db_h.id)},
+            metrics={"value": 1},
+            payload={"title": db_h.title},
+        )
         products = await manager.recommendation_service.get_deep_dive_products(
             search_queries=db_h.search_queries or [db_h.title],
             hypothesis_title=db_h.title,

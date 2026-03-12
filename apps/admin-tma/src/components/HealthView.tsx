@@ -9,9 +9,9 @@ type HealthViewProps = {
   queue?: any;
 };
 
-function Chip({ label, value }: { label: string; value?: string }) {
+function Chip({ label, value, testId }: { label: string; value?: string; testId?: string }) {
   return (
-    <div className="rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2">
+    <div className="rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2" data-testid={testId}>
       <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--tg-theme-hint-color)]">{label}</div>
       <div className="mt-0.5 text-sm font-bold text-white/90">{value ?? "—"}</div>
     </div>
@@ -32,8 +32,8 @@ export function HealthView({ health, workers, queue }: HealthViewProps) {
   const queueTotal = queue?.messages_total ?? queue?.messages ?? queue?.total ?? 0;
 
   return (
-    <div className="p-4 space-y-4">
-      <div className="card">
+    <div className="p-4 space-y-4" data-testid="health-view">
+      <div className="card" data-testid="health-card">
         <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Heart />
@@ -45,26 +45,26 @@ export function HealthView({ health, workers, queue }: HealthViewProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Chip label="API" value={`${apiStatus}${apiLatency ? ` · ${apiLatency}` : ""}`} />
-          <Chip label="Database" value={`${dbStatus}${dbEngine ? ` · ${dbEngine}` : ""}`} />
-          <Chip label="Redis" value={`${redisStatus}${redisMem ? ` · ${redisMem}` : ""}`} />
-          <Chip label="Queue" value={String(Number(queueTotal) || 0)} />
+          <Chip label="API" value={`${apiStatus}${apiLatency ? ` · ${apiLatency}` : ""}`} testId="health-api" />
+          <Chip label="Database" value={`${dbStatus}${dbEngine ? ` · ${dbEngine}` : ""}`} testId="health-db" />
+          <Chip label="Redis" value={`${redisStatus}${redisMem ? ` · ${redisMem}` : ""}`} testId="health-redis" />
+          <Chip label="Queue" value={String(Number(queueTotal) || 0)} testId="health-queue" />
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStat icon={<Server size={16} />} label="API" value={String(apiStatus)} />
-          <MiniStat icon={<Database size={16} />} label="DB" value={String(dbStatus)} />
-          <MiniStat icon={<Layers size={16} />} label="Redis" value={String(redisStatus)} />
-          <MiniStat icon={<Activity size={16} />} label="Queue" value={String(Number(queueTotal) || 0)} />
+          <MiniStat icon={<Server size={16} />} label="API" value={String(apiStatus)} testId="health-mini-api" />
+          <MiniStat icon={<Database size={16} />} label="DB" value={String(dbStatus)} testId="health-mini-db" />
+          <MiniStat icon={<Layers size={16} />} label="Redis" value={String(redisStatus)} testId="health-mini-redis" />
+          <MiniStat icon={<Activity size={16} />} label="Queue" value={String(Number(queueTotal) || 0)} testId="health-mini-queue" />
         </div>
       </div>
     </div>
   );
 }
 
-function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function MiniStat({ icon, label, value, testId }: { icon: React.ReactNode; label: string; value: string; testId?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2" data-testid={testId}>
       <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
         {icon}
       </div>
@@ -83,4 +83,3 @@ function Heart() {
     </div>
   );
 }
-

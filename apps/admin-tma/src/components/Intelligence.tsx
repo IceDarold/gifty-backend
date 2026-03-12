@@ -2,23 +2,16 @@
 
 import React from 'react';
 import { Brain, CreditCard, Layers, Zap, ArrowRight, Activity, Loader2 } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchIntelligence } from '@/lib/api';
+import { useAdminChannelQuery } from '@/hooks/useAdminStreamQuery';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useOpsRuntimeSettings } from '@/contexts/OpsRuntimeSettingsContext';
 import { useApiErrorToast } from '@/hooks/useApiErrorToast';
 import { useRetryRegistry } from '@/contexts/RetryRegistryContext';
 import { useEffect } from 'react';
 
 export function Intelligence() {
     const { t } = useLanguage();
-    const { getIntervalMs } = useOpsRuntimeSettings();
     const retryRegistry = useRetryRegistry();
-    const { data: stats, isLoading, error, refetch } = useQuery({
-        queryKey: ['intelligence'],
-        queryFn: () => fetchIntelligence(7),
-        refetchInterval: (query) => (query.state.error ? false : getIntervalMs('intelligence.summary_ms', 300000)),
-    });
+    const { data: stats, isLoading, error, refetch } = useAdminChannelQuery<any>('intelligence.summary');
 
     useApiErrorToast({
         id: "ai-intelligence-api",
@@ -38,7 +31,7 @@ export function Intelligence() {
     }, [retryRegistry, refetch]);
 
     if (isLoading) return (
-        <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <div className="flex flex-col items-center justify-center py-20 gap-4" data-testid="intelligence-loading">
             <Loader2 className="animate-spin text-[var(--tg-theme-button-color)]" size={32} />
             <p className="text-sm text-[var(--tg-theme-hint-color)]">Analyzing AI performance...</p>
         </div>
@@ -46,7 +39,7 @@ export function Intelligence() {
 
     if (error || !stats) {
         return (
-            <div className="px-4 py-6">
+            <div className="px-4 py-6" data-testid="intelligence-error">
                 <div className="rounded-xl border border-white/12 bg-white/[0.03] p-4 text-sm text-white/80">
                     <p className="font-semibold">AI Intelligence временно недоступен</p>
                     <button
@@ -63,7 +56,7 @@ export function Intelligence() {
     const { metrics, providers, latency_heatmap } = stats;
 
     return (
-        <div className="space-y-6 px-4 animate-in fade-in duration-500">
+        <div className="space-y-6 px-4 animate-in fade-in duration-500" data-testid="intelligence">
             {/* Header Section */}
             <div className="pt-2">
                 <h2 className="text-xl font-bold flex items-center gap-2">
@@ -74,7 +67,7 @@ export function Intelligence() {
             </div>
 
             {/* AI Cost Tracker Card */}
-            <div className="bg-gradient-to-br from-[#2481cc] to-[#5288c1] p-5 rounded-2xl text-white shadow-xl relative overflow-hidden">
+            <div className="bg-gradient-to-br from-[#2481cc] to-[#5288c1] p-5 rounded-2xl text-white shadow-xl relative overflow-hidden" data-testid="intelligence-cost-card">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                     <CreditCard size={100} />
                 </div>
@@ -86,18 +79,18 @@ export function Intelligence() {
                     </div>
 
                     <div className="flex flex-col">
-                        <span className="text-4xl font-black">
+                        <span className="text-4xl font-black" data-testid="intelligence-total-cost">
                             ${(metrics?.total_cost || 0).toFixed(2)}
                         </span>
                         <span className="text-white/70 text-xs mt-1">Total spend in last 7 days</span>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3 mt-6">
-                        <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/10">
+                            <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/10" data-testid="intelligence-total-tokens">
                             <div className="text-[10px] text-white/60 uppercase font-bold mb-0.5">Tokens</div>
                             <div className="text-lg font-bold">{((metrics?.total_tokens || 0) / 1000).toFixed(1)}k</div>
                         </div>
-                        <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/10">
+                            <div className="bg-white/10 backdrop-blur-sm p-3 rounded-xl border border-white/10" data-testid="intelligence-total-requests">
                             <div className="text-[10px] text-white/60 uppercase font-bold mb-0.5">Requests</div>
                             <div className="text-lg font-bold">{metrics?.total_requests || 0}</div>
                         </div>
@@ -106,7 +99,7 @@ export function Intelligence() {
             </div>
 
             {/* Provider Distribution Card */}
-            <div className="card space-y-4">
+            <div className="card space-y-4" data-testid="intelligence-provider-distribution">
                 <h3 className="font-bold flex items-center gap-2 text-sm">
                     <Layers size={16} className="text-[var(--tg-theme-button-color)]" />
                     Provider Distribution
@@ -116,7 +109,7 @@ export function Intelligence() {
                     {providers?.map((p: any) => {
                         const pct = (p.count / metrics.total_requests) * 100;
                         return (
-                            <div key={p.provider} className="space-y-2">
+                            <div key={p.provider} className="space-y-2" data-testid={`intelligence-provider-${p.provider}`}>
                                 <div className="flex justify-between text-xs font-bold">
                                     <span className="capitalize">{p.provider}</span>
                                     <span className="text-[var(--tg-theme-hint-color)]">{p.count} calls</span>
@@ -134,7 +127,7 @@ export function Intelligence() {
             </div>
 
             {/* Latency Heatmap Card */}
-            <div className="card space-y-4">
+            <div className="card space-y-4" data-testid="intelligence-latency-heatmap">
                 <h3 className="font-bold flex items-center gap-2 text-sm">
                     <Activity size={16} className="text-emerald-500" />
                     Latency Heatmap (24h)

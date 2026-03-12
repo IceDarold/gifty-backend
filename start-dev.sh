@@ -13,6 +13,7 @@ NEXT_LOG="$LOG_DIR/admin-tma.log"
 NGROK_LOG="$LOG_DIR/ngrok.log"
 ENV_FILE="${ENV_FILE:-$SCRIPT_DIR/.env}"
 DB_MODE="${DB_MODE:-auto}" # auto|local|remote
+MODE="${MODE:-dev}" # dev|prod
 
 mkdir -p "$LOG_DIR"
 
@@ -83,15 +84,36 @@ require_cmd curl
 require_cmd python3
 require_cmd nc
 
+get_env_value() {
+  local key="$1"
+  if [ ! -f "$ENV_FILE" ]; then
+    echo ""
+    return 0
+  fi
+  local line
+  line="$(grep -E "^${key}=" "$ENV_FILE" | tail -n 1 || true)"
+  if [ -z "$line" ]; then
+    echo ""
+    return 0
+  fi
+  local value="${line#${key}=}"
+  value="${value%\"}"
+  value="${value#\"}"
+  echo "$value"
+}
+
 print_usage() {
   cat <<EOF
-Usage: ./start-dev.sh [--db local|remote|auto]
+Usage: ./start-dev.sh [--db local|remote|auto] [--mode dev|prod]
 
 Options:
   --db MODE    DB mode:
                local  - use local Postgres (no SSH tunnel)
                remote - use remote Postgres via SSH tunnel
                auto   - detect by DATABASE_URL in .env (default)
+  --mode MODE  Admin mode:
+               dev    - enable local test login (default)
+               prod   - normal auth flow (Telegram WebApp)
 EOF
 }
 
@@ -103,6 +125,14 @@ while [ $# -gt 0 ]; do
       ;;
     --db=*)
       DB_MODE="${1#*=}"
+      shift
+      ;;
+    --mode)
+      MODE="${2:-}"
+      shift 2
+      ;;
+    --mode=*)
+      MODE="${1#*=}"
       shift
       ;;
     -h|--help)
@@ -127,6 +157,10 @@ fi
 
 if [ "$DB_MODE" != "local" ] && [ "$DB_MODE" != "remote" ]; then
   echo "Invalid --db value: $DB_MODE (expected: local|remote|auto)"
+  exit 1
+fi
+if [ "$MODE" != "dev" ] && [ "$MODE" != "prod" ]; then
+  echo "Invalid --mode value: $MODE (expected: dev|prod)"
   exit 1
 fi
 
@@ -182,7 +216,24 @@ echo "[3/5] Admin TMA (Next.js) on http://localhost:${ADMIN_TMA_PORT}"
 pkill -f "next dev.*--port ${ADMIN_TMA_PORT}" 2>/dev/null || true
 (
   cd "$SCRIPT_DIR/apps/admin-tma"
-  npm run dev -- --port "$ADMIN_TMA_PORT" --hostname 0.0.0.0 >"$NEXT_LOG" 2>&1
+  if [ "$MODE" = "dev" ]; then
+    INTERNAL_TOKEN="$(get_env_value INTERNAL_API_TOKEN)"
+    LIVE_WS_TOKEN="$(get_env_value LIVE_ANALYTICS_WS_TOKEN)"
+    if [ -z "$INTERNAL_TOKEN" ]; then
+      echo "WARN: INTERNAL_API_TOKEN is empty; admin may still require auth." >>"$NEXT_LOG"
+    fi
+    TEST_USER_JSON='{"id":1,"role":"superadmin","permissions":["*"]}'
+    NEXT_PUBLIC_TEST_MODE=1 \
+      NEXT_PUBLIC_TEST_USER_JSON="$TEST_USER_JSON" \
+      NEXT_PUBLIC_DISABLE_SSE=1 \
+      NEXT_PUBLIC_API_BASE_URL="http://localhost:8000" \
+      NEXT_PUBLIC_API_INTERNAL_TOKEN="$INTERNAL_TOKEN" \
+      NEXT_PUBLIC_LIVE_ANALYTICS_BASE_URL="http://localhost:8095" \
+      NEXT_PUBLIC_LIVE_ANALYTICS_WS_TOKEN="${LIVE_WS_TOKEN:-dev-live-analytics-token}" \
+      npm run dev -- --port "$ADMIN_TMA_PORT" --hostname 0.0.0.0 >"$NEXT_LOG" 2>&1
+  else
+    npm run dev -- --port "$ADMIN_TMA_PORT" --hostname 0.0.0.0 >"$NEXT_LOG" 2>&1
+  fi
 ) &
 
 if wait_port "localhost" "$ADMIN_TMA_PORT" 30; then
@@ -242,6 +293,7 @@ docker compose up -d telegram-bot >/dev/null 2>&1 || true
 
 echo
 echo "Dev environment ready"
+echo "Mode:          ${MODE}"
 echo "Dashboard:     $NGROK_URL"
 echo "Local admin:   http://localhost:${ADMIN_TMA_PORT}"
 echo "Local API:     http://localhost:8000"

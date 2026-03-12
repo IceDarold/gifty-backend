@@ -103,6 +103,10 @@ vi.mock("@/hooks/useOperations", () => ({
     setSelectedRunId: vi.fn(),
     streamState: "connected",
     streamError: null,
+    discoveryStateFilter: "new",
+    setDiscoveryStateFilter: vi.fn(),
+    discoverySearch: "",
+    setDiscoverySearch: vi.fn(),
     overview: {
       data: {
         runs: { running: 1, completed: 2, error: 0 },
@@ -121,22 +125,41 @@ vi.mock("@/hooks/useOperations", () => ({
       error: null,
       refetch: vi.fn(),
     },
+    pipeline: { data: null, isLoading: false, error: null, refetch: vi.fn() },
     activeRuns: {
       data: { items: [] },
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     },
+    discovery: { data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() },
+    queuedRuns: { data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() },
+    completedRuns: { data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() },
+    errorRuns: { data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() },
+    schedulerStats: { data: {}, isLoading: false, error: null, refetch: vi.fn() },
+    itemsTrendMap: { data: {}, isLoading: false, error: null, refetch: vi.fn() },
+    tasksTrendMap: { data: {}, isLoading: false, error: null, refetch: vi.fn() },
+    sources: { data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() },
     runDetails: {
       data: null,
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     },
+    promoteCategories: vi.fn(async () => undefined),
+    rejectCategories: vi.fn(async () => undefined),
+    reactivateCategories: vi.fn(async () => undefined),
+    bulkUpdateSources: vi.fn(async () => undefined),
     retryRun: vi.fn(async () => undefined),
     runSourceNow: vi.fn(async () => undefined),
     runSiteDiscovery: vi.fn(async () => undefined),
+    anyPendingAction: false,
   }),
+}));
+
+vi.mock("@/hooks/useAdminStreamQuery", () => ({
+  useAdminChannelQuery: vi.fn(() => ({ data: null, isLoading: false, error: null, refetch: vi.fn() })),
+  useAdminRequestQuery: vi.fn(() => ({ data: { items: [], total: 0 }, isLoading: false, error: null, refetch: vi.fn() })),
 }));
 
 import { OperationsView } from "./OperationsView";
@@ -152,7 +175,6 @@ describe("OperationsView (smoke)", () => {
     await user.click(screen.getByRole("button", { name: "Workers" }));
     await user.click(screen.getByRole("button", { name: "Scheduler" }));
 
-    expect(mockUseQuery).toHaveBeenCalled();
-    expect(mockUseInfiniteQuery).toHaveBeenCalled();
+    expect(screen.getByText("Operations Center")).toBeInTheDocument();
   });
 });

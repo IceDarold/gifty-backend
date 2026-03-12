@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   createFrontendAllowedHost,
   createFrontendApp,
@@ -9,13 +9,6 @@ import {
   deleteFrontendApp,
   deleteFrontendRelease,
   deleteFrontendRule,
-  fetchFrontendAllowedHosts,
-  fetchFrontendApps,
-  fetchFrontendAuditLog,
-  fetchFrontendProfiles,
-  fetchFrontendReleases,
-  fetchFrontendRules,
-  fetchFrontendRuntimeState,
   publishFrontendConfig,
   rollbackFrontendConfig,
   updateFrontendAllowedHost,
@@ -26,6 +19,7 @@ import {
   updateFrontendRuntimeState,
   validateFrontendRelease,
 } from '@/lib/api';
+import { useAdminChannelQuery } from '@/hooks/useAdminStreamQuery';
 
 const invalidateAll = (qc: ReturnType<typeof useQueryClient>) => {
   qc.invalidateQueries({ queryKey: ['frontend-apps'] });
@@ -40,13 +34,13 @@ const invalidateAll = (qc: ReturnType<typeof useQueryClient>) => {
 export function useFrontendRoutingData() {
   const qc = useQueryClient();
 
-  const apps = useQuery({ queryKey: ['frontend-apps'], queryFn: fetchFrontendApps });
-  const releases = useQuery({ queryKey: ['frontend-releases'], queryFn: () => fetchFrontendReleases() });
-  const profiles = useQuery({ queryKey: ['frontend-profiles'], queryFn: fetchFrontendProfiles });
-  const rules = useQuery({ queryKey: ['frontend-rules'], queryFn: () => fetchFrontendRules() });
-  const runtimeState = useQuery({ queryKey: ['frontend-runtime-state'], queryFn: fetchFrontendRuntimeState });
-  const allowedHosts = useQuery({ queryKey: ['frontend-allowed-hosts'], queryFn: fetchFrontendAllowedHosts });
-  const auditLog = useQuery({ queryKey: ['frontend-audit-log'], queryFn: () => fetchFrontendAuditLog(100, 0) });
+  const apps = useAdminChannelQuery<any>('frontend.apps');
+  const releases = useAdminChannelQuery<any>('frontend.releases');
+  const profiles = useAdminChannelQuery<any>('frontend.profiles');
+  const rules = useAdminChannelQuery<any>('frontend.rules');
+  const runtimeState = useAdminChannelQuery<any>('frontend.runtime_state');
+  const allowedHosts = useAdminChannelQuery<any>('frontend.allowed_hosts');
+  const auditLog = useAdminChannelQuery<any>('frontend.audit_log');
 
   // Backend returns {status, items} while UI expects arrays.
   const appsData = (apps.data as any)?.items ?? apps.data ?? [];

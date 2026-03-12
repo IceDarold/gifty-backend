@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm.stats",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "total": { "type": "number" },
+    "errors": { "type": "number" },
+    "error_rate": { "type": "number" },
+    "missing_usage_count": { "type": "number" },
+    "missing_provider_request_id_count": { "type": "number" },
+    "total_cost_usd": { "type": "number" },
+    "avg_cost_usd": { "type": "number" },
+    "p95_latency_ms": { "type": "number" },
+    "p50_latency_ms": { "type": "number" },
+    "avg_latency_ms": { "type": "number" },
+    "p95_total_tokens": { "type": "number" },
+    "p50_total_tokens": { "type": "number" },
+    "avg_total_tokens": { "type": "number" }
+  }
+}

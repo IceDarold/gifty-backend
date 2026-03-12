@@ -21,6 +21,7 @@ from app.services.llm.cost_estimator import estimate_cost
 from app.services.llm.observability_store import get_or_create_payload, get_or_create_prompt_template
 from app.services.experiments import ExperimentService
 from app.models import LLMLog
+from app.analytics_events.emitters import emit_event
 
 logger = logging.getLogger(__name__)
 
@@ -149,8 +150,9 @@ class AIReasoningService:
             output_payload_id = None
             raw_payload_id = None
             input_messages = [m.model_dump() for m in messages] if messages else None
+            can_store_observability_payloads = hasattr(self.db, "execute")
 
-            if system_prompt_template_name and system_prompt_template_content:
+            if can_store_observability_payloads and system_prompt_template_name and system_prompt_template_content:
                 system_template_id = await get_or_create_prompt_template(
                     self.db,
                     name=system_prompt_template_name,
@@ -158,7 +160,7 @@ class AIReasoningService:
                     kind="system",
                 )
 
-            if user_prompt_template_name and user_prompt_template_content:
+            if can_store_observability_payloads and user_prompt_template_name and user_prompt_template_content:
                 user_template_id = await get_or_create_prompt_template(
                     self.db,
                     name=user_prompt_template_name,
@@ -168,15 +170,15 @@ class AIReasoningService:
                 # Template already defines the user prompt; avoid duplicating raw input messages.
                 input_messages = None
 
-            if output_content is not None:
+            if can_store_observability_payloads and output_content is not None:
                 output_payload_id = await get_or_create_payload(
                     self.db, kind="output_text", content_text=output_content
                 )
 
-            if raw_response is not None:
+            if can_store_observability_payloads and raw_response is not None:
                 raw_payload_id = await get_or_create_payload(self.db, kind="raw_response", content_json=raw_response)
 
-            if user_template_id is None and input_messages is not None:
+            if can_store_observability_payloads and user_template_id is None and input_messages is not None:
                 # Avoid duplicating large message arrays per log row.
                 input_messages_payload_id = await get_or_create_payload(
                     self.db, kind="input_messages", content_json=input_messages
@@ -215,6 +217,29 @@ class AIReasoningService:
             )
             self.db.add(log)
             await self.db.commit()
+
+            await emit_event(
+                event_type="llm.call_completed",
+                source="api",
+                session_id=session_id,
+                dims={
+                    "provider": provider_name,
+                    "model": model,
+                    "call_type": call_type,
+                    "status": status,
+                },
+                metrics={
+                    "total_tokens": float(total_tokens),
+                    "latency_ms": float(latency_ms),
+                    "cost_usd": float(log.cost_usd or 0.0),
+                    "value": 1.0,
+                },
+                payload={
+                    "experiment_id": experiment_id,
+                    "variant_id": variant_id,
+                    "error_type": error_type,
+                },
+            )
         except Exception as e:
             logger.error(f"Failed to log LLM call: {e}")
 

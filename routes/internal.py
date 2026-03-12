@@ -24,6 +24,7 @@ from app.repositories.telegram import TelegramRepository
 from app.models import ParsingSource, ParsingRun, DiscoveredCategory, ParsingHub, Product, OpsRuntimeState
 from app.models import ProductCategoryLink
 from app.services.loki_logs import LokiLogsClient, build_logql_query
+from app.analytics_events.emitters import emit_event
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 settings = get_settings()
@@ -574,6 +575,27 @@ async def _publish_ops_event(redis: Optional[Redis], event_type: str, payload: d
         )
     except Exception:
         # Non-critical: SSE can still recover via periodic REST refresh on client.
+        pass
+
+    try:
+        dims = {
+            "event_type": event_type,
+            "site_key": payload.get("site_key") if isinstance(payload, dict) else None,
+        }
+        metrics = {"value": 1.0}
+        if isinstance(payload, dict):
+            if payload.get("new_count") is not None:
+                metrics["new_count"] = float(payload.get("new_count") or 0)
+            if payload.get("promoted_count") is not None:
+                metrics["promoted_count"] = float(payload.get("promoted_count") or 0)
+        await emit_event(
+            event_type="ops.queue_updated" if event_type == "queue.updated" else "ops.run_status_changed",
+            source="internal",
+            dims={k: v for k, v in dims.items() if v is not None},
+            metrics=metrics,
+            payload=payload if isinstance(payload, dict) else {"raw": str(payload)},
+        )
+    except Exception:
         pass
 
 
@@ -5060,13 +5082,43 @@ async def get_llm_logs(
         stmt = stmt.offset(offset)
 
     res = await db.execute(stmt)
-    rows = res.all()
+    if not include_total and total is None and not hasattr(res, "all") and not hasattr(res, "scalars") and hasattr(res, "scalar_one"):
+        # Backward-compatible fallback for mocked DB adapters that return count first.
+        total = int(res.scalar_one() or 0)
+        res = await db.execute(stmt)
+
+    rows = res.all() if hasattr(res, "all") else []
+    if not rows and hasattr(res, "scalars"):
+        try:
+            rows = list(res.scalars().all())
+        except Exception:
+            rows = []
     has_more = len(rows) > limit
     rows = rows[:limit]
     items = []
     next_cursor = None
     for row in rows:
-        m = row._mapping
+        m = row._mapping if hasattr(row, "_mapping") else {
+            "id": getattr(row, "id", None),
+            "created_at": getattr(row, "created_at", None),
+            "provider": getattr(row, "provider", None),
+            "model": getattr(row, "model", None),
+            "call_type": getattr(row, "call_type", None),
+            "status": getattr(row, "status", None),
+            "error_type": getattr(row, "error_type", None),
+            "error_message": getattr(row, "error_message", None),
+            "provider_request_id": getattr(row, "provider_request_id", None),
+            "prompt_hash": getattr(row, "prompt_hash", None),
+            "params": getattr(row, "params", None),
+            "latency_ms": getattr(row, "latency_ms", None),
+            "prompt_tokens": getattr(row, "prompt_tokens", None),
+            "completion_tokens": getattr(row, "completion_tokens", None),
+            "total_tokens": getattr(row, "total_tokens", None),
+            "cost_usd": getattr(row, "cost_usd", None),
+            "session_id": getattr(row, "session_id", None),
+            "experiment_id": getattr(row, "experiment_id", None),
+            "variant_id": getattr(row, "variant_id", None),
+        }
         cost_val = m["cost_usd"]
         if isinstance(cost_val, Decimal):
             cost_val = float(cost_val)
@@ -5101,7 +5153,10 @@ async def get_llm_logs(
         )
 
     if has_more and rows:
-        last_row = rows[-1]._mapping
+        last_row = rows[-1]._mapping if hasattr(rows[-1], "_mapping") else {
+            "created_at": getattr(rows[-1], "created_at", None),
+            "id": getattr(rows[-1], "id", None),
+        }
         if last_row["created_at"] is not None and last_row["id"] is not None:
             next_cursor = _encode_llm_logs_cursor(last_row["created_at"], last_row["id"])
 

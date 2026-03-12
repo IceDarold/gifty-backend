@@ -14,30 +14,32 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => null,
 }));
 
-vi.mock("@tanstack/react-query", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@tanstack/react-query")>();
-  return {
-    ...actual,
-    useQuery: (options: any) => {
-      const key = Array.isArray(options?.queryKey) ? options.queryKey[0] : options?.queryKey;
-      if (key === "ops-discovery-category") {
-        return {
-          data: { item: { id: 123, status: "new", url: "https://example.com/cat" } },
-          isLoading: false,
-          error: null,
-        };
-      }
-      if (key === "ops-source-items-trend") {
-        return {
-          data: { items: [{ ts: "2026-03-04T00:00:00Z", items_new: 3, items_total: 10 }] },
-          isLoading: false,
-          error: null,
-        };
-      }
-      return { data: null, isLoading: false, error: null };
-    },
-  };
-});
+vi.mock("@/hooks/useAdminStreamQuery", () => ({
+  useAdminChannelQuery: vi.fn(() => ({ data: null, isLoading: false, error: null, refetch: vi.fn() })),
+  useAdminRequestQuery: (channel: string) => {
+    if (channel === "ops.discovery_detail") {
+      return {
+        data: { item: { id: 123, status: "new", url: "https://example.com/cat" } },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+    }
+    if (channel === "ops.source_items_trend") {
+      return {
+        data: { items: [{ ts: "2026-03-04T00:00:00Z", items_new: 3, items_total: 10 }] },
+        isLoading: false,
+        error: null,
+        refetch: vi.fn(),
+      };
+    }
+    return { data: null, isLoading: false, error: null, refetch: vi.fn() };
+  },
+}));
+
+vi.mock("@/contexts/AdminStreamContext", () => ({
+  useAdminRequest: () => vi.fn(async () => ({ items: [{ site_key: "site-1", counters: { discovered_new: 1, discovered_promoted: 0 } }] })),
+}));
 
 vi.mock("@/hooks/useDashboard", () => ({
   useSourceDetails: () => ({

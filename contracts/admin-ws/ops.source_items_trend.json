@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ops.source_items_trend",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "date": { "type": ["string", "null"] },
+          "items_new": { "type": ["number", "null"] },
+          "items_total": { "type": ["number", "null"] }
+        }
+      }
+    },
+    "totals": {
+      "type": ["object", "null"],
+      "additionalProperties": true,
+      "properties": {
+        "items_new": { "type": ["number", "null"] },
+        "items_total": { "type": ["number", "null"] }
+      }
+    }
+  }
+}

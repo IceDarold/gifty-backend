@@ -8,6 +8,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict
 from starlette import status
+from app.analytics_events.emitters import emit_event
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,19 @@ def install_exception_handlers(app: FastAPI) -> None:
         except Exception as ph_err:
             logger.error("Failed to capture error to PostHog: %s", ph_err)
 
-        # 3. Send Notification alert
+        # 3. Send analytics event
+        try:
+            await emit_event(
+                event_type="ops.server_error",
+                source="api",
+                dims={"path": str(request.url.path), "method": request.method, "error_type": type(exc).__name__},
+                metrics={"value": 1.0},
+                payload={"error": str(exc)},
+            )
+        except Exception:
+            pass
+
+        # 4. Send Notification alert
         try:
             from app.services.notifications import get_notification_service
             notifier = get_notification_service()

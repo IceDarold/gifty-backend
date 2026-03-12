@@ -2,20 +2,17 @@ import React from "react";
 import { describe, expect, it, vi } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api")>();
-  return {
-    ...actual,
-    fetchOpsOverview: vi.fn(async () => ({ status: "ok", queue: { messages_total: 1 } })),
-    fetchOpsSites: vi.fn(async () => ({ items: [{ site_key: "detmir" }] })),
-    fetchOpsPipeline: vi.fn(async () => ({ status: "ok", items: [] })),
-    fetchOpsActiveRuns: vi.fn(async () => ({ items: [] })),
-    fetchOpsRunDetails: vi.fn(async () => ({ item: {} })),
-    fetchOpsDiscoveryCategories: vi.fn(async () => ({ items: [] })),
-    getOpsStreamUrl: vi.fn(() => "http://test/ops/stream"),
-    isSseDisabled: () => true,
-  };
-});
+vi.mock("@/hooks/useAdminStreamQuery", () => ({
+  useAdminChannelQuery: vi.fn((channel: string) => {
+    if (channel === "ops.overview") {
+      return { data: { status: "ok", queue: { messages_total: 1 } }, isLoading: false, error: null, refetch: vi.fn() };
+    }
+    if (channel === "ops.sites") {
+      return { data: { items: [{ site_key: "detmir" }] }, isLoading: false, error: null, refetch: vi.fn() };
+    }
+    return { data: null, isLoading: false, error: null, refetch: vi.fn() };
+  }),
+}));
 
 import { useOperationsData } from "@/hooks/useOperations";
 import { renderWithProviders } from "@/test/renderWithProviders";
@@ -39,4 +36,3 @@ describe("useOperationsData", () => {
     });
   });
 });
-

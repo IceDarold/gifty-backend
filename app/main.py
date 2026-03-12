@@ -19,6 +19,7 @@ from app.core.logic_config import logic_config
 from app.redis_client import init_redis
 from app.utils.errors import install_exception_handlers
 from app.services.embeddings import EmbeddingService
+from app.analytics_events.publisher import close_analytics_publisher
 from prometheus_fastapi_instrumentator import Instrumentator
 
 settings = get_settings()
@@ -43,6 +44,7 @@ async def lifespan(app: FastAPI):
     try:
         yield
     finally:
+        await close_analytics_publisher()
         await app.state.redis.aclose()
 
 
@@ -95,6 +97,8 @@ origins = [
     "https://aistudio.google.com",
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://localhost:3001",
+    "http://127.0.0.1:3001",
     "http://localhost:5173",
     "http://localhost:8000",
     "http://localhost:8001"

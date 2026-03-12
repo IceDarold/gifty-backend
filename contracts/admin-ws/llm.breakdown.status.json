@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm.breakdown.status",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "key": { "type": ["string", "null"] },
+          "requests": { "type": ["number", "null"] }
+        }
+      }
+    }
+  }
+}

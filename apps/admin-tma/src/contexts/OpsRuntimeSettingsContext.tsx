@@ -1,8 +1,9 @@
 "use client";
 
-import { createContext, useContext, useEffect, useMemo } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { fetchOpsRuntimeSettings, getOpsStreamUrl, isSseDisabled, updateOpsRuntimeSettings } from "@/lib/api";
+import { createContext, useContext, useMemo } from "react";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { updateOpsRuntimeSettings } from "@/lib/api";
+import { useAdminChannelQuery } from "@/hooks/useAdminStreamQuery";
 
 export const OPS_CLIENT_INTERVAL_DEFAULTS: Record<string, number> = {
   "ops.overview_ms": 30000,
@@ -49,12 +50,7 @@ const clampMs = (value: unknown, fallback: number) => {
 
 export function OpsRuntimeSettingsProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
-  const settingsQuery = useQuery({
-    queryKey: ["ops-runtime-settings"],
-    queryFn: fetchOpsRuntimeSettings,
-    staleTime: 30000,
-    refetchInterval: (query) => (query.state.error ? false : 120000),
-  });
+  const settingsQuery = useAdminChannelQuery<any>("settings.runtime");
 
   const updateMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => updateOpsRuntimeSettings(payload),
@@ -62,24 +58,6 @@ export function OpsRuntimeSettingsProvider({ children }: { children: React.React
       queryClient.setQueryData(["ops-runtime-settings"], data);
     },
   });
-
-  useEffect(() => {
-    if (isSseDisabled()) return;
-    let source: EventSource | null = null;
-    try {
-      source = new EventSource(getOpsStreamUrl());
-    } catch {
-      return;
-    }
-    const handler = () => {
-      queryClient.invalidateQueries({ queryKey: ["ops-runtime-settings"] });
-    };
-    source.addEventListener("ops.settings.updated", handler);
-    return () => {
-      source?.removeEventListener("ops.settings.updated", handler);
-      source?.close();
-    };
-  }, [queryClient]);
 
   const value = useMemo<OpsRuntimeSettingsContextValue>(() => {
     const getIntervalMs = (key: string, fallbackMs: number) => {

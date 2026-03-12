@@ -10,8 +10,8 @@ export function UsageChart({ data = [] }: UsageChartProps) {
     const hasData = data && data.length > 0;
 
     return (
-        <div className="px-4 py-2">
-            <div className="card space-y-4 overflow-hidden">
+        <div className="px-4 py-2" data-testid="usage-chart">
+            <div className="card space-y-4 overflow-hidden" data-testid="usage-chart-card">
                 <div className="flex items-center justify-between">
                     <div>
                         <h2 className="font-bold text-sm">User Activity</h2>
@@ -29,7 +29,7 @@ export function UsageChart({ data = [] }: UsageChartProps) {
                     </div>
                 </div>
 
-                <div className="h-48 w-full -ml-6">
+                <div className="h-48 w-full -ml-6" data-testid="usage-chart-body">
                     {hasData ? (
                         <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
@@ -74,7 +74,7 @@ export function UsageChart({ data = [] }: UsageChartProps) {
                             </AreaChart>
                         </ResponsiveContainer>
                     ) : (
-                        <div className="flex items-center justify-center h-full text-[var(--tg-theme-hint-color)] text-xs">
+                        <div className="flex items-center justify-center h-full text-[var(--tg-theme-hint-color)] text-xs" data-testid="usage-chart-empty">
                             No activity data available
                         </div>
                     )}

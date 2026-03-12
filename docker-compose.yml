@@ -19,6 +19,10 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_started
     extra_hosts:
       - "host.docker.internal:host-gateway"
     environment:
@@ -27,6 +31,7 @@ services:
       OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-gifty-api}"
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
 
   postgres:
     image: pgvector/pgvector:pg17
@@ -71,6 +76,102 @@ services:
       timeout: 5s
       retries: 10
 
+  nats:
+    image: nats:2.10-alpine
+    restart: unless-stopped
+    command: [ "-js", "-m", "8222" ]
+    ports:
+      - "127.0.0.1:4222:4222"
+      - "127.0.0.1:8222:8222"
+    healthcheck:
+      test: [ "CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz" ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.8
+    restart: unless-stopped
+    environment:
+      CLICKHOUSE_USER: "${CLICKHOUSE_USER:-analytics}"
+      CLICKHOUSE_PASSWORD: "${CLICKHOUSE_PASSWORD:-analytics}"
+      CLICKHOUSE_DEFAULT_ACCESS_MANAGEMENT: "1"
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:8123:8123"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - ./deploy/clickhouse:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [ "CMD-SHELL", "clickhouse-client --query 'SELECT 1'" ]
+      interval: 10s
+      timeout: 5s
+      retries: 15
+
+  analytics-aggregator:
+    build:
+      context: ./services/analytics-aggregator
+    restart: unless-stopped
+    command: ["analytics-realtime"]
+    env_file: .env
+    environment:
+      LISTEN_ADDR: ":8095"
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      NATS_STREAM: "AN_EVENTS"
+      NATS_SUBJECT: "analytics.events.v1.>"
+      NATS_DURABLE: "AGG_WRITER_V1"
+      CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
+      ANALYTICS_SCHEMA_PATH: "/app/contracts/analytics/event-envelope.v1.json"
+      ANALYTICS_FLUSH_SECONDS: "${ANALYTICS_FLUSH_SECONDS:-60}"
+      ANALYTICS_DEDUP_TTL_SECONDS: "${ANALYTICS_DEDUP_TTL_SECONDS:-900}"
+      ANALYTICS_REHYDRATE_MINUTES: "${ANALYTICS_REHYDRATE_MINUTES:-180}"
+      LIVE_ANALYTICS_WS_TOKEN: "${LIVE_ANALYTICS_WS_TOKEN:-dev-live-analytics-token}"
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-}"
+      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://api:8000}"
+      ADMIN_WS_POLL_DASHBOARD_SECONDS: "${ADMIN_WS_POLL_DASHBOARD_SECONDS:-30}"
+      ADMIN_WS_POLL_OPS_SECONDS: "${ADMIN_WS_POLL_OPS_SECONDS:-30}"
+      ADMIN_WS_POLL_CATALOG_SECONDS: "${ADMIN_WS_POLL_CATALOG_SECONDS:-60}"
+      ADMIN_WS_POLL_SETTINGS_SECONDS: "${ADMIN_WS_POLL_SETTINGS_SECONDS:-60}"
+      ADMIN_WS_POLL_LOGS_SECONDS: "${ADMIN_WS_POLL_LOGS_SECONDS:-5}"
+      ADMIN_WS_LOGS_TAIL: "${ADMIN_WS_LOGS_TAIL:-1}"
+    ports:
+      - "127.0.0.1:8095:8095"
+    volumes:
+      - .:/app
+    depends_on:
+      nats:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  analytics-ingester:
+    build:
+      context: ./services/analytics-aggregator
+    restart: unless-stopped
+    command: ["analytics-ingester"]
+    env_file: .env
+    environment:
+      LISTEN_ADDR: ":8095"
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      NATS_STREAM: "AN_EVENTS"
+      NATS_SUBJECT: "analytics.events.v1.>"
+      NATS_DURABLE: "AGG_WRITER_V1"
+      CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
+      ANALYTICS_SCHEMA_PATH: "/app/contracts/analytics/event-envelope.v1.json"
+      ANALYTICS_FLUSH_SECONDS: "${ANALYTICS_FLUSH_SECONDS:-60}"
+      ANALYTICS_DEDUP_TTL_SECONDS: "${ANALYTICS_DEDUP_TTL_SECONDS:-900}"
+      ANALYTICS_REHYDRATE_MINUTES: "${ANALYTICS_REHYDRATE_MINUTES:-180}"
+      LIVE_ANALYTICS_WS_TOKEN: "${LIVE_ANALYTICS_WS_TOKEN:-dev-live-analytics-token}"
+      INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-}"
+      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://api:8000}"
+    volumes:
+      - .:/app
+    depends_on:
+      nats:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
   scraper:
     build:
       context: ./services
@@ -87,6 +188,10 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_started
       postgres:
         condition: service_healthy
 
@@ -102,10 +207,33 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_started
     environment:
       OTEL_TRACING_ENABLED: "${OTEL_TRACING_ENABLED:-true}"
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_SERVICE_NAME: "${OTEL_SCHEDULER_SERVICE_NAME:-gifty-scheduler}"
+
+  admin-snapshotter:
+    build: .
+    restart: unless-stopped
+    command: python scripts/run_admin_snapshotter.py
+    env_file: .env
+    volumes:
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      nats:
+        condition: service_started
+      clickhouse:
+        condition: service_started
 
   prometheus:
     image: prom/prometheus:v2.54.1
@@ -221,3 +349,4 @@ volumes:
   prometheus_data:
   grafana_data:
   tempo_data:
+  clickhouse_data:

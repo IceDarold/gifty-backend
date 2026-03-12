@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import { X, Power, Package, TrendingUp, Loader2, Clock, AlertCircle, CheckCircle2, List, Settings2, Pencil } from "lucide-react";
 import { useSourceDetails } from "@/hooks/useDashboard";
-import { fetchOpsDiscoveryCategoryDetails, fetchOpsSites, fetchOpsSourceItemsTrend, promoteOpsDiscovery, reactivateOpsDiscovery, rejectOpsDiscovery, runOpsDiscoveryAllForSite, runOpsDiscoveryCategoryNow, runOpsSiteDiscovery } from "@/lib/api";
+import { useAdminRequestQuery } from "@/hooks/useAdminStreamQuery";
+import { useAdminRequest } from "@/contexts/AdminStreamContext";
+import { promoteOpsDiscovery, reactivateOpsDiscovery, rejectOpsDiscovery, runOpsDiscoveryAllForSite, runOpsDiscoveryCategoryNow, runOpsSiteDiscovery } from "@/lib/api";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { useLanguage } from "@/contexts/LanguageContext";
 import { SourceConfigEditor } from "./SourceConfigEditor";
 import { formatDistanceToNow } from "date-fns";
 import { ru, enUS } from "date-fns/locale";
-import { useQuery } from "@tanstack/react-query";
 import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
@@ -47,11 +48,12 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     const [inlineSaving, setInlineSaving] = useState<"name" | "url" | null>(null);
     const { toast: showToast, dismissToast } = useNotificationCenter();
     const retryRegistry = useRetryRegistry();
-    const categoryDetails = useQuery({
-        queryKey: ['ops-discovery-category', selectedCategoryId],
-        queryFn: () => fetchOpsDiscoveryCategoryDetails(selectedCategoryId as number),
-        enabled: !!selectedCategoryId,
-    });
+    const request = useAdminRequest();
+    const categoryDetails = useAdminRequestQuery<any>(
+        selectedCategoryId ? "ops.discovery_detail" : "",
+        { id: selectedCategoryId || 0 },
+        [selectedCategoryId],
+    );
 
     useEffect(() => {
         setCategoryPage(0);
@@ -127,12 +129,19 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
         if (trendGranularity === 'hour') return 72;
         return 180;
     }, [trendGranularity]);
-    const sourceTrend = useQuery({
-        queryKey: ['ops-source-items-trend', sourceId, trendGranularity, trendBuckets],
-        queryFn: () => fetchOpsSourceItemsTrend(sourceId, { granularity: trendGranularity, buckets: trendBuckets }),
-        enabled: !!sourceId,
-        refetchInterval: (query) => (query.state.error ? false : getIntervalMs("ops.source_trend_ms", 30000)),
-    });
+    const sourceTrend = useAdminRequestQuery<any>(
+        sourceId ? "ops.source_items_trend" : "",
+        { source_id: sourceId, granularity: trendGranularity, buckets: trendBuckets },
+        [sourceId, trendGranularity, trendBuckets],
+    );
+    useEffect(() => {
+        if (!sourceId) return;
+        const interval = getIntervalMs("ops.source_trend_ms", 30000);
+        const timer = window.setInterval(() => {
+            void sourceTrend.refetch();
+        }, interval);
+        return () => window.clearInterval(timer);
+    }, [sourceId, trendGranularity, trendBuckets, getIntervalMs, sourceTrend.refetch]);
     const trendData = sourceTrend.data?.items || [];
     const relatedSources = useMemo(() => sourceData.related_sources || [], [sourceData.related_sources]);
     const hasAnyCategories = relatedSources.length > 0;
@@ -281,7 +290,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
         });
         try {
             try {
-                const initial = await fetchOpsSites();
+                const initial = await request("ops.sites");
                 const initialSite = (initial?.items || []).find((s: any) => s.site_key === siteKey);
                 beforeTotal = initialSite
                     ? Number(initialSite?.counters?.discovered_new || 0) + Number(initialSite?.counters?.discovered_promoted || 0)
@@ -294,7 +303,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             let finalStatus = "queued";
             for (let i = 0; i < 120; i += 1) {
                 await new Promise((resolve) => window.setTimeout(resolve, 1500));
-                const fresh = await fetchOpsSites();
+                const fresh = await request("ops.sites");
                 const current = (fresh?.items || []).find((s: any) => s.site_key === siteKey);
                 if (!current) continue;
                 finalSite = current;
@@ -489,8 +498,8 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     }
 
     return (
-        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
-            <div className="bg-[var(--tg-theme-bg-color)] w-full max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300">
+        <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in duration-300" data-testid="spider-detail">
+            <div className="bg-[var(--tg-theme-bg-color)] w-full max-w-lg rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl animate-in slide-in-from-bottom duration-300" data-testid="spider-detail-card">
                 {/* Header */}
                 <div className="p-5 border-b border-[var(--tg-theme-secondary-bg-color)] flex items-center justify-between bg-gradient-to-r from-[var(--tg-theme-secondary-bg-color)] to-[var(--tg-theme-bg-color)]">
                     <div>
@@ -643,7 +652,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                     </div>
 
                     {/* Tabs */}
-                    <div className="flex bg-[var(--tg-theme-secondary-bg-color)] p-1 rounded-xl">
+                    <div className="flex bg-[var(--tg-theme-secondary-bg-color)] p-1 rounded-xl" data-testid="spider-detail-tabs">
                         {[
                             { id: 'overview', label: t('dashboard.stats'), icon: TrendingUp },
                             { id: 'categories', label: 'Категории', icon: List },
@@ -651,6 +660,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                             <button
                                 key={tab.id}
                                 onClick={() => setActiveTab(tab.id as any)}
+                                data-testid={`spider-detail-tab-${tab.id}`}
                                 className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${activeTab === tab.id
                                     ? "bg-[var(--tg-theme-bg-color)] text-[var(--tg-theme-button-color)] shadow-sm"
                                     : "text-[var(--tg-theme-hint-color)] opacity-60 hover:opacity-100"
@@ -663,17 +673,17 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                     </div>
 
                     {activeTab === 'overview' && (
-                        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300">
+                        <div className="space-y-6 animate-in fade-in slide-in-from-top-2 duration-300" data-testid="spider-detail-overview">
                             {/* Stats Grid */}
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="card p-3 flex flex-col gap-1">
+                            <div className="grid grid-cols-2 gap-3" data-testid="spider-detail-stats">
+                                <div className="card p-3 flex flex-col gap-1" data-testid="spider-detail-total-items">
                                     <div className="flex items-center gap-2 text-[var(--tg-theme-hint-color)]">
                                         <Package size={14} />
                                         <span className="text-[10px] font-bold uppercase">{t('spiders.total_items')}</span>
                                     </div>
                                     <p className="text-xl font-bold">{(sourceData.total_items || 0).toLocaleString()}</p>
                                 </div>
-                                <div className="card p-3 flex flex-col gap-1">
+                                <div className="card p-3 flex flex-col gap-1" data-testid="spider-detail-last-new">
                                     <div className="flex items-center gap-2 text-[var(--tg-theme-hint-color)]">
                                         <TrendingUp size={14} />
                                         <span className="text-[10px] font-bold uppercase">{t('spiders.last_sync')}</span>
@@ -712,7 +722,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                         </button>
                                     ))}
                                 </div>
-                                <div className="h-40 w-full card p-2">
+                                <div className="h-40 w-full card p-2" data-testid="spider-detail-trend">
                                     {sourceTrend.isLoading ? (
                                         <div className="flex h-full items-center justify-center text-sm text-white/75">
                                             <Loader2 size={16} className="mr-2 animate-spin" />
@@ -785,8 +795,8 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                     )}
 
                     {activeTab === 'categories' && (
-                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 min-h-[40vh] space-y-3">
-                            <div className="card p-2.5 space-y-2 border border-white/5">
+                        <div className="animate-in fade-in slide-in-from-top-2 duration-300 min-h-[40vh] space-y-3" data-testid="spider-detail-categories">
+                            <div className="card p-2.5 space-y-2 border border-white/5" data-testid="spider-detail-categories-filters">
                                 <div className="flex items-center gap-2">
                                     <input
                                         value={categorySearch}
@@ -795,6 +805,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                             setCategoryPage(0);
                                         }}
                                         placeholder="Search category / url"
+                                        data-testid="spider-detail-categories-search"
                                         className="w-full rounded-lg border border-white/15 bg-black/20 px-3 py-2 text-xs text-white placeholder:text-white/45 outline-none focus:border-sky-300/50"
                                     />
                                 </div>
@@ -803,7 +814,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                     <span>Page {safeCategoryPage + 1} / {categoryTotalPages}</span>
                                 </div>
                             </div>
-                            <div className="card overflow-hidden border border-white/5 shadow-inner">
+                            <div className="card overflow-hidden border border-white/5 shadow-inner" data-testid="spider-detail-categories-table">
                                 <div className="max-h-[420px] overflow-auto">
                                     <table className="w-full text-left border-collapse">
                                         <thead className="sticky top-0 z-[1] bg-[var(--tg-theme-secondary-bg-color)] text-[10px] uppercase text-[var(--tg-theme-hint-color)] font-bold">
@@ -818,6 +829,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                             {pagedRelatedSources.map((rel: any) => (
                                                 <tr
                                                     key={rel.id || rel.category_id || rel.url}
+                                                    data-testid={`spider-detail-category-${rel.category_id || rel.id || "row"}`}
                                                     className={`text-xs transition-colors group ${(rel.category_id || rel.id) ? "hover:bg-[var(--tg-theme-button-color)]/5 cursor-pointer" : "opacity-80"}`}
                                                     onClick={(e) => {
                                                         e.stopPropagation();
@@ -888,6 +900,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                 <button
                                     className="rounded-md border border-white/20 bg-black/20 px-2 py-1 text-[11px] text-white/85 disabled:opacity-40"
                                     disabled={safeCategoryPage <= 0}
+                                    data-testid="spider-detail-categories-prev"
                                     onClick={() => setCategoryPage((prev) => Math.max(0, prev - 1))}
                                 >
                                     Prev
@@ -895,6 +908,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                 <button
                                     className="rounded-md border border-white/20 bg-black/20 px-2 py-1 text-[11px] text-white/85 disabled:opacity-40"
                                     disabled={safeCategoryPage >= categoryTotalPages - 1}
+                                    data-testid="spider-detail-categories-next"
                                     onClick={() => setCategoryPage((prev) => Math.min(categoryTotalPages - 1, prev + 1))}
                                 >
                                     Next

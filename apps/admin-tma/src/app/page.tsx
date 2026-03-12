@@ -20,8 +20,8 @@ import { useCatalogProducts, useDashboardData } from "@/hooks/useDashboard";
 import { OperationsView } from "@/components/operations/OperationsView";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useTMA } from "@/components/TMAProvider";
-	import { getOpsStreamUrl, isSseDisabled } from "@/lib/api";
-	import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
+import { useAdminChannelData, useAdminChannelQuery } from "@/hooks/useAdminStreamQuery";
+import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 	import { useApiErrorToast } from "@/hooks/useApiErrorToast";
 	import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
 
@@ -68,8 +68,8 @@ export default function Home() {
 
     const tma = useTMA();
     const { t } = useLanguage();
-	    const opsRuntimeSettings = useOpsRuntimeSettings();
-	    const retryRegistry = useRetryRegistry();
+    const retryRegistry = useRetryRegistry();
+    const opsRuntimeSettings = useOpsRuntimeSettings();
     const chatId = tma?.user?.id || tma?.authUser?.id;
 
     const {
@@ -162,35 +162,13 @@ export default function Home() {
 		        return unregister;
 		    }, [retryRegistry, subscriber.refetch]);
 
+    const catalogStream = useAdminChannelData<any>('catalog.products');
     useEffect(() => {
         if (activeTab !== "catalog") return;
-        if (isSseDisabled()) return;
-        let source: EventSource | null = null;
-
-        try {
-            source = new EventSource(getOpsStreamUrl());
-        } catch {
-            return;
-        }
-
-        const handleCatalogUpdated = (event: MessageEvent) => {
-            try {
-                const payload = event.data ? JSON.parse(event.data) : {};
-                const incoming = Number(payload?.new_items || 0);
-                if (!Number.isFinite(incoming) || incoming <= 0) return;
-                setCatalogPendingNewItems((prev) => prev + incoming);
-            } catch {
-                // Ignore malformed SSE payloads.
-            }
-        };
-
-        source.addEventListener("catalog.updated", handleCatalogUpdated);
-
-        return () => {
-            source?.removeEventListener("catalog.updated", handleCatalogUpdated);
-            source?.close();
-        };
-    }, [activeTab]);
+        const incoming = Number(catalogStream?.new_items || 0);
+        if (!Number.isFinite(incoming) || incoming <= 0) return;
+        setCatalogPendingNewItems((prev) => prev + incoming);
+    }, [activeTab, catalogStream?.new_items]);
 
     const heroLatency = useMemo(() => parseLatency(health.data), [health.data]);
     const sidebarWidth = sidebarCollapsed ? SIDEBAR_COLLAPSED_WIDTH : SIDEBAR_EXPANDED_WIDTH;

@@ -14,6 +14,7 @@ import { OpsRuntimeSettingsProvider } from "@/contexts/OpsRuntimeSettingsContext
 import { NotificationCenterProvider } from "@/contexts/NotificationCenterContext";
 import { RetryRegistryProvider } from "@/contexts/RetryRegistryContext";
 import { ToastHost } from "@/components/ToastHost";
+import { AdminStreamProvider } from "@/contexts/AdminStreamContext";
 import Script from "next/script";
 
 export default function RootLayout({
@@ -46,14 +47,16 @@ export default function RootLayout({
           <TMAProvider>
             <LanguageProvider>
               <OpsRuntimeSettingsProvider>
-                <RetryRegistryProvider>
-                  <NotificationCenterProvider>
-                    <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
-                      {children}
-                      <ToastHost />
-                    </div>
-                  </NotificationCenterProvider>
-                </RetryRegistryProvider>
+                <AdminStreamProvider>
+                  <RetryRegistryProvider>
+                    <NotificationCenterProvider>
+                      <div className="min-h-screen bg-[var(--tg-theme-bg-color)]">
+                        {children}
+                        <ToastHost />
+                      </div>
+                    </NotificationCenterProvider>
+                  </RetryRegistryProvider>
+                </AdminStreamProvider>
               </OpsRuntimeSettingsProvider>
             </LanguageProvider>
           </TMAProvider>

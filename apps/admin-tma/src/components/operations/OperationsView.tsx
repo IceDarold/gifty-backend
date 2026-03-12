@@ -20,14 +20,13 @@ import {
   Sparkles,
   XCircle,
 } from "lucide-react";
-import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { useOperationsData } from "@/hooks/useOperations";
-import { useOpsRuntimeSettings } from "@/contexts/OpsRuntimeSettingsContext";
 import { useNotificationCenter } from "@/contexts/NotificationCenterContext";
-import { fetchOpsItemsTrend, fetchOpsQueuedRuns, fetchOpsSchedulerStats, fetchOpsSites, fetchOpsTasksTrend, fetchQueueHistory, fetchSources, getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
+import { getApiErrorMessage, getApiErrorStatus, isServerApiError, pauseOpsScheduler, pauseOpsWorker, resumeOpsScheduler, resumeOpsWorker } from "@/lib/api";
 import { openGrafanaExploreLoki, openGrafanaExplorePrometheus } from "@/lib/grafana";
 import { useApiErrorToast } from "@/hooks/useApiErrorToast";
 import { useRetryRegistry } from "@/contexts/RetryRegistryContext";
+import { useAdminRequestQuery } from "@/hooks/useAdminStreamQuery";
 import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { CategoriesTable } from "@/components/CategoriesTable";
 import {
@@ -219,7 +218,6 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   >({});
   const [workerPausePendingId, setWorkerPausePendingId] = useState<string | null>(null);
   const [schedulerPausePending, setSchedulerPausePending] = useState(false);
-  const { getIntervalMs } = useOpsRuntimeSettings();
   const { toast: showToast, dismissToast } = useNotificationCenter();
   const retryRegistry = useRetryRegistry();
 
@@ -230,13 +228,31 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     setSelectedRunId,
     streamState,
     streamError,
+    discoveryStateFilter,
+    setDiscoveryStateFilter,
+    discoverySearch,
+    setDiscoverySearch,
     overview,
     sites,
+    pipeline,
     activeRuns,
     runDetails,
+    discovery,
+    queuedRuns,
+    completedRuns,
+    errorRuns,
+    schedulerStats,
+    itemsTrendMap,
+    tasksTrendMap,
+    sources,
+    promoteCategories,
+    rejectCategories,
+    reactivateCategories,
+    bulkUpdateSources,
     retryRun,
     runSourceNow,
     runSiteDiscovery,
+    anyPendingAction,
   } = useOperationsData();
 
   useApiErrorToast({
@@ -259,45 +275,33 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     );
   }, [siteSearch, sites.data?.items]);
 
-  const sourcesQuery = useQuery({
-    queryKey: ["sources"],
-    queryFn: fetchSources,
-    staleTime: 10_000,
-    refetchInterval: (query) => (query.state.error ? false : getIntervalMs("dashboard.sources_ms", 30_000)),
-  });
+  const sourcesQuery = sources;
 
+  const categoryLimit = 200;
+  const [categoryPage, setCategoryPage] = useState(0);
+  const categoryQuery = useAdminRequestQuery<any>(
+    "catalog.categories",
+    {
+      limit: categoryLimit,
+      offset: categoryPage * categoryLimit,
+      search: categorySearch || "",
+    },
+    [categoryPage, categorySearch],
+  );
   const categorySources = useMemo(() => {
-    const sources: any[] = Array.isArray(sourcesQuery.data) ? (sourcesQuery.data as any[]) : [];
-    const normalizedSearch = (categorySearch || "").trim().toLowerCase();
-
-    const filtered = sources
-      .filter((s) => s && s.type === "list")
-      .filter((s) => {
-        if (!normalizedSearch) return true;
-        const key = String(s.site_key || "").toLowerCase();
-        const url = String(s.url || "").toLowerCase();
-        const name = String(s?.config?.discovery_name || "").toLowerCase();
-        return key.includes(normalizedSearch) || url.includes(normalizedSearch) || name.includes(normalizedSearch);
-      })
-      .map((s) => ({
-        id: Number(s.id),
-        site_key: String(s.site_key || ""),
-        url: String(s.url || ""),
-        status: String(s.status || ""),
-        last_synced_at: s.last_synced_at ? String(s.last_synced_at) : null,
-        next_sync_at: s.next_sync_at ? String(s.next_sync_at) : "",
-        total_items: Number(s.total_items || 0),
-        is_active: Boolean(s.is_active),
-        config: { discovery_name: s?.config?.discovery_name ? String(s.config.discovery_name) : undefined },
-      }));
-
-    filtered.sort((a, b) => {
-      const keyCmp = a.site_key.localeCompare(b.site_key);
-      if (keyCmp !== 0) return keyCmp;
-      return String(a.config?.discovery_name || "").localeCompare(String(b.config?.discovery_name || ""));
-    });
-    return filtered;
-  }, [sourcesQuery.data, categorySearch]);
+    const sources: any[] = Array.isArray(categoryQuery.data?.items) ? categoryQuery.data.items : [];
+    return sources.map((s) => ({
+      id: Number(s.id),
+      site_key: String(s.site_key || ""),
+      url: String(s.url || ""),
+      status: String(s.status || ""),
+      last_synced_at: s.last_synced_at ? String(s.last_synced_at) : null,
+      next_sync_at: s.next_sync_at ? String(s.next_sync_at) : "",
+      total_items: Number(s.total_items || 0),
+      is_active: Boolean(s.is_active),
+      config: { discovery_name: s?.config?.discovery_name ? String(s.config.discovery_name) : undefined },
+    }));
+  }, [categoryQuery.data]);
   const visibleSites = useMemo(
     () => filteredSites.slice(0, sitesVisibleCount),
     [filteredSites, sitesVisibleCount],
@@ -339,62 +343,14 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   }, [overview.data?.workers?.items]);
 
   const runItem = runDetails.data?.item;
-  const pollingMs = streamState === "connected" ? 300000 : getIntervalMs("ops.queue_lanes_ms", 30000);
-  const queuedRuns = useInfiniteQuery({
-    queryKey: ["ops-runs-queued-infinite"],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) => fetchOpsQueuedRuns(20, Number(pageParam || 0)),
-    getNextPageParam: (lastPage, pages) => {
-      const loaded = pages.reduce((acc, page: any) => acc + Number(page?.items?.length || 0), 0);
-      const total = Number(lastPage?.total || 0);
-      return loaded < total ? loaded : undefined;
-    },
-    refetchInterval: (query) => (query.state.error ? false : pollingMs),
-  });
-  const completedRuns = useInfiniteQuery({
-    queryKey: ["ops-runs-completed-infinite"],
-    initialPageParam: 0,
-    queryFn: ({ pageParam }) =>
-      fetchQueueHistory({ limit: 20, offset: Number(pageParam || 0), status: "completed" }),
-    getNextPageParam: (lastPage, pages) => {
-      const loaded = pages.reduce((acc, page: any) => acc + Number(page?.items?.length || 0), 0);
-      const total = Number(lastPage?.total || 0);
-      return loaded < total ? loaded : undefined;
-    },
-    refetchInterval: (query) => (query.state.error ? false : pollingMs),
-  });
-  const errorRuns = useQuery({
-    queryKey: ["queue-history-for-ops-error"],
-    queryFn: () => fetchQueueHistory({ limit: 200, offset: 0, status: "error" }),
-    refetchInterval: (query) => (query.state.error ? false : pollingMs),
-  });
-  const schedulerStats = useQuery({
-    queryKey: ["ops-scheduler-stats"],
-    queryFn: fetchOpsSchedulerStats,
-    refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.scheduler_stats_ms", 30000))),
-  });
-  const itemsTrendBuckets = useMemo(() => {
-    if (itemsTrendGranularity === "week") return 12;
-    if (itemsTrendGranularity === "day") return 30;
-    if (itemsTrendGranularity === "hour") return 72;
-    return 180;
-  }, [itemsTrendGranularity]);
-  const tasksTrendBuckets = useMemo(() => {
-    if (tasksTrendGranularity === "week") return 12;
-    if (tasksTrendGranularity === "day") return 30;
-    if (tasksTrendGranularity === "hour") return 72;
-    return 180;
-  }, [tasksTrendGranularity]);
-  const itemsTrend = useQuery({
-    queryKey: ["ops-items-trend", itemsTrendGranularity, itemsTrendBuckets],
-    queryFn: () => fetchOpsItemsTrend({ granularity: itemsTrendGranularity, buckets: itemsTrendBuckets }),
-    refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.items_trend_ms", 30000))),
-  });
-  const tasksTrend = useQuery({
-    queryKey: ["ops-tasks-trend", tasksTrendGranularity, tasksTrendBuckets],
-    queryFn: () => fetchOpsTasksTrend({ granularity: tasksTrendGranularity, buckets: tasksTrendBuckets }),
-    refetchInterval: (query) => (query.state.error ? false : (streamState === "connected" ? 300000 : getIntervalMs("ops.tasks_trend_ms", 30000))),
-  });
+  const itemsTrend = useMemo(() => {
+    const data = itemsTrendMap.data || {};
+    return { ...itemsTrendMap, data: data[itemsTrendGranularity] ?? data } as typeof itemsTrendMap;
+  }, [itemsTrendMap, itemsTrendGranularity]);
+  const tasksTrend = useMemo(() => {
+    const data = tasksTrendMap.data || {};
+    return { ...tasksTrendMap, data: data[tasksTrendGranularity] ?? data } as typeof tasksTrendMap;
+  }, [tasksTrendMap, tasksTrendGranularity]);
 
   useEffect(() => {
     const unregisterDetails = retryRegistry.register("ops-run-details-api", async () => {
@@ -434,16 +390,16 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     runDetails.refetch,
   ]);
   const queuedItems = useMemo(
-    () => (queuedRuns.data?.pages || []).flatMap((page: any) => page?.items || []),
-    [queuedRuns.data?.pages],
+    () => (queuedRuns.data?.items || []),
+    [queuedRuns.data?.items],
   );
   const runningItems = useMemo(
     () => (activeRuns.data?.items || []).filter((r: any) => r.status === "running"),
     [activeRuns.data?.items],
   );
   const completedItems = useMemo(
-    () => (completedRuns.data?.pages || []).flatMap((page: any) => page?.items || []),
-    [completedRuns.data?.pages],
+    () => (completedRuns.data?.items || []),
+    [completedRuns.data?.items],
   );
   const errorItems = useMemo(
     () => (errorRuns.data?.items || []).filter((r: any) => r.status === "error"),
@@ -510,21 +466,8 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     if (sitesVisibleCount >= filteredSites.length) return;
     setSitesVisibleCount((prev) => Math.min(filteredSites.length, prev + SITES_PAGE_SIZE));
   };
-  const handleLaneScroll = (laneKey: string) => (event: UIEvent<HTMLDivElement>) => {
-    const node = event.currentTarget;
-    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
-    if (!nearBottom) return;
-    if (laneKey === "queued") {
-      if (queuedRuns.hasNextPage && !queuedRuns.isFetchingNextPage) {
-        void queuedRuns.fetchNextPage();
-      }
-      return;
-    }
-    if (laneKey === "completed") {
-      if (completedRuns.hasNextPage && !completedRuns.isFetchingNextPage) {
-        void completedRuns.fetchNextPage();
-      }
-    }
+  const handleLaneScroll = (_laneKey: string) => (_event: UIEvent<HTMLDivElement>) => {
+    return;
   };
 
   const upsertNotification = (next: { id: string; status: "running" | "success" | "error"; title: string; message: string }) => {
@@ -630,7 +573,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
 
       for (let i = 0; i < 120; i += 1) {
         await new Promise((resolve) => window.setTimeout(resolve, 1500));
-        const fresh = await fetchOpsSites();
+        const fresh = sites.data;
         const current = (fresh?.items || []).find((s: any) => s.site_key === siteKey);
         if (!current) continue;
         finalSite = current;
@@ -797,8 +740,8 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   }
 
   return (
-    <div className="px-3 py-4 md:px-4">
-      <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 md:p-5 space-y-4">
+    <div className="px-3 py-4 md:px-4" data-testid="ops-view">
+      <div className="rounded-3xl border border-white/12 bg-white/[0.03] p-4 md:p-5 space-y-4" data-testid="ops-card">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div className="inline-flex items-center gap-2 rounded-xl border border-white/20 bg-white/10 px-3 py-2 text-sm font-semibold text-white">
@@ -813,6 +756,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                     ? "border-amber-300/35 bg-amber-400/10 text-amber-100"
                     : "border-rose-300/35 bg-rose-400/10 text-rose-100"
               }`}
+              data-testid="ops-stream-state"
             >
               {streamState === "connected" ? <CheckCircle2 size={14} /> : streamState === "connecting" ? <Loader2 size={14} className="animate-spin" /> : <ShieldAlert size={14} />}
               {streamState === "connected" ? "Live connected" : streamState === "connecting" ? "Connecting" : "Disconnected"}
@@ -839,7 +783,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
           </div>
         </div>
 
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2" data-testid="ops-tabs">
           {([
             { key: "stats", label: "Stats" },
             { key: "parsers", label: "Parsers" },
@@ -856,6 +800,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                   : "border-white/20 bg-black/20 text-white/80 hover:bg-white/10"
               }`}
               onClick={() => setActiveTab(tab.key)}
+              data-testid={`ops-tab-${tab.key}`}
             >
               {tab.label}
             </button>
@@ -863,9 +808,9 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         </div>
 
         {activeTab === "stats" ? (
-        <>
+        <div className="space-y-3" data-testid="ops-stats">
           <div className="grid gap-2.5 sm:grid-cols-2 xl:grid-cols-4">
-            <div className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 sm:col-span-2">
+            <div className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5 sm:col-span-2" data-testid="ops-task-states">
               <p className="text-[11px] uppercase tracking-[0.1em] text-white/65">Task states</p>
               <div className="mt-1 grid grid-cols-2 gap-2 text-[12px]">
                 <div className="rounded-md border border-sky-400/30 bg-sky-500/10 px-2 py-1.5">
@@ -902,7 +847,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             />
           </div>
 
-          <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+          <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-items-trend">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-white">Daily New Products</h3>
               <span className="text-[11px] text-white/70">
@@ -929,7 +874,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                 </button>
               ))}
             </div>
-            <div className="h-56 rounded-xl border border-white/12 bg-black/20 p-2">
+            <div className="h-56 rounded-xl border border-white/12 bg-black/20 p-2" data-testid="ops-items-trend-chart">
               {itemsTrend.isLoading ? (
                 <div className="flex h-full items-center justify-center text-sm text-white/75">
                   <Loader2 size={16} className="mr-2 animate-spin" />
@@ -964,7 +909,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             </div>
           </section>
 
-          <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+          <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-tasks-trend">
             <div className="mb-2 flex items-center justify-between gap-2">
               <h3 className="text-sm font-semibold text-white">Task States Trend</h3>
               <span className="text-[11px] text-white/70">
@@ -991,7 +936,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                 </button>
               ))}
             </div>
-            <div className="h-56 rounded-xl border border-white/12 bg-black/20 p-2">
+            <div className="h-56 rounded-xl border border-white/12 bg-black/20 p-2" data-testid="ops-tasks-trend-chart">
               {tasksTrend.isLoading ? (
                 <div className="flex h-full items-center justify-center text-sm text-white/75">
                   <Loader2 size={16} className="mr-2 animate-spin" />
@@ -1027,11 +972,11 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
               )}
             </div>
           </section>
-        </>
+        </div>
         ) : null}
 
         {activeTab === "workers" ? (
-        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-workers">
           <div className="mb-2 flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-white">Workers Activity</h3>
             <span className="text-xs text-white/75">{overview.data?.workers?.items?.length || 0} workers</span>
@@ -1046,6 +991,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                   key={workerId}
                   className="rounded-xl border border-white/12 bg-black/20 p-2.5 text-left hover:border-sky-300/45 transition"
                   onClick={() => setSelectedWorkerId(workerId)}
+                  data-testid={`ops-worker-${workerId}`}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-sm font-semibold text-white truncate">{workerId}</p>
@@ -1087,7 +1033,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         ) : null}
 
         {activeTab === "parsers" ? (
-        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-parsers">
           <div className="mb-3 flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-white">Parsers</h3>
             <span className="text-sm text-white/80">{filteredSites.length}</span>
@@ -1097,6 +1043,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             onChange={(event) => setSiteSearch(event.target.value)}
             placeholder="Search site"
             className="mb-2 h-9 w-full rounded-lg border border-white/20 bg-black/20 px-2.5 text-sm text-white placeholder:text-white/45 outline-none"
+            data-testid="ops-parsers-search"
           />
           <div className="max-h-[54rem] overflow-y-auto pr-1" onScroll={handleSitesScroll}>
             <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
@@ -1116,6 +1063,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                   event.preventDefault();
                   setSelectedSiteKey(site.site_key);
                 }}
+                data-testid={`ops-parser-${site.site_key}`}
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-semibold text-lg leading-none text-white">{site.name || site.site_key}</span>
@@ -1191,27 +1139,51 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         ) : null}
 
         {activeTab === "categories" ? (
-        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-categories">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <div>
               <h3 className="text-sm font-semibold text-white">Categories</h3>
               <p className="text-[11px] text-white/70">All list sources (type=list) across all sites.</p>
             </div>
-            <input
-              value={categorySearch}
-              onChange={(event) => setCategorySearch(event.target.value)}
-              placeholder="Search site / category / url"
-              className="h-9 w-[280px] max-w-[70vw] rounded-lg border border-white/20 bg-black/20 px-2.5 text-sm text-white placeholder:text-white/45 outline-none"
-            />
+            <div className="flex items-center gap-2">
+              <input
+                value={categorySearch}
+                onChange={(event) => {
+                  setCategorySearch(event.target.value);
+                  setCategoryPage(0);
+                }}
+                placeholder="Search site / category / url"
+                className="h-9 w-[280px] max-w-[70vw] rounded-lg border border-white/20 bg-black/20 px-2.5 text-sm text-white placeholder:text-white/45 outline-none"
+                data-testid="ops-categories-search"
+              />
+              <div className="flex items-center gap-1 text-[11px] text-white/70">
+                <button
+                  className="h-9 px-2 rounded-md border border-white/10 bg-white/5 disabled:opacity-40"
+                  onClick={() => setCategoryPage((p) => Math.max(0, p - 1))}
+                  disabled={categoryPage === 0}
+                  data-testid="ops-categories-prev"
+                >
+                  Prev
+                </button>
+                <button
+                  className="h-9 px-2 rounded-md border border-white/10 bg-white/5 disabled:opacity-40"
+                  onClick={() => setCategoryPage((p) => p + 1)}
+                  disabled={(categoryQuery.data?.total ?? 0) <= (categoryPage + 1) * categoryLimit}
+                  data-testid="ops-categories-next"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
 
-          {sourcesQuery.isLoading ? (
+          {categoryQuery.isLoading ? (
             <div className="rounded-xl border border-white/12 bg-white/[0.03] min-h-[42vh] flex items-center justify-center">
               <Loader2 className="animate-spin text-[var(--tg-theme-button-color)]" size={28} />
             </div>
-          ) : sourcesQuery.error ? (
+          ) : categoryQuery.error ? (
             <div className="rounded-xl border border-rose-400/30 bg-rose-500/10 p-3 text-xs text-rose-100">
-              Failed to load sources: {getApiErrorMessage(sourcesQuery.error)}
+              Failed to load sources: {getApiErrorMessage(categoryQuery.error)}
             </div>
           ) : (
             <CategoriesTable
@@ -1224,7 +1196,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         ) : null}
 
         {activeTab === "queue" ? (
-        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-queue">
           <h3 className="text-sm font-semibold text-white">Queue Board</h3>
           <div className="mt-2 grid gap-2 md:grid-cols-2">
             {([
@@ -1232,18 +1204,18 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                 key: "queued",
                 title: "Queued",
                 items: queuedItems,
-                total: Number(queuedRuns.data?.pages?.[0]?.total ?? overview.data?.queue?.messages_total ?? queuedItems.length),
+                total: Number(queuedRuns.data?.total ?? overview.data?.queue?.messages_total ?? queuedItems.length),
               },
               { key: "running", title: "Running", items: runningItems, total: runningItems.length },
               {
                 key: "completed",
                 title: "Completed",
                 items: completedItems,
-                total: Number(completedRuns.data?.pages?.[0]?.total ?? completedItems.length),
+                total: Number(completedRuns.data?.total ?? completedItems.length),
               },
               { key: "error", title: "Error", items: errorItems, total: Number(errorRuns.data?.total ?? errorItems.length) },
             ] as { key: string; title: string; items: any[]; total: number }[]).map((lane) => (
-              <div key={lane.key} className="rounded-lg border border-white/12 bg-black/20 p-2">
+              <div key={lane.key} className="rounded-lg border border-white/12 bg-black/20 p-2" data-testid={`ops-queue-lane-${lane.key}`}>
                 <div className="mb-2 flex items-center justify-between">
                   <h4 className="text-xs uppercase tracking-[0.08em] text-white/80">{lane.title}</h4>
                   <span className="text-[10px] text-white/70">{lane.total}</span>
@@ -1262,6 +1234,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
                           if (!runId) return;
                           setSelectedRunId(runId);
                         }}
+                        data-testid={`ops-queue-item-${lane.key}-${runId}`}
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="text-sm font-medium text-white truncate">{runTitle}</span>
@@ -1299,7 +1272,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
         ) : null}
 
         {activeTab === "scheduler" ? (
-        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3">
+        <section className="rounded-2xl border border-white/12 bg-white/[0.02] p-3" data-testid="ops-scheduler">
           <div className="flex items-center justify-between gap-2">
             <h3 className="text-sm font-semibold text-white">Scheduler Analytics</h3>
             <button
@@ -1310,6 +1283,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
               }`}
               disabled={schedulerPausePending}
               onClick={() => void handleToggleSchedulerPause()}
+              data-testid="ops-scheduler-toggle"
             >
               {schedulerPausePending ? <Loader2 size={13} className="animate-spin" /> : null}
               {schedulerStats.data?.summary?.scheduler_paused ? "Resume scheduler" : "Pause scheduler"}
@@ -1368,7 +1342,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             </div>
           </div>
 
-          <div className="mt-3 rounded-lg border border-white/12 bg-black/20 p-2.5">
+          <div className="mt-3 rounded-lg border border-white/12 bg-black/20 p-2.5" data-testid="ops-scheduler-queue-trend">
             <div className="mb-2 flex items-center justify-between">
               <h4 className="text-xs uppercase tracking-[0.08em] text-white/80">Queue vs Planned Trend</h4>
               <span className="text-[10px] text-white/70">past queued / future planned</span>

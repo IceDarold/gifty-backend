@@ -1,23 +1,26 @@
 import React from "react";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi, beforeEach } from "vitest";
 import { screen, waitFor } from "@testing-library/react";
 
-vi.mock("@/lib/api", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/api")>();
-  return { ...actual, fetchIntelligence: vi.fn() };
-});
+vi.mock("@/hooks/useAdminStreamQuery", () => ({
+  useAdminChannelQuery: vi.fn(() => ({ data: null, isLoading: false, error: null, refetch: vi.fn() })),
+}));
 
 import { Intelligence } from "@/components/Intelligence";
 import { renderWithProviders } from "@/test/renderWithProviders";
-import { fetchIntelligence } from "@/lib/api";
-
 describe("Intelligence", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
   it("shows error banner when API fails", async () => {
-    (fetchIntelligence as any).mockRejectedValueOnce({
-      isAxiosError: true,
-      message: "Request failed",
-      response: { status: 502, data: { detail: "Bad gateway" } },
-    });
+    const { useAdminChannelQuery } = await import("@/hooks/useAdminStreamQuery");
+    (useAdminChannelQuery as any).mockImplementation(() => ({
+      data: null,
+      isLoading: false,
+      error: new Error("Bad gateway"),
+      refetch: vi.fn(),
+    }));
 
     renderWithProviders(<Intelligence />);
 
@@ -27,11 +30,17 @@ describe("Intelligence", () => {
   });
 
   it("renders metrics when API succeeds", async () => {
-    (fetchIntelligence as any).mockResolvedValueOnce({
-      metrics: { total_requests: 10, total_cost: 1.23, total_tokens: 1000, avg_latency: 500 },
-      providers: [{ provider: "claude", count: 10 }],
-      latency_heatmap: [{ hour: 1, avg_latency: 900 }],
-    });
+    const { useAdminChannelQuery } = await import("@/hooks/useAdminStreamQuery");
+    (useAdminChannelQuery as any).mockImplementation(() => ({
+      data: {
+        metrics: { total_requests: 10, total_cost: 1.23, total_tokens: 1000, avg_latency: 500 },
+        providers: [{ provider: "claude", count: 10 }],
+        latency_heatmap: [{ hour: 1, avg_latency: 900 }],
+      },
+      isLoading: false,
+      error: null,
+      refetch: vi.fn(),
+    }));
 
     renderWithProviders(<Intelligence />);
 

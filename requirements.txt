@@ -2,6 +2,7 @@ fastapi>=0.110.0
 uvicorn[standard]>=0.23.0
 httpx>=0.25.0
 socksio>=1.0.0  # SOCKS5 proxy support for httpx (LLM_PROXY_URL)
+websockets>=12.0
 pydantic-settings>=2.1.0
 SQLAlchemy>=2.0.43
 asyncpg>=0.31.0
@@ -38,3 +39,5 @@ opentelemetry-exporter-otlp>=1.27.0
 opentelemetry-instrumentation-fastapi>=0.48b0
 opentelemetry-instrumentation-requests>=0.48b0
 opentelemetry-instrumentation-httpx>=0.48b0
+
+nats-py>=2.7.2

@@ -16,8 +16,8 @@ export function InfraPanel({ workers, queue }: InfraPanelProps) {
   const updatedAt = queue?.updated_at || queue?.ts || null;
 
   return (
-    <div className="p-4">
-      <div className="card">
+    <div className="p-4" data-testid="infra-panel">
+      <div className="card" data-testid="infra-card">
         <div className="flex items-center justify-between gap-3">
           <h3 className="font-black text-sm tracking-tight text-white/90">Infrastructure</h3>
           {updatedAt ? (
@@ -26,19 +26,19 @@ export function InfraPanel({ workers, queue }: InfraPanelProps) {
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Tile icon={<Cpu size={16} />} label="Workers" value={String(workerCount)} />
-          <Tile icon={<Layers size={16} />} label="Queue total" value={String(queueTotal)} />
-          <Tile icon={<Timer size={16} />} label="Ready" value={String(queueReady)} />
-          <Tile icon={<Timer size={16} />} label="Unacked" value={String(queueUnacked)} />
+          <Tile icon={<Cpu size={16} />} label="Workers" value={String(workerCount)} testId="infra-workers" />
+          <Tile icon={<Layers size={16} />} label="Queue total" value={String(queueTotal)} testId="infra-queue-total" />
+          <Tile icon={<Timer size={16} />} label="Ready" value={String(queueReady)} testId="infra-queue-ready" />
+          <Tile icon={<Timer size={16} />} label="Unacked" value={String(queueUnacked)} testId="infra-queue-unacked" />
         </div>
       </div>
     </div>
   );
 }
 
-function Tile({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Tile({ icon, label, value, testId }: { icon: React.ReactNode; label: string; value: string; testId?: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2">
+    <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2" data-testid={testId}>
       <div className="w-9 h-9 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
         {icon}
       </div>
@@ -49,4 +49,3 @@ function Tile({ icon, label, value }: { icon: React.ReactNode; label: string; va
     </div>
   );
 }
-

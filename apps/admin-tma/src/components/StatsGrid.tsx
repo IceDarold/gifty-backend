@@ -8,18 +8,19 @@ interface StatItemProps {
     subValue: string;
     icon: React.ReactNode;
     color: string;
+    testId?: string;
 }
 
-function StatItem({ label, value, subValue, icon, color }: StatItemProps) {
+function StatItem({ label, value, subValue, icon, color, testId }: StatItemProps) {
     return (
-        <div className="card flex flex-col gap-2">
+        <div className="card flex flex-col gap-2" data-testid={testId}>
             <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${color} bg-opacity-10 mb-1`}>
                 {icon}
             </div>
             <p className="text-[var(--tg-theme-hint-color)] text-[10px] uppercase font-bold tracking-wider">{label}</p>
             <div className="flex flex-col">
-                <span className="text-xl font-bold leading-none">{value}</span>
-                <span className="text-xs text-[var(--tg-theme-accent-text-color)] mt-1">{subValue}</span>
+                <span className="text-xl font-bold leading-none" data-testid={testId ? `${testId}-value` : undefined}>{value}</span>
+                <span className="text-xs text-[var(--tg-theme-accent-text-color)] mt-1" data-testid={testId ? `${testId}-sub` : undefined}>{subValue}</span>
             </div>
         </div>
     );
@@ -33,13 +34,14 @@ interface StatsGridProps {
 
 export function StatsGrid({ stats, health, scraping }: StatsGridProps) {
     return (
-        <div className="grid grid-cols-2 gap-3 p-4">
+        <div className="grid grid-cols-2 gap-3 p-4" data-testid="stats-grid">
             <StatItem
                 label="Active Spiders"
                 value={scraping?.active_sources?.toString() || "0"}
                 subValue="Live sources"
                 icon={<Activity size={18} className="text-[#5288c1]" />}
                 color="bg-[#5288c1]"
+                testId="stat-active-spiders"
             />
             <StatItem
                 label="Items Scraped"
@@ -47,6 +49,7 @@ export function StatsGrid({ stats, health, scraping }: StatsGridProps) {
                 subValue="In last 24h"
                 icon={<Database size={18} className="text-[#64b5ef]" />}
                 color="bg-[#64b5ef]"
+                testId="stat-items-scraped"
             />
             <StatItem
                 label="Discovery Rate"
@@ -54,6 +57,7 @@ export function StatsGrid({ stats, health, scraping }: StatsGridProps) {
                 subValue="Conversion"
                 icon={<ShoppingCart size={18} className="text-[#2481cc]" />}
                 color="bg-[#2481cc]"
+                testId="stat-discovery-rate"
             />
             <StatItem
                 label="Latency"
@@ -61,6 +65,7 @@ export function StatsGrid({ stats, health, scraping }: StatsGridProps) {
                 subValue="System speed"
                 icon={<AlertCircle size={18} className="text-[#ff3b30]" />}
                 color="bg-[var(--tg-theme-button-color)]"
+                testId="stat-latency"
             />
         </div>
     );

@@ -28,9 +28,9 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
     };
 
     return (
-        <div className="p-4 space-y-3">
+        <div className="p-4 space-y-3" data-testid="spider-list">
             {/* Header row with title + action buttons */}
-            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap" data-testid="spider-list-header">
                 <h2 className="font-bold text-lg">{t('spiders.connected_spiders')}</h2>
                 <div className="flex items-center gap-2">
                     {/* Sync button */}
@@ -38,6 +38,7 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
                         <button
                             onClick={onSync}
                             disabled={isSyncing}
+                            data-testid="spider-sync"
                             className={`text-xs font-bold px-3 py-1.5 rounded-full border border-[var(--tg-theme-button-color)] text-[var(--tg-theme-button-color)] flex items-center gap-1.5 transition-all active:scale-95 ${isSyncing ? 'opacity-50' : ''}`}
                         >
                             <RefreshCcw size={12} className={isSyncing ? 'animate-spin' : ''} />
@@ -50,6 +51,7 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
                         <button
                             onClick={() => onRunAll()}
                             disabled={isRunningAll}
+                            data-testid="spider-run-all"
                             className={`text-xs font-bold px-3 py-1.5 rounded-full bg-[var(--tg-theme-button-color)] text-white flex items-center gap-1.5 transition-all active:scale-95 shadow-md ${isRunningAll ? 'opacity-60' : 'hover:brightness-110'}`}
                         >
                             {isRunningAll
@@ -80,7 +82,7 @@ export function SpiderList({ sources = [], onSync, onOpenDetail, isSyncing, onRu
                         uniqueSites.map((spider) => {
                             const isThisRunning = runningId === spider.id;
                             return (
-                                <div key={spider.id} className="card flex items-center justify-between py-3 gap-2">
+                                <div key={spider.id} className="card flex items-center justify-between py-3 gap-2" data-testid={`spider-row-${spider.id}`}>
                                     {/* Status icon + info */}
                                     <div className="flex items-center gap-3 flex-1 min-w-0">
                                         <div className={`p-2 rounded-lg flex-shrink-0 ${spider.status === 'running' || isThisRunning

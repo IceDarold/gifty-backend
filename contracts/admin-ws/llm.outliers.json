@@ -1,0 +1,24 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm.outliers",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": ["string", "number"] },
+          "metric": { "type": ["string", "null"] },
+          "value": { "type": ["number", "null"] },
+          "provider": { "type": ["string", "null"] },
+          "model": { "type": ["string", "null"] },
+          "call_type": { "type": ["string", "null"] },
+          "created_at": { "type": ["string", "null"] }
+        }
+      }
+    }
+  }
+}

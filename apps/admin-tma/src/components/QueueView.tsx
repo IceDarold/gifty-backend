@@ -380,7 +380,9 @@ export function QueueView({ queue, tasksData, isLoadingTasks, historyData, isLoa
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        const raw = window.localStorage.getItem(LOG_PREFS_KEY);
+        const storage = window.localStorage as Partial<Storage> | undefined;
+        if (!storage || typeof storage.getItem !== "function") return;
+        const raw = storage.getItem(LOG_PREFS_KEY);
         if (!raw) return;
         try {
             const prefs = JSON.parse(raw) as Partial<{ filter: LogFilter; autoScroll: boolean; search: string }>;
@@ -394,7 +396,9 @@ export function QueueView({ queue, tasksData, isLoadingTasks, historyData, isLoa
 
     useEffect(() => {
         if (typeof window === "undefined") return;
-        window.localStorage.setItem(
+        const storage = window.localStorage as Partial<Storage> | undefined;
+        if (!storage || typeof storage.setItem !== "function") return;
+        storage.setItem(
             LOG_PREFS_KEY,
             JSON.stringify({ filter: activeFilter, autoScroll, search: searchQuery })
         );

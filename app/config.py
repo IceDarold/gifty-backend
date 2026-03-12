@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Optional
 
-from pydantic import AnyHttpUrl, Field
+from pydantic import AnyHttpUrl, Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -108,6 +108,19 @@ class Settings(BaseSettings):
     prometheus_url: str = Field("http://prometheus:9090", alias="PROMETHEUS_URL")
     loki_url: str = Field("http://loki:3100", alias="LOKI_URL")
 
+    # Live analytics event pipeline
+    nats_url: str = Field("nats://nats:4222", alias="NATS_URL")
+    analytics_events_enabled: bool = Field(True, alias="ANALYTICS_EVENTS_ENABLED")
+    analytics_events_timeout_ms: int = Field(2000, alias="ANALYTICS_EVENTS_TIMEOUT_MS")
+    analytics_events_subject_prefix: str = Field("analytics.events.v1", alias="ANALYTICS_EVENTS_SUBJECT_PREFIX")
+    admin_snapshot_interval_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_INTERVAL_SECONDS")
+    admin_snapshot_dashboard_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_DASHBOARD_SECONDS")
+    admin_snapshot_ops_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_OPS_SECONDS")
+    admin_snapshot_catalog_seconds: int = Field(60, alias="ADMIN_SNAPSHOT_CATALOG_SECONDS")
+    admin_snapshot_settings_seconds: int = Field(60, alias="ADMIN_SNAPSHOT_SETTINGS_SECONDS")
+    admin_snapshot_frontend_seconds: int = Field(60, alias="ADMIN_SNAPSHOT_FRONTEND_SECONDS")
+    admin_snapshot_logs_seconds: int = Field(15, alias="ADMIN_SNAPSHOT_LOGS_SECONDS")
+
     # AI/ML API Keys (Secrets)
     anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
     gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
@@ -123,6 +136,23 @@ class Settings(BaseSettings):
         populate_by_name=True,
         extra="ignore",
     )
+
+    @field_validator("debug", mode="before")
+    @classmethod
+    def _parse_debug(cls, value):
+        if isinstance(value, bool):
+            return value
+        if value is None:
+            return False
+        if isinstance(value, (int, float)):
+            return bool(value)
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "t", "yes", "y", "on", "debug", "dev", "development"}:
+                return True
+            if normalized in {"0", "false", "f", "no", "n", "off", "release", "prod", "production"}:
+                return False
+        return value
 
 
 @lru_cache()

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Copy, Pause, Play, RefreshCcw, Search, Trash2 } from "lucide-react";
-import { fetchLogServices, fetchLogsQuery, getLogsStreamUrl, isSseDisabled } from "@/lib/api";
+import { useAdminChannelQuery } from "@/hooks/useAdminStreamQuery";
 
 type LogItem = {
     ts: string;
@@ -33,7 +33,6 @@ const levelClass = (lvl: string) => {
 };
 
 export function LogsView() {
-    const [services, setServices] = useState<string[]>([]);
     const [selectedService, setSelectedService] = useState<string>("api");
     const [serverFilter, setServerFilter] = useState<string>("");
     const [draftFilter, setDraftFilter] = useState<string>("");
@@ -44,7 +43,6 @@ export function LogsView() {
     const [copied, setCopied] = useState(false);
     const [unseen, setUnseen] = useState(0);
     const listRef = useRef<HTMLDivElement | null>(null);
-    const esRef = useRef<EventSource | null>(null);
     const shouldFollowRef = useRef(true);
 
     const applyFilter = () => {
@@ -88,117 +86,44 @@ export function LogsView() {
         return el.scrollHeight - el.scrollTop - el.clientHeight < threshold;
     };
 
+    const logsSnapshot = useAdminChannelQuery<any>("logs.snapshot");
+    const logsTail = useAdminChannelQuery<any>("logs.tail");
+    const logServices = useAdminChannelQuery<any>("logs.services");
+
     const connectStream = () => {
-        if (isSseDisabled()) {
-            esRef.current?.close();
-            esRef.current = null;
-            setError(null);
-            setIsConnecting(false);
-            return;
-        }
-        esRef.current?.close();
-        esRef.current = null;
-
-        setIsConnecting(true);
+        setIsConnecting(false);
         setError(null);
-        const url = getLogsStreamUrl({ service: selectedService, q: serverFilter, limit: 200 });
-        const source = new EventSource(url);
-        esRef.current = source;
-
-        const onLine = (event: MessageEvent) => {
-            if (paused) return;
-            try {
-                const payload = event.data ? JSON.parse(event.data) : {};
-                const next: LogItem = {
-                    ts: String(payload.ts || ""),
-                    ts_ns: payload.ts_ns,
-                    service: payload.service,
-                    container: payload.container,
-                    labels: payload.labels,
-                    line: String(payload.line || ""),
-                };
-                setItems((prev) => {
-                    const merged = [...prev, next];
-                    return merged.length > MAX_BUFFER ? merged.slice(merged.length - MAX_BUFFER) : merged;
-                });
-
-                // Autoscroll: follow only if user is at bottom.
-                if (shouldFollowRef.current && isNearBottom()) {
-                    queueMicrotask(() => scrollToBottom());
-                } else {
-                    setUnseen((n) => n + 1);
-                }
-            } catch {
-                // ignore malformed
-            }
-        };
-
-        const onErrorEvt = (event: MessageEvent) => {
-            try {
-                const payload = event.data ? JSON.parse(event.data) : {};
-                setError(String(payload.message || "Stream error"));
-            } catch {
-                setError("Stream error");
-            }
-        };
-
-        const onOpen = () => {
-            setIsConnecting(false);
-        };
-
-        source.addEventListener("log.line", onLine);
-        source.addEventListener("logs.error", onErrorEvt);
-        source.onopen = onOpen;
-        source.onerror = () => {
-            setIsConnecting(false);
-        };
+        const snapshotItems = Array.isArray(logsSnapshot.data?.items) ? logsSnapshot.data.items : [];
+        const tailItems = Array.isArray(logsTail.data?.items) ? logsTail.data.items : snapshotItems;
+        const filtered = tailItems.filter((it: any) => !selectedService || it.service === selectedService);
+        const searched = serverFilter
+            ? filtered.filter((it: any) => String(it.line || "").toLowerCase().includes(serverFilter.toLowerCase()))
+            : filtered;
+        setItems(sortLogsAsc(searched).slice(-MAX_BUFFER));
+        setUnseen(0);
+        shouldFollowRef.current = true;
+        queueMicrotask(() => scrollToBottom());
     };
 
     const loadHistory = async () => {
-        setError(null);
-        try {
-            const data = await fetchLogsQuery({ service: selectedService, q: serverFilter || undefined, limit: 200, since_seconds: 600 });
-            const history = (data?.items || []) as LogItem[];
-            setItems(sortLogsAsc(history));
-            setUnseen(0);
-            shouldFollowRef.current = true;
-            queueMicrotask(() => scrollToBottom());
-        } catch (e: unknown) {
-            setError(e instanceof Error ? e.message : "Failed to load history");
-        }
+        connectStream();
     };
 
     useEffect(() => {
-        let cancelled = false;
-        (async () => {
-            try {
-                const data = await fetchLogServices();
-                const list = (data?.items || []) as string[];
-                if (cancelled) return;
-                setServices(list);
-                if (list.length && !list.includes(selectedService)) {
-                    setSelectedService(list[0]);
-                }
-            } catch {
-                // ignore; UI still works with default
-            }
-        })();
-        return () => {
-            cancelled = true;
-        };
+        const list = (logServices.data?.items || []) as string[];
+        if (list.length && !list.includes(selectedService)) {
+            setSelectedService(list[0]);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [logServices.data?.items]);
 
     useEffect(() => {
         // (re)connect on service/filter change
         connectStream();
         void loadHistory();
-        return () => {
-            esRef.current?.close();
-            esRef.current = null;
-        };
+        return () => {};
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [selectedService, serverFilter]);
+    }, [selectedService, serverFilter, logsSnapshot.data, logsTail.data]);
 
     useEffect(() => {
         // Follow tail after initial load / when user is already at bottom.
@@ -213,7 +138,7 @@ export function LogsView() {
     }, [selectedService, serverFilter]);
 
     return (
-        <div className="px-4 pt-4 pb-24 space-y-4">
+        <div className="px-4 pt-4 pb-24 space-y-4" data-testid="logs-view">
             <div className="flex items-center justify-between gap-3">
                 <div>
                     <h2 className="text-lg font-bold">Logs</h2>
@@ -262,11 +187,12 @@ export function LogsView() {
             </div>
 
             <div className="glass card p-3 space-y-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                    {(services.length ? services : ["api", "scraper", "scheduler", "telegram-bot"]).map((svc) => (
+                <div className="flex items-center gap-2 flex-wrap" data-testid="logs-services">
+                    {((logServices.data?.items?.length ? logServices.data.items : ["api", "scraper", "scheduler", "telegram-bot"]) as string[]).map((svc) => (
                         <button
                             key={svc}
                             onClick={() => setSelectedService(svc)}
+                            data-testid={`logs-service-${svc}`}
                             className={`rounded-xl border px-3 py-2 text-xs font-semibold transition ${
                                 selectedService === svc
                                     ? "border-sky-300/55 bg-sky-500/25 text-sky-100"
@@ -278,7 +204,7 @@ export function LogsView() {
                     ))}
                 </div>
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2" data-testid="logs-filter">
                     <div className="relative flex-1">
                         <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/45" />
                         <input
@@ -289,17 +215,19 @@ export function LogsView() {
                             }}
                             placeholder="Server filter (LogQL contains)..."
                             className="w-full pl-9 pr-3 py-2 rounded-xl border border-white/12 bg-black/20 text-xs text-white outline-none focus:border-sky-300/35"
+                            data-testid="logs-filter-input"
                         />
                     </div>
                     <button
                         onClick={applyFilter}
                         className="rounded-xl border border-emerald-400/45 bg-emerald-500/15 px-3 py-2 text-xs font-semibold text-emerald-100 active:scale-95 transition-all"
+                        data-testid="logs-filter-apply"
                     >
                         Apply
                     </button>
                 </div>
 
-                <div className="flex items-center justify-between text-[11px] text-white/65">
+                <div className="flex items-center justify-between text-[11px] text-white/65" data-testid="logs-header">
                     <span className="truncate">{header}</span>
                     <span className="inline-flex items-center gap-2">
                         {isConnecting ? <span className="text-sky-200">connecting…</span> : <span className="text-emerald-200">live</span>}
@@ -316,6 +244,7 @@ export function LogsView() {
                 <div
                     ref={listRef}
                     className="max-h-[62vh] overflow-auto rounded-xl border border-white/10 bg-[#050c17] p-2 font-mono text-[11px] leading-5"
+                    data-testid="logs-results"
                     onScroll={() => {
                         const follow = isNearBottom();
                         shouldFollowRef.current = follow;
@@ -331,7 +260,12 @@ export function LogsView() {
                             {items.map((it, idx) => {
                                 const lvl = classifyLevel(it.line);
                                 return (
-                                    <div key={`${it.ts_ns || idx}-${idx}`} className={`py-0.5 ${levelClass(lvl)}`}>
+                                    <div
+                                        key={`${it.ts_ns || idx}-${idx}`}
+                                        className={`py-0.5 ${levelClass(lvl)}`}
+                                        data-testid={`logs-line-${idx}`}
+                                        data-level={lvl}
+                                    >
                                         <span className="text-cyan-200/90">{it.ts}</span>
                                         <span className="text-white/35"> · </span>
                                         <span className="text-white/70">{it.service || selectedService}</span>

@@ -3,17 +3,14 @@ import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
+vi.mock("@/hooks/useAdminStreamQuery", () => ({
+  useAdminChannelQuery: vi.fn(() => ({ data: { items: [] }, isLoading: false, error: null, refetch: vi.fn() })),
+}));
+
 vi.mock("@/lib/api", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/api")>();
   return {
     ...actual,
-    fetchFrontendApps: vi.fn(async () => ({ items: [] })),
-    fetchFrontendReleases: vi.fn(async () => ({ items: [] })),
-    fetchFrontendProfiles: vi.fn(async () => ({ items: [] })),
-    fetchFrontendRules: vi.fn(async () => ({ items: [] })),
-    fetchFrontendRuntimeState: vi.fn(async () => ({ item: {} })),
-    fetchFrontendAllowedHosts: vi.fn(async () => ({ items: [] })),
-    fetchFrontendAuditLog: vi.fn(async () => ({ items: [] })),
     publishFrontendConfig: vi.fn(async () => ({ status: "ok" })),
     rollbackFrontendConfig: vi.fn(async () => ({ status: "ok" })),
   };

@@ -1,0 +1,19 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm.throughput",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "points": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "ts": { "type": ["string", "number"] },
+          "count": { "type": "number" }
+        }
+      }
+    }
+  }
+}

@@ -105,8 +105,8 @@ export function CategoriesTable({ sources, onOpenDetail, onOpenChart }: Categori
     };
 
     return (
-        <div className="px-4 pb-4">
-            <div className="card overflow-hidden">
+        <div className="px-4 pb-4" data-testid="categories-table">
+            <div className="card overflow-hidden" data-testid="categories-table-card">
                 <div className="p-4 border-b border-[var(--tg-theme-hint-color)]/10">
                     <h3 className="font-bold text-lg">{t('categories.title')}</h3>
                     <p className="text-xs text-[var(--tg-theme-hint-color)] mt-1">
@@ -126,12 +126,13 @@ export function CategoriesTable({ sources, onOpenDetail, onOpenChart }: Categori
                                 <th className="text-center p-3 font-semibold">{t('categories.actions')}</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[var(--tg-theme-hint-color)]/10">
+                        <tbody className="divide-y divide-[var(--tg-theme-hint-color)]/10" data-testid="categories-table-body">
                             {sources.map((source) => (
                                 <tr
                                     key={source.id}
                                     className="hover:bg-[var(--tg-theme-secondary-bg-color)]/50 transition-colors cursor-pointer group"
                                     onClick={() => onOpenDetail(source.id)}
+                                    data-testid={`category-row-${source.id}`}
                                 >
                                     <td className="p-3">
                                         <div className="flex flex-col gap-1">

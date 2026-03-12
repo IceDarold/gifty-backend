@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "llm.breakdown.model",
+  "type": ["object", "null"],
+  "additionalProperties": true,
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "properties": {
+          "key": { "type": ["string", "null"] },
+          "requests": { "type": ["number", "null"] },
+          "total_cost_usd": { "type": ["number", "null"] },
+          "avg_latency_ms": { "type": ["number", "null"] }
+        }
+      }
+    }
+  }
+}
