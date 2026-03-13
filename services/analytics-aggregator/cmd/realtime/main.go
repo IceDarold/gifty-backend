@@ -30,7 +30,11 @@ func main() {
 	store := state.NewStore()
 	hub := ws.NewHub()
 	resolver := adminresolver.New(cfg)
-	wsHandler := ws.NewHandler(hub, store, cfg.WSAuthToken, resolver)
+	wsHandler := ws.NewHandler(hub, store, cfg.WSAuthToken, resolver, ws.HandlerOptions{
+		DefaultTTL: cfg.ResolveTTL,
+		TTLMap:     cfg.ResolveTTLMap,
+		ForceMap:   cfg.ForceResolve,
+	})
 
 	writer, err := flush.NewWriter(cfg.ClickHouseDSN)
 	if err != nil {

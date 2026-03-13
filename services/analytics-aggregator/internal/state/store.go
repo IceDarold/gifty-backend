@@ -39,6 +39,7 @@ type Store struct {
 	buckets  map[BucketKey]*BucketValue
 	channels map[string]interface{}
 	seq      map[string]uint64
+	updated  map[string]time.Time
 }
 
 func NewStore() *Store {
@@ -46,6 +47,7 @@ func NewStore() *Store {
 		buckets:  make(map[BucketKey]*BucketValue),
 		channels: make(map[string]interface{}),
 		seq:      make(map[string]uint64),
+		updated:  make(map[string]time.Time),
 	}
 }
 
@@ -172,6 +174,7 @@ func (s *Store) Apply(ev *schema.EventEnvelope) []ChannelSnapshot {
 			"bucket_minute": bk.BucketMinute.Format(time.RFC3339),
 		}
 		s.channels[ch] = data
+		s.updated[ch] = time.Now().UTC()
 		out = append(out, ChannelSnapshot{Channel: ch, Seq: s.seq[ch], Data: data})
 	}
 	return out
@@ -228,6 +231,7 @@ func (s *Store) SetChannel(channel string, data interface{}) ChannelSnapshot {
 	defer s.mu.Unlock()
 	s.seq[channel]++
 	s.channels[channel] = data
+	s.updated[channel] = time.Now().UTC()
 	return ChannelSnapshot{Channel: channel, Seq: s.seq[channel], Data: data}
 }
 
@@ -239,6 +243,16 @@ func (s *Store) GetChannel(channel string) (interface{}, uint64, bool) {
 		return nil, 0, false
 	}
 	return data, s.seq[channel], true
+}
+
+func (s *Store) GetChannelInfo(channel string) (interface{}, uint64, time.Time, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	data, ok := s.channels[channel]
+	if !ok {
+		return nil, 0, time.Time{}, false
+	}
+	return data, s.seq[channel], s.updated[channel], true
 }
 
 func (s *Store) Buckets() map[BucketKey]BucketValue {

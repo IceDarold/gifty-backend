@@ -14,7 +14,7 @@ func (snapshotStub) Snapshot(channels []string) []state.ChannelSnapshot { return
 
 func TestServeWSRejectsUnauthorizedRequest(t *testing.T) {
 	hub := NewHub()
-	handler := NewHandler(hub, snapshotStub{}, "secret-token", nil)
+	handler := NewHandler(hub, snapshotStub{}, "secret-token", nil, HandlerOptions{})
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/live-analytics/ws", nil)
 	rr := httptest.NewRecorder()
 
@@ -27,7 +27,7 @@ func TestServeWSRejectsUnauthorizedRequest(t *testing.T) {
 
 func TestServeWSAcceptsQueryToken(t *testing.T) {
 	hub := NewHub()
-	handler := NewHandler(hub, snapshotStub{}, "secret-token", nil)
+	handler := NewHandler(hub, snapshotStub{}, "secret-token", nil, HandlerOptions{})
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/live-analytics/ws?access_token=secret-token", nil)
 	rr := httptest.NewRecorder()
 

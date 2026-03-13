@@ -18,11 +18,14 @@ type SnapshotProvider interface {
 }
 
 type Handler struct {
-	hub      *Hub
-	store    SnapshotProvider
-	wsToken  string
-	upgrader websocket.Upgrader
-	resolver ChannelResolver
+	hub        *Hub
+	store      SnapshotProvider
+	wsToken    string
+	upgrader   websocket.Upgrader
+	resolver   ChannelResolver
+	defaultTTL time.Duration
+	ttlMap     map[string]time.Duration
+	forceMap   map[string]bool
 }
 
 type wsClient struct {
@@ -70,16 +73,45 @@ func (c *wsClient) runWriter() {
 	}
 }
 
-func NewHandler(hub *Hub, store SnapshotProvider, token string, resolver ChannelResolver) *Handler {
+type HandlerOptions struct {
+	DefaultTTL time.Duration
+	TTLMap     map[string]time.Duration
+	ForceMap   map[string]bool
+}
+
+func NewHandler(hub *Hub, store SnapshotProvider, token string, resolver ChannelResolver, opts HandlerOptions) *Handler {
 	return &Handler{
-		hub:      hub,
-		store:    store,
-		wsToken:  token,
-		resolver: resolver,
+		hub:        hub,
+		store:      store,
+		wsToken:    token,
+		resolver:   resolver,
+		defaultTTL: opts.DefaultTTL,
+		ttlMap:     opts.TTLMap,
+		forceMap:   opts.ForceMap,
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
 	}
+}
+
+func (h *Handler) resolveTTLFor(channel string) time.Duration {
+	if h.forceMap != nil && h.forceMap[channel] {
+		return 0
+	}
+	if h.ttlMap != nil {
+		if ttl, ok := h.ttlMap[channel]; ok {
+			return ttl
+		}
+		for key, ttl := range h.ttlMap {
+			if strings.HasSuffix(key, "*") {
+				prefix := strings.TrimSuffix(key, "*")
+				if prefix != "" && strings.HasPrefix(channel, prefix) {
+					return ttl
+				}
+			}
+		}
+	}
+	return h.defaultTTL
 }
 
 func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
@@ -141,25 +173,35 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 			}
 			if h.resolver != nil {
 				for _, ch := range channels {
+					shouldResolve := true
 					if snapData, ok := h.store.(*state.Store); ok {
-						if _, _, has := snapData.GetChannel(ch); has {
-							continue
+						_, _, updatedAt, has := snapData.GetChannelInfo(ch)
+						if has {
+							ttl := h.resolveTTLFor(ch)
+							if ttl > 0 && !updatedAt.IsZero() && time.Since(updatedAt) <= ttl {
+								shouldResolve = false
+							}
 						}
 					}
-					data, ok, _ := h.resolver.Resolve(r.Context(), ch, nil)
-					if ok {
-						if store, ok := h.store.(*state.Store); ok {
-							snap := store.SetChannel(ch, data)
-							h.hub.Publish([]state.ChannelSnapshot{snap})
-							out, _ := json.Marshal(map[string]interface{}{
-								"type":    "snapshot",
-								"channel": snap.Channel,
-								"seq":     snap.Seq,
-								"data":    snap.Data,
-							})
-							_ = client.Send(out)
-						}
+					if !shouldResolve {
+						continue
 					}
+					go func(channel string) {
+						data, ok, _ := h.resolver.Resolve(r.Context(), channel, nil)
+						if ok {
+							if store, ok := h.store.(*state.Store); ok {
+								snap := store.SetChannel(channel, data)
+								h.hub.Publish([]state.ChannelSnapshot{snap})
+								out, _ := json.Marshal(map[string]interface{}{
+									"type":    "snapshot",
+									"channel": snap.Channel,
+									"seq":     snap.Seq,
+									"data":    snap.Data,
+								})
+								_ = client.Send(out)
+							}
+						}
+					}(ch)
 				}
 			}
 		case "request":
