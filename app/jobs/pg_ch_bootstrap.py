@@ -5,7 +5,7 @@ import logging
 from datetime import datetime, timezone
 
 from clickhouse_driver import Client
-from sqlalchemy import select
+from sqlalchemy import select, func
 
 from app.config import get_settings
 from app.db import get_session_context
@@ -52,6 +52,9 @@ async def run_bootstrap() -> None:
         discovery_items = list((await session.execute(select(DiscoveredCategory).order_by(DiscoveredCategory.id.desc()).limit(1000))).scalars().all())
         ops_runs = list((await session.execute(select(ParsingRun).order_by(ParsingRun.id.desc()).limit(1000))).scalars().all())
         products = list((await session.execute(select(Product).order_by(Product.product_id.asc()).limit(2000))).scalars().all())
+        product_counts = list((await session.execute(
+            select(Product.site_key, func.count()).group_by(Product.site_key)
+        )).all())
         subscribers = list((await session.execute(select(TelegramSubscriber).order_by(TelegramSubscriber.id.asc()))).scalars().all())
         apps = list((await session.execute(select(FrontendApp).order_by(FrontendApp.id.asc()))).scalars().all())
         releases = list((await session.execute(select(FrontendRelease).order_by(FrontendRelease.id.asc()))).scalars().all())
@@ -139,6 +142,11 @@ async def run_bootstrap() -> None:
     if products:
         client.execute('INSERT INTO products_latest (product_id, merchant, category, title, payload_json, version, deleted) VALUES', [
             (str(p.product_id), str(p.merchant or ''), str(p.category or ''), str(p.title or ''), j({'product_id': p.product_id, 'title': p.title, 'description': p.description, 'price': float(p.price) if p.price is not None else None, 'currency': p.currency, 'image_url': p.image_url, 'product_url': p.product_url, 'merchant': p.merchant, 'category': p.category, 'raw': p.raw, 'is_active': p.is_active, 'content_text': p.content_text, 'content_hash': p.content_hash, 'site_key': p.site_key, 'created_at': getattr(p, 'created_at', now), 'updated_at': getattr(p, 'updated_at', now)}), int(now.timestamp()), 0) for p in products
+        ])
+    client.execute('TRUNCATE TABLE IF EXISTS products_count_by_site')
+    if product_counts:
+        client.execute('INSERT INTO products_count_by_site (site_key, cnt, updated_at) VALUES', [
+            (str(site_key or ''), int(cnt), now) for site_key, cnt in product_counts if site_key
         ])
 
     client.execute('TRUNCATE TABLE IF EXISTS settings_runtime_latest')

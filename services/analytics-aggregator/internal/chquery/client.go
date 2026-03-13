@@ -691,10 +691,9 @@ func (c *Client) OpsDiscoveryCountsBySite(ctx context.Context) (map[string]map[s
 func (c *Client) ProductsCountBySite(ctx context.Context) (map[string]uint64, error) {
 	q := `
 		SELECT
-			JSONExtractString(payload_json, 'site_key') AS site_key,
-			count() AS cnt
-		FROM products_latest FINAL
-		WHERE deleted = 0
+			site_key,
+			anyLast(cnt) AS cnt
+		FROM products_count_by_site
 		GROUP BY site_key
 	`
 	rows, err := c.conn.Query(ctx, q)
