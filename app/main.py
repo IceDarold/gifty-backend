@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -40,6 +41,24 @@ async def lifespan(app: FastAPI):
     # Initialize Embedding Service (stub)
     app.state.embedding_service = EmbeddingService(model_name=logic_config.llm.model_embedding)
     # No heavy loading here
+
+    if settings.backfill_autorun:
+        try:
+            from app.jobs.pg_ch_backfill import run_auto as run_backfill_auto
+
+            await run_backfill_auto(["llm_logs"], int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"))
+        except Exception:
+            # Backfill shouldn't block API startup
+            pass
+
+    if settings.backfill_autorun:
+        try:
+            from app.jobs.pg_ch_backfill import run_auto as run_backfill_auto
+
+            await run_backfill_auto(["llm_logs"], int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"))
+        except Exception:
+            # Backfill shouldn't block API startup
+            pass
     
     try:
         yield

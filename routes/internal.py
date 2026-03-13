@@ -10,14 +10,15 @@ import asyncio
 import re
 import hashlib
 import logging
+import os
 from pydantic import BaseModel, Field
 from prometheus_client import Counter, Histogram, REGISTRY
 
 from app.db import get_db, get_redis
 from app.repositories.catalog import PostgresCatalogRepository
 from app.config import get_settings
+from app.jobs.pg_ch_backfill import run_auto as run_backfill_auto
 
-from app.config import get_settings
 from app.utils.telegram_auth import verify_telegram_init_data
 from app.repositories.parsing import ParsingRepository
 from app.repositories.telegram import TelegramRepository
@@ -6010,6 +6011,26 @@ async def get_system_health(
             "status": "Healthy", # Placeholder, would need deeper check
         }
     }
+
+
+class BackfillRequest(BaseModel):
+    tables: List[str] = Field(default_factory=lambda: ["llm_logs"])
+    gap_seconds: Optional[int] = Field(default=None, ge=60, le=86400)
+    batch_size: Optional[int] = Field(default=None, ge=100, le=10000)
+
+
+@router.post("/analytics/backfill", summary="Trigger ClickHouse backfill from Postgres")
+async def trigger_analytics_backfill(
+    payload: BackfillRequest = Body(default=BackfillRequest()),
+    _=Depends(verify_internal_token),
+):
+    if payload.gap_seconds is not None:
+        os.environ["BACKFILL_GAP_SECONDS"] = str(payload.gap_seconds)
+    if payload.batch_size is not None:
+        os.environ["BACKFILL_BATCH_SIZE"] = str(payload.batch_size)
+    tables = payload.tables or ["llm_logs"]
+    await run_backfill_auto(tables, int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"))
+    return {"status": "ok", "tables": tables}
 
 from typing import AsyncGenerator
 from fastapi.responses import StreamingResponse

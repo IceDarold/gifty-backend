@@ -115,6 +115,7 @@ class Settings(BaseSettings):
     analytics_events_subject_prefix: str = Field("analytics.events.v1", alias="ANALYTICS_EVENTS_SUBJECT_PREFIX")
     outbox_publish_interval_seconds: int = Field(2, alias="OUTBOX_PUBLISH_INTERVAL_SECONDS")
     clickhouse_dsn: str = Field("clickhouse://analytics:analytics@clickhouse:9000/default", alias="CLICKHOUSE_DSN")
+    backfill_autorun: bool = Field(False, alias="BACKFILL_AUTORUN")
     # AI/ML API Keys (Secrets)
     anthropic_api_key: Optional[str] = Field(None, alias="ANTHROPIC_API_KEY")
     gemini_api_key: Optional[str] = Field(None, alias="GEMINI_API_KEY")
