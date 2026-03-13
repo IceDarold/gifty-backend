@@ -91,7 +91,7 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if err != nil {
 			return nil, false, err
 		}
-		return out, true, nil
+		return map[string]interface{}{"items": out}, true, nil
 	case channel == "ops.discovery_detail":
 		id, ok := toInt(params["id"])
 		if !ok || id <= 0 {
