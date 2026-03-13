@@ -137,7 +137,7 @@ func (p *Poller) pollOps(ctx context.Context) {
 			p.publish("ops.overview", overview)
 		}
 		if sites, err := p.ch.OpsSitesLatest(ctx); err == nil {
-			p.publish("ops.sites", map[string]interface{}{"items": sites})
+			p.publish("ops.sites", map[string]interface{}{"items": dedupeSitesByKey(sites)})
 		}
 		if pipeline, err := p.ch.SnapshotData(ctx, "ops.pipeline"); err == nil {
 			p.publish("ops.pipeline", pipeline)
@@ -276,6 +276,34 @@ func filterByStatus(items []map[string]interface{}, statuses ...string) []map[st
 		if allowed[status] {
 			out = append(out, item)
 		}
+	}
+	return out
+}
+
+func dedupeSitesByKey(items []map[string]interface{}) []map[string]interface{} {
+	if len(items) == 0 {
+		return items
+	}
+	out := make([]map[string]interface{}, 0, len(items))
+	index := map[string]int{}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		key := fmt.Sprintf("%v", item["site_key"])
+		if key == "" {
+			out = append(out, item)
+			continue
+		}
+		if idx, ok := index[key]; ok {
+			// Prefer hub entry if available.
+			if fmt.Sprintf("%v", item["type"]) == "hub" {
+				out[idx] = item
+			}
+			continue
+		}
+		index[key] = len(out)
+		out = append(out, item)
 	}
 	return out
 }
