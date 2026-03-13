@@ -257,6 +257,8 @@ func (p *Poller) pollOps(ctx context.Context) {
 		for _, bucket := range []string{"week", "day", "hour", "minute"} {
 			if out, err := p.ch.OpsItemsTrend(ctx, 30, bucket); err == nil && out != nil {
 				itemsTrend[bucket] = out
+			} else if err != nil {
+				log.Printf("pollOps items trend failed (%s): %v", bucket, err)
 			}
 		}
 		if len(itemsTrend) > 0 {
@@ -266,6 +268,8 @@ func (p *Poller) pollOps(ctx context.Context) {
 		for _, bucket := range []string{"week", "day", "hour", "minute"} {
 			if out, err := p.ch.OpsTasksTrend(ctx, 30, bucket); err == nil && out != nil {
 				tasksTrend[bucket] = out
+			} else if err != nil {
+				log.Printf("pollOps tasks trend failed (%s): %v", bucket, err)
 			}
 		}
 		if len(tasksTrend) > 0 {

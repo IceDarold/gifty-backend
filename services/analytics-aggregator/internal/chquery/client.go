@@ -551,16 +551,18 @@ func (c *Client) OpsItemsTrend(ctx context.Context, days int, bucket string) (ma
 	var totalItems, totalCategories float64
 	for rows.Next() {
 		var b time.Time
-		var itemsNew, categoriesNew float64
+		var itemsNew, categoriesNew int64
 		if err := rows.Scan(&b, &itemsNew, &categoriesNew); err != nil {
 			return nil, err
 		}
-		totalItems += itemsNew
-		totalCategories += categoriesNew
+		itemsNewF := float64(itemsNew)
+		categoriesNewF := float64(categoriesNew)
+		totalItems += itemsNewF
+		totalCategories += categoriesNewF
 		items = append(items, map[string]interface{}{
 			"date":           b.Format(time.RFC3339),
-			"items_new":      itemsNew,
-			"categories_new": categoriesNew,
+			"items_new":      itemsNewF,
+			"categories_new": categoriesNewF,
 		})
 	}
 	return map[string]interface{}{
@@ -615,24 +617,28 @@ func (c *Client) OpsTasksTrend(ctx context.Context, days int, bucket string) (ma
 	var maxQueue, maxRunning float64
 	for rows.Next() {
 		var b time.Time
-		var queued, running, success, errCount float64
+		var queued, running, success, errCount uint64
 		if err := rows.Scan(&b, &queued, &running, &success, &errCount); err != nil {
 			return nil, err
 		}
-		if queued > maxQueue {
-			maxQueue = queued
+		queuedF := float64(queued)
+		runningF := float64(running)
+		successF := float64(success)
+		errF := float64(errCount)
+		if queuedF > maxQueue {
+			maxQueue = queuedF
 		}
-		if running > maxRunning {
-			maxRunning = running
+		if runningF > maxRunning {
+			maxRunning = runningF
 		}
-		totalSuccess += success
-		totalError += errCount
+		totalSuccess += successF
+		totalError += errF
 		items = append(items, map[string]interface{}{
 			"date":    b.Format(time.RFC3339),
-			"queue":   queued,
-			"running": running,
-			"success": success,
-			"error":   errCount,
+			"queue":   queuedF,
+			"running": runningF,
+			"success": successF,
+			"error":   errF,
 		})
 	}
 	return map[string]interface{}{
