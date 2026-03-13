@@ -179,6 +179,23 @@ func (p *Poller) pollOps(ctx context.Context) {
 		}
 	}
 
+	// Use live RabbitMQ-backed endpoints for queue lanes (queued/active) so they
+	// reflect immediate run_discovery enqueues.
+	if p.cfg.AdminAPIBase != "" {
+		var queuedResp struct {
+			Items []map[string]interface{} `json:"items"`
+		}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/queued?limit=200", &queuedResp); err == nil && queuedResp.Items != nil {
+			p.publish("ops.runs.queued", queuedResp.Items)
+		}
+		var activeResp struct {
+			Items []map[string]interface{} `json:"items"`
+		}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/active?limit=200", &activeResp); err == nil && activeResp.Items != nil {
+			p.publish("ops.runs.active", activeResp.Items)
+		}
+	}
+
 	if p.ch != nil {
 		if items, err := p.ch.OpsTrend(ctx, "ops.items.count", 7); err == nil {
 			p.publish("ops.items_trend", map[string]interface{}{"day": items})
