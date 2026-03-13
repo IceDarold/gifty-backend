@@ -173,25 +173,25 @@ func (c *Client) LLMStats(ctx context.Context, days int) (LLMStats, error) {
 	}
 	q := `
 		SELECT
-			sumIf(cnt, metric='llm.call_completed') AS total,
-			sumIf(cnt, metric='llm.call_completed' AND JSONExtractString(dims_json, 'status') NOT IN ('ok','success','completed','')) AS errors,
-			sumIf(sum_value, metric='llm.call_completed.cost_usd') AS total_cost,
-			sumIf(sum_value, metric='llm.call_completed.latency_ms') AS total_latency,
-			sumIf(cnt, metric='llm.call_completed.latency_ms') AS latency_count,
-			maxIf(p50_value, metric='llm.call_completed.latency_ms') AS p50_latency,
-			maxIf(p95_value, metric='llm.call_completed.latency_ms') AS p95_latency,
-			sumIf(sum_value, metric='llm.call_completed.total_tokens') AS total_tokens,
-			sumIf(cnt, metric='llm.call_completed.total_tokens') AS token_count,
-			maxIf(p50_value, metric='llm.call_completed.total_tokens') AS p50_tokens,
-			maxIf(p95_value, metric='llm.call_completed.total_tokens') AS p95_tokens
-		FROM analytics_agg_1m
+			sum(total) AS total,
+			sum(errors) AS errors,
+			sum(total_cost) AS total_cost,
+			sum(total_latency) AS total_latency,
+			sum(latency_count) AS latency_count,
+			quantileTimingMerge(0.5)(p50_latency_state) AS p50_latency,
+			quantileTimingMerge(0.95)(p95_latency_state) AS p95_latency,
+			sum(total_tokens) AS total_tokens,
+			sum(token_count) AS token_count,
+			quantileTimingMerge(0.5)(p50_tokens_state) AS p50_tokens,
+			quantileTimingMerge(0.95)(p95_tokens_state) AS p95_tokens
+		FROM llm_calls_agg_1m
 		WHERE bucket_minute >= now() - INTERVAL ? DAY
 	`
 	var (
 		total, errors, latencyCount, tokenCount uint64
 		totalCost, totalLatency, totalTokens    float64
-		p50Latency, p95Latency                  float64
-		p50Tokens, p95Tokens                    float64
+		p50Latency32, p95Latency32              float32
+		p50Tokens32, p95Tokens32                float32
 	)
 	if err := c.conn.QueryRow(ctx, q, days).Scan(
 		&total,
@@ -199,15 +199,19 @@ func (c *Client) LLMStats(ctx context.Context, days int) (LLMStats, error) {
 		&totalCost,
 		&totalLatency,
 		&latencyCount,
-		&p50Latency,
-		&p95Latency,
+		&p50Latency32,
+		&p95Latency32,
 		&totalTokens,
 		&tokenCount,
-		&p50Tokens,
-		&p95Tokens,
+		&p50Tokens32,
+		&p95Tokens32,
 	); err != nil {
 		return LLMStats{}, err
 	}
+	p50Latency := float64(p50Latency32)
+	p95Latency := float64(p95Latency32)
+	p50Tokens := float64(p50Tokens32)
+	p95Tokens := float64(p95Tokens32)
 	errorRate := 0.0
 	if total > 0 {
 		errorRate = float64(errors) / float64(total)
@@ -288,8 +292,8 @@ func (c *Client) LLMThroughput(ctx context.Context, days int, bucket string) ([]
 	q := `
 		SELECT
 			` + interval + `(bucket_minute) AS ts,
-			sumIf(cnt, metric='llm.call_completed') AS total
-		FROM analytics_agg_1m
+			sum(total) AS total
+		FROM llm_calls_agg_1m
 		WHERE bucket_minute >= now() - INTERVAL ? DAY
 		GROUP BY ts
 		ORDER BY ts
@@ -318,35 +322,43 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	if limit <= 0 {
 		limit = 50
 	}
-	where := "metric LIKE 'llm.call_completed%' AND occurred_at >= now() - INTERVAL ? DAY"
+	where := "occurred_at >= now() - INTERVAL ? DAY"
 	args := []interface{}{days}
 	if v := filters["provider"]; v != "" {
-		where += " AND JSONExtractString(dims_json,'provider') = ?"
+		where += " AND JSONExtractString(payload_json,'provider') = ?"
 		args = append(args, v)
 	}
 	if v := filters["model"]; v != "" {
-		where += " AND JSONExtractString(dims_json,'model') = ?"
+		where += " AND JSONExtractString(payload_json,'model') = ?"
 		args = append(args, v)
 	}
 	if v := filters["status"]; v != "" {
-		where += " AND JSONExtractString(dims_json,'status') = ?"
+		where += " AND JSONExtractString(payload_json,'status') = ?"
+		args = append(args, v)
+	}
+	if v := filters["call_type"]; v != "" {
+		where += " AND JSONExtractString(payload_json,'call_type') = ?"
+		args = append(args, v)
+	}
+	if v := filters["session_id"]; v != "" {
+		where += " AND JSONExtractString(payload_json,'session_id') = ?"
+		args = append(args, v)
+	}
+	if v := filters["experiment_id"]; v != "" {
+		where += " AND JSONExtractString(payload_json,'experiment_id') = ?"
+		args = append(args, v)
+	}
+	if v := filters["variant_id"]; v != "" {
+		where += " AND JSONExtractString(payload_json,'variant_id') = ?"
 		args = append(args, v)
 	}
 	q := `
 		SELECT
-			event_id,
-			max(occurred_at) AS created_at,
-			any(JSONExtractString(dims_json,'provider')) AS provider,
-			any(JSONExtractString(dims_json,'model')) AS model,
-			any(JSONExtractString(dims_json,'call_type')) AS call_type,
-			any(JSONExtractString(dims_json,'status')) AS status,
-			maxIf(value, metric='llm.call_completed.latency_ms') AS latency_ms,
-			maxIf(value, metric='llm.call_completed.total_tokens') AS total_tokens,
-			maxIf(value, metric='llm.call_completed.cost_usd') AS cost_usd
+			payload_json,
+			occurred_at
 		FROM analytics_events
-		WHERE ` + where + `
-		GROUP BY event_id
-		ORDER BY created_at DESC
+		WHERE event_type = 'llm.log' AND ` + where + `
+		ORDER BY occurred_at DESC
 		LIMIT ? OFFSET ?
 	`
 	args = append(args, limit, offset)
@@ -357,37 +369,30 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	defer rows.Close()
 	out := []map[string]interface{}{}
 	for rows.Next() {
-		var (
-			id                                string
-			created                           time.Time
-			provider, model, callType, status string
-			latency, tokens, cost             float64
-		)
-		if err := rows.Scan(&id, &created, &provider, &model, &callType, &status, &latency, &tokens, &cost); err != nil {
+		var payload string
+		var created time.Time
+		if err := rows.Scan(&payload, &created); err != nil {
 			return nil, 0, err
 		}
-		out = append(out, map[string]interface{}{
-			"id":           id,
-			"created_at":   created.Format(time.RFC3339),
-			"provider":     provider,
-			"model":        model,
-			"call_type":    callType,
-			"status":       status,
-			"latency_ms":   latency,
-			"total_tokens": tokens,
-			"cost_usd":     cost,
-		})
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, 0, err
+		}
+		if _, ok := item["created_at"]; !ok {
+			item["created_at"] = created.Format(time.RFC3339)
+		}
+		out = append(out, item)
 	}
 	countQuery := `
-		SELECT countDistinct(event_id)
+		SELECT count()
 		FROM analytics_events
-		WHERE ` + where + `
+		WHERE event_type = 'llm.log' AND ` + where + `
 	`
-	var total int
+	var total uint64
 	if err := c.conn.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total); err != nil {
-		total = len(out)
+		return out, len(out), nil
 	}
-	return out, total, nil
+	return out, int(total), nil
 }
 
 func (c *Client) LLMOutliers(ctx context.Context, days, limit int, filters map[string]string) ([]map[string]interface{}, error) {
@@ -413,17 +418,17 @@ func (c *Client) LLMBreakdown(ctx context.Context, days int, group string) ([]ma
 	}
 	q := `
 		SELECT
-			JSONExtractString(dims_json, ?) AS key,
-			count() AS requests,
-			sumIf(value, metric='llm.call_completed.cost_usd') AS total_cost_usd,
-			sumIf(value, metric='llm.call_completed.total_tokens') AS total_tokens,
-			maxIf(value, metric='llm.call_completed.latency_ms') AS avg_latency_ms
-		FROM analytics_events
-		WHERE metric LIKE 'llm.call_completed%' AND occurred_at >= now() - INTERVAL ? DAY
+			` + field + ` AS key,
+			sum(total) AS requests,
+			sum(total_cost) AS total_cost_usd,
+			sum(total_tokens) AS total_tokens,
+			if(sum(latency_count)=0, 0, sum(total_latency)/sum(latency_count)) AS avg_latency_ms
+		FROM llm_calls_agg_1m
+		WHERE bucket_minute >= now() - INTERVAL ? DAY
 		GROUP BY key
 		ORDER BY requests DESC
 	`
-	rows, err := c.conn.Query(ctx, q, field, days)
+	rows, err := c.conn.Query(ctx, q, days)
 	if err != nil {
 		return nil, err
 	}

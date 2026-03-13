@@ -2,14 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+import os
+from datetime import datetime, timezone, timedelta
 
 from clickhouse_driver import Client
 from sqlalchemy import select, func
 
 from app.config import get_settings
 from app.db import get_session_context
-from app.models import DiscoveredCategory, FrontendAllowedHost, FrontendApp, FrontendAuditLog, FrontendProfile, FrontendRelease, FrontendRule, FrontendRuntimeState, OpsRuntimeState, ParsingRun, ParsingSource, Product, TelegramSubscriber
+from app.models import DiscoveredCategory, FrontendAllowedHost, FrontendApp, FrontendAuditLog, FrontendProfile, FrontendRelease, FrontendRule, FrontendRuntimeState, LLMLog, OpsRuntimeState, ParsingRun, ParsingSource, Product, TelegramSubscriber
 
 logger = logging.getLogger("pg_ch_bootstrap")
 
@@ -47,6 +48,8 @@ def _upsert_sync_state(client: Client, sync_name: str):
 
 async def run_bootstrap() -> None:
     client = _ch_client()
+    llm_days = int(os.getenv("LLM_BOOTSTRAP_DAYS", "30") or "30")
+    llm_limit = int(os.getenv("LLM_BOOTSTRAP_LIMIT", "20000") or "20000")
     async with get_session_context() as session:
         sources = list((await session.execute(select(ParsingSource).order_by(ParsingSource.id.asc()))).scalars().all())
         discovery_items = list((await session.execute(select(DiscoveredCategory).order_by(DiscoveredCategory.id.desc()).limit(1000))).scalars().all())
@@ -64,6 +67,15 @@ async def run_bootstrap() -> None:
         audit_logs = list((await session.execute(select(FrontendAuditLog).order_by(FrontendAuditLog.id.desc()).limit(500))).scalars().all())
         runtime_state = (await session.execute(select(FrontendRuntimeState).where(FrontendRuntimeState.id == 1))).scalar_one_or_none()
         ops_state = (await session.execute(select(OpsRuntimeState).where(OpsRuntimeState.id == 1))).scalar_one_or_none()
+        llm_since = datetime.now(timezone.utc) - timedelta(days=llm_days)
+        llm_logs = list((
+            await session.execute(
+                select(LLMLog)
+                .where(LLMLog.created_at >= llm_since)
+                .order_by(LLMLog.created_at.desc())
+                .limit(llm_limit)
+            )
+        ).scalars().all())
 
     now = datetime.now(timezone.utc)
     def j(obj):
@@ -154,6 +166,127 @@ async def run_bootstrap() -> None:
         client.execute('INSERT INTO settings_runtime_latest (setting_key, payload_json, version, deleted) VALUES', [('frontend_runtime_state', j({'id': runtime_state.id, 'active_profile_id': runtime_state.active_profile_id, 'fallback_release_id': runtime_state.fallback_release_id, 'sticky_enabled': runtime_state.sticky_enabled, 'sticky_ttl_seconds': runtime_state.sticky_ttl_seconds, 'cache_ttl_seconds': runtime_state.cache_ttl_seconds, 'updated_by': runtime_state.updated_by, 'updated_at': runtime_state.updated_at}), int(now.timestamp()), 0)])
     if ops_state is not None:
         client.execute('INSERT INTO settings_runtime_latest (setting_key, payload_json, version, deleted) VALUES', [('ops_runtime_state', j({'id': ops_state.id, 'scheduler_paused': ops_state.scheduler_paused, 'settings_version': ops_state.settings_version, 'ops_aggregator_enabled': ops_state.ops_aggregator_enabled, 'ops_aggregator_interval_ms': ops_state.ops_aggregator_interval_ms, 'ops_snapshot_ttl_ms': ops_state.ops_snapshot_ttl_ms, 'ops_stale_max_age_ms': ops_state.ops_stale_max_age_ms, 'ops_client_intervals': ops_state.ops_client_intervals, 'updated_by': ops_state.updated_by, 'updated_at': ops_state.updated_at}), int(now.timestamp()), 0)])
+
+    if llm_logs:
+        llm_events = []
+        llm_metrics = []
+        for log in llm_logs:
+            created_at = getattr(log, 'created_at', now) or now
+            event_id = f"llm.log:{log.id}"
+            payload = {
+                'id': str(log.id),
+                'provider': log.provider,
+                'model': log.model,
+                'call_type': log.call_type,
+                'status': log.status,
+                'error_type': log.error_type,
+                'error_message': log.error_message,
+                'prompt_tokens': log.prompt_tokens,
+                'completion_tokens': log.completion_tokens,
+                'total_tokens': log.total_tokens,
+                'latency_ms': log.latency_ms,
+                'provider_latency_ms': log.provider_latency_ms,
+                'queue_latency_ms': log.queue_latency_ms,
+                'postprocess_latency_ms': log.postprocess_latency_ms,
+                'cost_usd': float(log.cost_usd) if log.cost_usd is not None else None,
+                'provider_request_id': log.provider_request_id,
+                'prompt_hash': log.prompt_hash,
+                'session_id': log.session_id,
+                'experiment_id': log.experiment_id,
+                'variant_id': log.variant_id,
+                'finish_reason': log.finish_reason,
+                'params': log.params,
+                'system_prompt': log.system_prompt,
+                'output_content': log.output_content,
+                'created_at': created_at,
+                'usage_captured': True,
+                'provider_request_captured': True,
+            }
+            llm_events.append((
+                event_id,
+                created_at,
+                'llm.log',
+                '',
+                '',
+                '',
+                j({
+                    'provider': log.provider,
+                    'model': log.model,
+                    'call_type': log.call_type,
+                    'status': log.status,
+                }),
+                j(payload),
+                0.0,
+                int(created_at.timestamp()),
+            ))
+
+            metric_event_id = f"llm.call_completed:{log.id}"
+            dims = j({
+                'provider': log.provider,
+                'model': log.model,
+                'call_type': log.call_type,
+                'status': log.status,
+            })
+            llm_metrics.extend([
+                (
+                    metric_event_id,
+                    created_at,
+                    'llm.call_completed',
+                    'llm.call_completed',
+                    '',
+                    '',
+                    dims,
+                    '',
+                    1.0,
+                    int(created_at.timestamp()),
+                ),
+                (
+                    metric_event_id,
+                    created_at,
+                    'llm.call_completed',
+                    'llm.call_completed.total_tokens',
+                    '',
+                    '',
+                    dims,
+                    '',
+                    float(log.total_tokens or 0),
+                    int(created_at.timestamp()),
+                ),
+                (
+                    metric_event_id,
+                    created_at,
+                    'llm.call_completed',
+                    'llm.call_completed.latency_ms',
+                    '',
+                    '',
+                    dims,
+                    '',
+                    float(log.latency_ms or 0),
+                    int(created_at.timestamp()),
+                ),
+                (
+                    metric_event_id,
+                    created_at,
+                    'llm.call_completed',
+                    'llm.call_completed.cost_usd',
+                    '',
+                    '',
+                    dims,
+                    '',
+                    float(log.cost_usd or 0),
+                    int(created_at.timestamp()),
+                ),
+            ])
+        if llm_events:
+            client.execute(
+                'INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES',
+                llm_events,
+            )
+        if llm_metrics:
+            client.execute(
+                'INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES',
+                llm_metrics,
+            )
 
     _upsert_sync_state(client, 'pg-ch-bootstrap')
     logger.info('Bootstrap sync completed')
