@@ -3,7 +3,9 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"sync"
@@ -223,21 +225,34 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 				params = raw
 			}
 			if channel == "" || h.resolver == nil {
-				_ = client.Send([]byte(`{"type":"error","code":"INVALID_REQUEST","message":"missing channel"}`))
+				out, _ := json.Marshal(map[string]interface{}{
+					"type":    "error",
+					"req_id":  reqID,
+					"code":    "INVALID_REQUEST",
+					"message": "missing channel",
+				})
+				_ = client.Send(out)
 				continue
 			}
-			data, ok, err := h.resolver.Resolve(r.Context(), channel, params)
+			reqCtx, cancel := context.WithTimeout(r.Context(), 5*time.Second)
+			data, ok, err := h.resolver.Resolve(reqCtx, channel, params)
+			cancel()
 			if err != nil || !ok {
+				code := "RESOLVE_FAILED"
+				msgText := "not found"
+				if err != nil {
+					msgText = err.Error()
+					if errors.Is(reqCtx.Err(), context.DeadlineExceeded) || errors.Is(err, context.DeadlineExceeded) {
+						code = "TIMEOUT"
+						msgText = "resolver timeout"
+					}
+					log.Printf("ws request failed channel=%s req_id=%s err=%s", channel, reqID, err)
+				}
 				out, _ := json.Marshal(map[string]interface{}{
-					"type":   "error",
-					"req_id": reqID,
-					"code":   "RESOLVE_FAILED",
-					"message": func() string {
-						if err != nil {
-							return err.Error()
-						}
-						return "not found"
-					}(),
+					"type":    "error",
+					"req_id":  reqID,
+					"code":    code,
+					"message": msgText,
 				})
 				_ = client.Send(out)
 				continue
