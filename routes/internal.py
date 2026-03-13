@@ -469,8 +469,14 @@ def _detect_run_error_from_logs(logs: Optional[str]) -> Optional[str]:
 async def _fetch_rabbit_queue_stats() -> dict:
     import httpx
     import os
+    from urllib.parse import quote
 
-    rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "http://guest:guest@rabbitmq:15672/api/queues/%2f/parsing_tasks")
+    rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "").strip()
+    if not rabbit_url:
+        base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
+        vhost = os.getenv("RABBITMQ_VHOST", "/")
+        queue = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
+        rabbit_url = f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}"
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             resp = await client.get(rabbit_url)
@@ -494,8 +500,14 @@ async def _fetch_rabbit_queued_tasks(limit: int = 1000) -> list[dict]:
     """Peek queued Rabbit messages and return decoded task payloads."""
     import httpx
     import os
+    from urllib.parse import quote
 
-    rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "http://guest:guest@rabbitmq:15672/api/queues/%2f/parsing_tasks")
+    rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "").strip()
+    if not rabbit_url:
+        base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
+        vhost = os.getenv("RABBITMQ_VHOST", "/")
+        queue = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
+        rabbit_url = f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}"
     rabbit_get_url = rabbit_url.rstrip("/") + "/get"
     payload = {
         "count": max(1, min(limit, 2000)),

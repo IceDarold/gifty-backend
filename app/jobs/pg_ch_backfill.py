@@ -14,7 +14,7 @@ from sqlalchemy import and_, or_, select
 
 from app.config import get_settings
 from app.db import get_session_context
-from app.models import LLMLog
+from app.models import LLMLog, ParsingRun
 
 logger = logging.getLogger("pg_ch_backfill")
 
@@ -312,6 +312,73 @@ async def _backfill_llm_logs(session, client: Client, window_from: datetime, win
     return total
 
 
+async def _backfill_ops_runs(session, client: Client, window_from: datetime, window_to: datetime, batch_size: int) -> int:
+    import json
+
+    total = 0
+    last_created_at: Optional[datetime] = None
+    last_id = None
+    while True:
+        conditions = [ParsingRun.created_at >= window_from, ParsingRun.created_at < window_to]
+        if last_created_at is not None and last_id is not None:
+            conditions.append(
+                or_(
+                    ParsingRun.created_at > last_created_at,
+                    and_(ParsingRun.created_at == last_created_at, ParsingRun.id > last_id),
+                )
+            )
+        result = await session.execute(
+            select(ParsingRun)
+            .where(and_(*conditions))
+            .order_by(ParsingRun.created_at.asc(), ParsingRun.id.asc())
+            .limit(batch_size)
+        )
+        runs = list(result.scalars().all())
+        if not runs:
+            break
+        now = datetime.now(timezone.utc)
+        rows: List[tuple] = []
+        for run in runs:
+            occurred_at = getattr(run, "updated_at", None) or getattr(run, "created_at", now) or now
+            event_id = f"ops.run:{run.id}:{int(occurred_at.timestamp())}"
+            payload = {
+                "id": run.id,
+                "run_id": run.id,
+                "source_id": run.source_id,
+                "status": run.status,
+                "items_scraped": run.items_scraped,
+                "items_new": run.items_new,
+                "error_message": run.error_message,
+                "duration_seconds": run.duration_seconds,
+                "created_at": run.created_at.isoformat() if run.created_at else None,
+                "updated_at": run.updated_at.isoformat() if run.updated_at else None,
+            }
+            rows.append(
+                (
+                    event_id,
+                    "ops_run",
+                    str(run.id),
+                    "ops.run.updated",
+                    json.dumps(payload, default=str),
+                    occurred_at,
+                    int(occurred_at.timestamp()),
+                    "updated",
+                    "backfill",
+                )
+            )
+        if rows:
+            client.execute(
+                "INSERT INTO state_events_raw (event_id, aggregate_type, aggregate_id, event_type, payload_json, occurred_at, version, op, source) VALUES",
+                rows,
+            )
+        total += len(runs)
+        last_created_at = runs[-1].created_at
+        last_id = runs[-1].id
+        if len(runs) < batch_size:
+            break
+    return total
+
+
 async def run_backfill(window_from: datetime, window_to: datetime, tables: List[str], batch_size: int) -> None:
     start = time.time()
     backfill_window_seconds.set(max(0.0, (window_to - window_from).total_seconds()))
@@ -324,8 +391,13 @@ async def run_backfill(window_from: datetime, window_to: datetime, tables: List[
             count = await _backfill_llm_logs(session, client, window_from, window_to, batch_size)
             logger.info("Backfill llm_logs rows=%s", count)
             backfill_rows_total.labels(table="llm_logs").inc(count)
+        if "ops_runs" in tables:
+            logger.info("Backfill ops_runs: %s -> %s", _to_iso(window_from), _to_iso(window_to))
+            count = await _backfill_ops_runs(session, client, window_from, window_to, batch_size)
+            logger.info("Backfill ops_runs rows=%s", count)
+            backfill_rows_total.labels(table="ops_runs").inc(count)
         for name in tables:
-            if name == "llm_logs":
+            if name in {"llm_logs", "ops_runs"}:
                 continue
             logger.warning("Backfill table '%s' not implemented (skip)", name)
     _update_backfill_state(client, window_from, window_to)
