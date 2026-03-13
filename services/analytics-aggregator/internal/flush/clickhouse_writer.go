@@ -179,6 +179,14 @@ func (w *Writer) InsertEvents(ctx context.Context, rows []EventRow) error {
 	if len(rows) == 0 {
 		return nil
 	}
+	maxOccurred := rows[0].OccurredAt
+	maxEventID := rows[0].EventID
+	for _, r := range rows[1:] {
+		if r.OccurredAt.After(maxOccurred) {
+			maxOccurred = r.OccurredAt
+			maxEventID = r.EventID
+		}
+	}
 	batch, err := w.conn.PrepareBatch(ctx, `
 		INSERT INTO analytics_events
 		(event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version)
@@ -203,7 +211,21 @@ func (w *Writer) InsertEvents(ctx context.Context, rows []EventRow) error {
 			return err
 		}
 	}
-	return batch.Send()
+	if err := batch.Send(); err != nil {
+		return err
+	}
+	return w.UpdateSyncStateEvent(ctx, "analytics-events", maxOccurred, maxEventID)
+}
+
+func (w *Writer) UpdateSyncStateEvent(ctx context.Context, syncName string, occurredAt time.Time, eventID string) error {
+	now := time.Now().UTC()
+	lag := now.Sub(occurredAt).Seconds()
+	_, err := w.conn.Exec(ctx, `
+		INSERT INTO sync_state
+		(sync_name, last_bootstrap_at, last_backfill_at, last_bootstrap_version, last_event_applied_at, last_event_id, lag_seconds)
+		VALUES
+	`, syncName, now, nil, uint64(now.UnixNano()), occurredAt, eventID, lag)
+	return err
 }
 
 func (w *Writer) Rehydrate(ctx context.Context, since time.Time) (map[state.BucketKey]state.BucketValue, error) {

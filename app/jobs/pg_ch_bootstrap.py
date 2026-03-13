@@ -41,8 +41,8 @@ def _ch_client() -> Client:
 def _upsert_sync_state(client: Client, sync_name: str):
     now = datetime.now(timezone.utc)
     client.execute(
-        'INSERT INTO sync_state (sync_name, last_bootstrap_at, last_bootstrap_version, last_event_applied_at, last_event_id, lag_seconds) VALUES',
-        [(sync_name, now, int(now.timestamp()), now, '', 0.0)]
+        'INSERT INTO sync_state (sync_name, last_bootstrap_at, last_bootstrap_version, last_event_applied_at, last_event_id, lag_seconds, last_backfill_at) VALUES',
+        [(sync_name, now, int(now.timestamp()), now, '', 0.0, None)]
     )
 
 

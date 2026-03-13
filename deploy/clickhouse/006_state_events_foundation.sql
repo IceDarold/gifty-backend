@@ -15,6 +15,7 @@ ORDER BY (aggregate_type, aggregate_id, event_id);
 CREATE TABLE IF NOT EXISTS sync_state (
   sync_name String,
   last_bootstrap_at DateTime64(3, 'UTC'),
+  last_backfill_at Nullable(DateTime64(3, 'UTC')),
   last_bootstrap_version UInt64,
   last_event_applied_at DateTime64(3, 'UTC'),
   last_event_id String,
