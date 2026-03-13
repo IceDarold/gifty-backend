@@ -353,6 +353,25 @@ services:
       clickhouse:
         condition: service_healthy
 
+  pg-ch-backfill:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    working_dir: /app
+    command: bash -lc "PYTHONPATH=/app python scripts/run_pg_ch_backfill.py --auto"
+    env_file: .env
+    volumes:
+      - .:/app
+    environment:
+      CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      PROMETHEUS_PUSHGATEWAY: "${PROMETHEUS_PUSHGATEWAY:-http://prometheus-pushgateway:9091}"
+      BACKFILL_METRICS_JOB: "${BACKFILL_METRICS_JOB:-pg_ch_backfill}"
+    depends_on:
+      pg-ch-bootstrap:
+        condition: service_completed_successfully
+
   outbox-publisher:
     build:
       context: .
