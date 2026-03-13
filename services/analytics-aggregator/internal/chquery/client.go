@@ -456,12 +456,12 @@ func (c *Client) OpsOverview(ctx context.Context) (map[string]interface{}, error
 	// Placeholder aggregate from analytics_agg_1m. Metrics must be produced upstream.
 	q := `
 		SELECT
-			sumIf(cnt, metric='ops.queue.messages_total') AS messages_total,
-			sumIf(cnt, metric='ops.queue.messages_ready') AS messages_ready,
-			sumIf(cnt, metric='ops.queue.messages_unack') AS messages_unack,
-			sumIf(cnt, metric='ops.runs.running') AS runs_running,
-			sumIf(cnt, metric='ops.runs.completed') AS runs_completed,
-			sumIf(cnt, metric='ops.runs.error') AS runs_error
+			maxIf(max_value, metric='ops.queue_updated.messages_total') AS messages_total,
+			maxIf(max_value, metric='ops.queue_updated.messages_ready') AS messages_ready,
+			maxIf(max_value, metric='ops.queue_updated.messages_unack') AS messages_unack,
+			maxIf(max_value, metric='ops.runs.running') AS runs_running,
+			maxIf(max_value, metric='ops.runs.completed') AS runs_completed,
+			maxIf(max_value, metric='ops.runs.error') AS runs_error
 		FROM analytics_agg_1m
 		WHERE bucket_minute >= now() - INTERVAL 24 HOUR
 	`

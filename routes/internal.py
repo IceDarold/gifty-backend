@@ -589,6 +589,17 @@ async def _publish_ops_event(redis: Optional[Redis], event_type: str, payload: d
                 metrics["new_count"] = float(payload.get("new_count") or 0)
             if payload.get("promoted_count") is not None:
                 metrics["promoted_count"] = float(payload.get("promoted_count") or 0)
+            if event_type == "queue.updated":
+                if payload.get("messages_total") is not None:
+                    metrics["messages_total"] = float(payload.get("messages_total") or 0)
+                if payload.get("messages_ready") is not None:
+                    metrics["messages_ready"] = float(payload.get("messages_ready") or 0)
+                if payload.get("messages_unacknowledged") is not None:
+                    metrics["messages_unack"] = float(payload.get("messages_unacknowledged") or 0)
+                if payload.get("consumers") is not None:
+                    metrics["consumers"] = float(payload.get("consumers") or 0)
+                if payload.get("rate_publish") is not None:
+                    metrics["rate_publish"] = float(payload.get("rate_publish") or 0)
         await emit_event(
             event_type="ops.queue_updated" if event_type == "queue.updated" else "ops.run_status_changed",
             source="internal",
