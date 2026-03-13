@@ -472,24 +472,46 @@ async def _fetch_rabbit_queue_stats() -> dict:
     from urllib.parse import quote
 
     rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "").strip()
-    if not rabbit_url:
-        base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
-        vhost = os.getenv("RABBITMQ_VHOST", "/")
-        queue = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
-        rabbit_url = f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}"
+    base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
+    vhost = os.getenv("RABBITMQ_VHOST", "/")
+    queues_raw = os.getenv("RABBITMQ_QUEUE_NAMES", "").strip()
+    if not queues_raw:
+        queues_raw = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
+    queues = [q.strip() for q in queues_raw.split(",") if q.strip()]
+    urls: list[str] = []
+    if rabbit_url:
+        urls = [rabbit_url]
+    else:
+        for queue in queues:
+            urls.append(f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}")
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
-            resp = await client.get(rabbit_url)
-            if resp.status_code != 200:
-                return {"status": "error", "message": f"RabbitMQ API returned {resp.status_code}"}
-            data = resp.json()
+            totals = {
+                "messages_ready": 0,
+                "messages_unacknowledged": 0,
+                "messages_total": 0,
+                "consumers": 0,
+                "rate_publish": 0,
+            }
+            ok = False
+            errors = []
+            for url in urls:
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    errors.append(f"{url} -> {resp.status_code}")
+                    continue
+                data = resp.json()
+                ok = True
+                totals["messages_ready"] += int(data.get("messages_ready", 0) or 0)
+                totals["messages_unacknowledged"] += int(data.get("messages_unacknowledged", 0) or 0)
+                totals["messages_total"] += int(data.get("messages", 0) or 0)
+                totals["consumers"] += int(data.get("consumers", 0) or 0)
+                totals["rate_publish"] += float(data.get("messages_details", {}).get("rate", 0) or 0)
+            if not ok:
+                return {"status": "error", "message": "; ".join(errors) or "RabbitMQ API error"}
             return {
-                "queue_name": data.get("name"),
-                "messages_ready": data.get("messages_ready", 0),
-                "messages_unacknowledged": data.get("messages_unacknowledged", 0),
-                "messages_total": data.get("messages", 0),
-                "consumers": data.get("consumers", 0),
-                "rate_publish": data.get("messages_details", {}).get("rate", 0),
+                "queue_name": ",".join(queues),
+                **totals,
                 "status": "ok",
             }
     except Exception as e:
@@ -503,12 +525,18 @@ async def _fetch_rabbit_queued_tasks(limit: int = 1000) -> list[dict]:
     from urllib.parse import quote
 
     rabbit_url = os.getenv("RABBITMQ_MANAGEMENT_URL", "").strip()
-    if not rabbit_url:
-        base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
-        vhost = os.getenv("RABBITMQ_VHOST", "/")
-        queue = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
-        rabbit_url = f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}"
-    rabbit_get_url = rabbit_url.rstrip("/") + "/get"
+    base = os.getenv("RABBITMQ_MANAGEMENT_BASE", "http://guest:guest@rabbitmq:15672/api/queues").rstrip("/")
+    vhost = os.getenv("RABBITMQ_VHOST", "/")
+    queues_raw = os.getenv("RABBITMQ_QUEUE_NAMES", "").strip()
+    if not queues_raw:
+        queues_raw = os.getenv("RABBITMQ_QUEUE_NAME", "parsing_tasks")
+    queues = [q.strip() for q in queues_raw.split(",") if q.strip()]
+    urls: list[str] = []
+    if rabbit_url:
+        urls = [rabbit_url]
+    else:
+        for queue in queues:
+            urls.append(f"{base}/{quote(vhost, safe='')}/{quote(queue, safe='')}")
     payload = {
         "count": max(1, min(limit, 2000)),
         "ackmode": "ack_requeue_true",
@@ -518,20 +546,28 @@ async def _fetch_rabbit_queued_tasks(limit: int = 1000) -> list[dict]:
 
     tasks: list[dict] = []
     async with httpx.AsyncClient(timeout=8.0) as client:
-        resp = await client.post(rabbit_get_url, json=payload)
-        resp.raise_for_status()
-        raw = resp.json()
-        raw_items = raw if isinstance(raw, list) else []
-        for msg in raw_items:
-            task = msg.get("payload")
-            if isinstance(task, str):
-                try:
-                    task = json.loads(task)
-                except Exception:
-                    task = {}
-            if not isinstance(task, dict):
-                continue
-            tasks.append(task)
+        if not urls:
+            return tasks
+        per_queue = max(1, min(limit, 2000)) if len(urls) == 1 else max(1, min(limit // len(urls) + 1, 2000))
+        for url in urls:
+            rabbit_get_url = url.rstrip("/") + "/get"
+            payload["count"] = max(1, min(per_queue, 2000))
+            resp = await client.post(rabbit_get_url, json=payload)
+            resp.raise_for_status()
+            raw = resp.json()
+            raw_items = raw if isinstance(raw, list) else []
+            for msg in raw_items:
+                task = msg.get("payload")
+                if isinstance(task, str):
+                    try:
+                        task = json.loads(task)
+                    except Exception:
+                        task = {}
+                if not isinstance(task, dict):
+                    continue
+                tasks.append(task)
+            if len(tasks) >= limit:
+                break
     return tasks
 
 
