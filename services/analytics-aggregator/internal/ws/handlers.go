@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"analytics-aggregator/internal/state"
@@ -33,13 +34,22 @@ type wsClient struct {
 	send      chan []byte
 	mu        sync.Mutex
 	closeOnce sync.Once
+	closed    atomic.Bool
 }
 
 type ChannelResolver interface {
 	Resolve(ctx context.Context, channel string, params map[string]interface{}) (interface{}, bool, error)
 }
 
-func (c *wsClient) Send(msg []byte) error {
+func (c *wsClient) Send(msg []byte) (err error) {
+	if c.closed.Load() {
+		return fmt.Errorf("client closed")
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("client closed")
+		}
+	}()
 	select {
 	case c.send <- msg:
 		return nil
@@ -53,6 +63,7 @@ func (c *wsClient) Close(code int, text string) error {
 	c.closeOnce.Do(func() {
 		c.mu.Lock()
 		defer c.mu.Unlock()
+		c.closed.Store(true)
 		_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, text), time.Now().Add(time.Second))
 		err = c.conn.Close()
 		close(c.send)
