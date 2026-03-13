@@ -182,6 +182,10 @@ func (p *Poller) pollOps(ctx context.Context) {
 	// Use live RabbitMQ-backed endpoints for queue lanes (queued/active) so they
 	// reflect immediate run_discovery enqueues.
 	if p.cfg.AdminAPIBase != "" {
+		var overviewResp map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/overview", &overviewResp); err == nil && overviewResp != nil {
+			p.publish("ops.overview", overviewResp)
+		}
 		var queuedResp struct {
 			Items []map[string]interface{} `json:"items"`
 		}

@@ -106,9 +106,9 @@ func channelFor(ev *schema.EventEnvelope) []string {
 	}
 	if strings.HasPrefix(ev.EventType, "ops.") {
 		if s, ok := ev.Dims["site_key"].(string); ok && s != "" {
-			return []string{"ops.overview", "ops.site." + s}
+			return []string{"ops.metrics", "ops.site." + s}
 		}
-		return []string{"ops.overview"}
+		return []string{"ops.metrics"}
 	}
 	return []string{"global.kpi"}
 }
