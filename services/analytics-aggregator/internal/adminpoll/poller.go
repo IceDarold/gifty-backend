@@ -156,8 +156,9 @@ func (p *Poller) pollOps(ctx context.Context) {
 		if scheduler, err := p.ch.SnapshotData(ctx, "ops.scheduler_stats"); err == nil {
 			p.publish("ops.scheduler_stats", scheduler)
 		}
-		if discovery, err := p.ch.OpsDiscoveryLatest(ctx); err == nil {
-			p.publish("ops.discovery", map[string]interface{}{"items": discovery})
+		if listSources, err := p.ch.SourcesLatestByType(ctx, "list"); err == nil {
+			normalizeSourceTimes(listSources, "last_synced_at", "next_sync_at")
+			p.publish("ops.discovery", map[string]interface{}{"items": listSources})
 		}
 		if runs, err := p.ch.OpsRunsLatest(ctx); err == nil {
 			details := map[string]interface{}{}
@@ -206,6 +207,32 @@ func (p *Poller) pollOps(ctx context.Context) {
 		}
 		if tasks, err := p.ch.OpsTrend(ctx, "ops.tasks.count", 7); err == nil {
 			p.publish("ops.tasks_trend", map[string]interface{}{"day": tasks})
+		}
+	}
+}
+
+func normalizeSourceTimes(items []map[string]interface{}, keys ...string) {
+	if len(items) == 0 || len(keys) == 0 {
+		return
+	}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		for _, key := range keys {
+			val, ok := item[key]
+			if !ok || val == nil {
+				continue
+			}
+			switch v := val.(type) {
+			case string:
+				if strings.Contains(v, "T") {
+					continue
+				}
+				if strings.Contains(v, " ") {
+					item[key] = strings.Replace(v, " ", "T", 1)
+				}
+			}
 		}
 	}
 }

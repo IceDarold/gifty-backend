@@ -599,6 +599,28 @@ func (c *Client) SourcesLatest(ctx context.Context) ([]map[string]interface{}, e
 	return c.latestStateList(ctx, "sources_latest")
 }
 
+func (c *Client) SourcesLatestByType(ctx context.Context, sourceType string) ([]map[string]interface{}, error) {
+	q := "SELECT payload_json FROM sources_latest FINAL WHERE deleted = 0 AND JSONExtractString(payload_json,'type') = ? ORDER BY version DESC"
+	rows, err := c.conn.Query(ctx, q, sourceType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func (c *Client) SourceLatest(ctx context.Context, id int) (map[string]interface{}, error) {
 	return c.latestStateOne(ctx, "sources_latest", "source_id = ?", id)
 }
