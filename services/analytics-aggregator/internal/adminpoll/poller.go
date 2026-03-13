@@ -240,11 +240,23 @@ func (p *Poller) pollOps(ctx context.Context) {
 	}
 
 	if p.ch != nil {
-		if items, err := p.ch.OpsTrend(ctx, "ops.items.count", 7); err == nil {
-			p.publish("ops.items_trend", map[string]interface{}{"day": items})
+		itemsTrend := map[string]interface{}{}
+		for _, bucket := range []string{"week", "day", "hour", "minute"} {
+			if out, err := p.ch.OpsItemsTrend(ctx, 30, bucket); err == nil && out != nil {
+				itemsTrend[bucket] = out
+			}
 		}
-		if tasks, err := p.ch.OpsTrend(ctx, "ops.tasks.count", 7); err == nil {
-			p.publish("ops.tasks_trend", map[string]interface{}{"day": tasks})
+		if len(itemsTrend) > 0 {
+			p.publish("ops.items_trend", itemsTrend)
+		}
+		tasksTrend := map[string]interface{}{}
+		for _, bucket := range []string{"week", "day", "hour", "minute"} {
+			if out, err := p.ch.OpsTasksTrend(ctx, 30, bucket); err == nil && out != nil {
+				tasksTrend[bucket] = out
+			}
+		}
+		if len(tasksTrend) > 0 {
+			p.publish("ops.tasks_trend", tasksTrend)
 		}
 	}
 }

@@ -516,6 +516,136 @@ func (c *Client) OpsTrend(ctx context.Context, metric string, days int) ([]map[s
 	return out, nil
 }
 
+func (c *Client) OpsItemsTrend(ctx context.Context, days int, bucket string) (map[string]interface{}, error) {
+	if days <= 0 {
+		days = 7
+	}
+	bucketExpr := "toDate(occurred_at)"
+	switch bucket {
+	case "minute":
+		bucketExpr = "toStartOfMinute(occurred_at)"
+	case "hour":
+		bucketExpr = "toStartOfHour(occurred_at)"
+	case "week":
+		bucketExpr = "toStartOfWeek(occurred_at)"
+	case "day":
+		bucketExpr = "toDate(occurred_at)"
+	}
+	q := `
+		SELECT
+			` + bucketExpr + ` AS b,
+			sum(JSONExtractInt(payload_json, 'items_new')) AS items_new,
+			sum(JSONExtractInt(payload_json, 'categories_new')) AS categories_new
+		FROM state_events_raw
+		WHERE event_type IN ('ops.run.updated', 'ops.run.created')
+		  AND occurred_at >= now() - INTERVAL ? DAY
+		GROUP BY b
+		ORDER BY b
+	`
+	rows, err := c.conn.Query(ctx, q, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []map[string]interface{}{}
+	var totalItems, totalCategories float64
+	for rows.Next() {
+		var b time.Time
+		var itemsNew, categoriesNew float64
+		if err := rows.Scan(&b, &itemsNew, &categoriesNew); err != nil {
+			return nil, err
+		}
+		totalItems += itemsNew
+		totalCategories += categoriesNew
+		items = append(items, map[string]interface{}{
+			"date":           b.Format(time.RFC3339),
+			"items_new":      itemsNew,
+			"categories_new": categoriesNew,
+		})
+	}
+	return map[string]interface{}{
+		"items": items,
+		"totals": map[string]interface{}{
+			"items_new":      totalItems,
+			"categories_new": totalCategories,
+		},
+	}, nil
+}
+
+func (c *Client) OpsTasksTrend(ctx context.Context, days int, bucket string) (map[string]interface{}, error) {
+	if days <= 0 {
+		days = 7
+	}
+	bucketExpr := "toDate(occurred_at)"
+	switch bucket {
+	case "minute":
+		bucketExpr = "toStartOfMinute(occurred_at)"
+	case "hour":
+		bucketExpr = "toStartOfHour(occurred_at)"
+	case "week":
+		bucketExpr = "toStartOfWeek(occurred_at)"
+	case "day":
+		bucketExpr = "toDate(occurred_at)"
+	}
+	q := `
+		SELECT
+			` + bucketExpr + ` AS b,
+			sumIf(1, status IN ('queued', 'pending')) AS queued,
+			sumIf(1, status IN ('processing', 'running')) AS running,
+			sumIf(1, status = 'completed') AS success,
+			sumIf(1, status = 'error') AS error
+		FROM (
+			SELECT
+				occurred_at,
+				JSONExtractString(payload_json, 'status') AS status
+			FROM state_events_raw
+			WHERE event_type IN ('ops.run.updated', 'ops.run.created')
+			  AND occurred_at >= now() - INTERVAL ? DAY
+		)
+		GROUP BY b
+		ORDER BY b
+	`
+	rows, err := c.conn.Query(ctx, q, days)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	items := []map[string]interface{}{}
+	var totalSuccess, totalError float64
+	var maxQueue, maxRunning float64
+	for rows.Next() {
+		var b time.Time
+		var queued, running, success, errCount float64
+		if err := rows.Scan(&b, &queued, &running, &success, &errCount); err != nil {
+			return nil, err
+		}
+		if queued > maxQueue {
+			maxQueue = queued
+		}
+		if running > maxRunning {
+			maxRunning = running
+		}
+		totalSuccess += success
+		totalError += errCount
+		items = append(items, map[string]interface{}{
+			"date":    b.Format(time.RFC3339),
+			"queue":   queued,
+			"running": running,
+			"success": success,
+			"error":   errCount,
+		})
+	}
+	return map[string]interface{}{
+		"items": items,
+		"totals": map[string]interface{}{
+			"queue_max":   maxQueue,
+			"running_max": maxRunning,
+			"success":     totalSuccess,
+			"error":       totalError,
+		},
+	}, nil
+}
+
 func (c *Client) LatestSnapshot(ctx context.Context, eventType string) (map[string]interface{}, error) {
 	q := `
 		SELECT payload_json
