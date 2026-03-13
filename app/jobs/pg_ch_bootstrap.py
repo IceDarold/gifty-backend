@@ -9,7 +9,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.db import get_session_context
-from app.models import DiscoveredCategory, FrontendAllowedHost, FrontendApp, FrontendAuditLog, FrontendProfile, FrontendRelease, FrontendRule, FrontendRuntimeState, OpsRuntimeState, ParsingRun, ParsingSource, TelegramSubscriber
+from app.models import DiscoveredCategory, FrontendAllowedHost, FrontendApp, FrontendAuditLog, FrontendProfile, FrontendRelease, FrontendRule, FrontendRuntimeState, OpsRuntimeState, ParsingRun, ParsingSource, Product, TelegramSubscriber
 
 logger = logging.getLogger("pg_ch_bootstrap")
 
@@ -51,6 +51,7 @@ async def run_bootstrap() -> None:
         sources = list((await session.execute(select(ParsingSource).order_by(ParsingSource.id.asc()))).scalars().all())
         discovery_items = list((await session.execute(select(DiscoveredCategory).order_by(DiscoveredCategory.id.desc()).limit(1000))).scalars().all())
         ops_runs = list((await session.execute(select(ParsingRun).order_by(ParsingRun.id.desc()).limit(1000))).scalars().all())
+        products = list((await session.execute(select(Product).order_by(Product.product_id.asc()).limit(2000))).scalars().all())
         subscribers = list((await session.execute(select(TelegramSubscriber).order_by(TelegramSubscriber.id.asc()))).scalars().all())
         apps = list((await session.execute(select(FrontendApp).order_by(FrontendApp.id.asc()))).scalars().all())
         releases = list((await session.execute(select(FrontendRelease).order_by(FrontendRelease.id.asc()))).scalars().all())
@@ -122,10 +123,22 @@ async def run_bootstrap() -> None:
             (int(d.id), str(d.site_key), j({'id': d.id, 'hub_id': d.hub_id, 'site_key': d.site_key, 'url': d.url, 'name': d.name, 'parent_url': d.parent_url, 'state': d.state, 'promoted_source_id': d.promoted_source_id, 'meta': d.meta, 'created_at': getattr(d, 'created_at', now), 'updated_at': getattr(d, 'updated_at', now)}), int(now.timestamp()), 0) for d in discovery_items
         ])
 
+    client.execute('TRUNCATE TABLE IF EXISTS categories_latest')
+    if discovery_items:
+        client.execute('INSERT INTO categories_latest (category_id, site_key, name, payload_json, version, deleted) VALUES', [
+            (int(d.id), str(d.site_key), str(d.name or ''), j({'id': d.id, 'hub_id': d.hub_id, 'site_key': d.site_key, 'url': d.url, 'name': d.name, 'parent_url': d.parent_url, 'state': d.state, 'promoted_source_id': d.promoted_source_id, 'meta': d.meta, 'created_at': getattr(d, 'created_at', now), 'updated_at': getattr(d, 'updated_at', now)}), int(now.timestamp()), 0) for d in discovery_items
+        ])
+
     client.execute('TRUNCATE TABLE IF EXISTS ops_runs_latest')
     if ops_runs:
         client.execute('INSERT INTO ops_runs_latest (run_id, source_id, payload_json, version, deleted) VALUES', [
             (int(r.id), int(r.source_id), j({'id': r.id, 'source_id': r.source_id, 'status': r.status, 'items_scraped': r.items_scraped, 'items_new': r.items_new, 'error_message': r.error_message, 'duration_seconds': r.duration_seconds, 'logs': r.logs, 'created_at': getattr(r, 'created_at', now), 'updated_at': getattr(r, 'updated_at', now)}), int(now.timestamp()), 0) for r in ops_runs
+        ])
+
+    client.execute('TRUNCATE TABLE IF EXISTS products_latest')
+    if products:
+        client.execute('INSERT INTO products_latest (product_id, merchant, category, title, payload_json, version, deleted) VALUES', [
+            (str(p.product_id), str(p.merchant or ''), str(p.category or ''), str(p.title or ''), j({'product_id': p.product_id, 'title': p.title, 'description': p.description, 'price': float(p.price) if p.price is not None else None, 'currency': p.currency, 'image_url': p.image_url, 'product_url': p.product_url, 'merchant': p.merchant, 'category': p.category, 'raw': p.raw, 'is_active': p.is_active, 'content_text': p.content_text, 'content_hash': p.content_hash, 'site_key': p.site_key, 'created_at': getattr(p, 'created_at', now), 'updated_at': getattr(p, 'updated_at', now)}), int(now.timestamp()), 0) for p in products
         ])
 
     client.execute('TRUNCATE TABLE IF EXISTS settings_runtime_latest')

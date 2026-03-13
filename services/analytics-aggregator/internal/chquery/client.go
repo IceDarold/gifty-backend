@@ -654,3 +654,85 @@ func (c *Client) OpsDiscoveryLatest(ctx context.Context) ([]map[string]interface
 func (c *Client) OpsRunsLatest(ctx context.Context) ([]map[string]interface{}, error) {
 	return c.latestStateList(ctx, "ops_runs_latest")
 }
+
+func (c *Client) ProductsLatest(ctx context.Context, limit, offset int, search, merchant string) (items []map[string]interface{}, total int, err error) {
+	q := "SELECT payload_json FROM products_latest FINAL WHERE deleted = 0"
+	args := []interface{}{}
+	if search != "" {
+		q += " AND positionCaseInsensitiveUTF8(title, ?) > 0"
+		args = append(args, search)
+	}
+	if merchant != "" {
+		q += " AND merchant = ?"
+		args = append(args, merchant)
+	}
+	countQ := "SELECT count() FROM products_latest FINAL WHERE deleted = 0"
+	countArgs := []interface{}{}
+	if search != "" {
+		countQ += " AND positionCaseInsensitiveUTF8(title, ?) > 0"
+		countArgs = append(countArgs, search)
+	}
+	if merchant != "" {
+		countQ += " AND merchant = ?"
+		countArgs = append(countArgs, merchant)
+	}
+	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	q += " ORDER BY merchant, category, product_id LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+	rows, err := c.conn.Query(ctx, q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, 0, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}
+
+func (c *Client) CategoriesLatest(ctx context.Context, limit, offset int, search string) (items []map[string]interface{}, total int, err error) {
+	q := "SELECT payload_json FROM categories_latest FINAL WHERE deleted = 0"
+	args := []interface{}{}
+	if search != "" {
+		q += " AND positionCaseInsensitiveUTF8(name, ?) > 0"
+		args = append(args, search)
+	}
+	countQ := "SELECT count() FROM categories_latest FINAL WHERE deleted = 0"
+	countArgs := []interface{}{}
+	if search != "" {
+		countQ += " AND positionCaseInsensitiveUTF8(name, ?) > 0"
+		countArgs = append(countArgs, search)
+	}
+	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
+		return nil, 0, err
+	}
+	q += " ORDER BY site_key, category_id LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+	rows, err := c.conn.Query(ctx, q, args...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, 0, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}

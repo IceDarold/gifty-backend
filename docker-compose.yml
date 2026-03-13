@@ -222,25 +222,6 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_SERVICE_NAME: "${OTEL_SCHEDULER_SERVICE_NAME:-gifty-scheduler}"
 
-  admin-snapshotter:
-    build: .
-    restart: unless-stopped
-    command: python scripts/run_admin_snapshotter.py
-    env_file: .env
-    volumes:
-      - .:/app
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
-      nats:
-        condition: service_started
-      clickhouse:
-        condition: service_started
-
   prometheus:
     image: prom/prometheus:v2.54.1
     restart: unless-stopped

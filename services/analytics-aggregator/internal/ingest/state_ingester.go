@@ -155,6 +155,15 @@ func (i *StateIngester) applyLatest(ctx context.Context) error {
 				key = "runtime_settings"
 			}
 			addBucket(buckets, "settings_runtime_latest", []string{"setting_key", "payload_json", "version", "deleted"}, []interface{}{key, ev.PayloadJSON, version, deleted})
+		case "frontend_runtime_state":
+			addBucket(buckets, "settings_runtime_latest", []string{"setting_key", "payload_json", "version", "deleted"}, []interface{}{"frontend_runtime_state", ev.PayloadJSON, version, deleted})
+		case "frontend_audit_log":
+			id := toInt(payload["id"])
+			addBucket(buckets, "frontend_audit_log_latest", []string{"log_id", "payload_json", "version", "deleted"}, []interface{}{id, ev.PayloadJSON, version, deleted})
+		case "ops_run":
+			id := toInt(payload["id"])
+			sourceID := toInt(payload["source_id"])
+			addBucket(buckets, "ops_runs_latest", []string{"run_id", "source_id", "payload_json", "version", "deleted"}, []interface{}{id, sourceID, ev.PayloadJSON, version, deleted})
 		}
 	}
 	for _, b := range buckets {

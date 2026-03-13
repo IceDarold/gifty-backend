@@ -121,3 +121,25 @@ CREATE TABLE IF NOT EXISTS ops_runs_latest (
     deleted UInt8 DEFAULT 0
 ) ENGINE = ReplacingMergeTree(version)
 ORDER BY (source_id, run_id);
+
+
+CREATE TABLE IF NOT EXISTS products_latest (
+    product_id String,
+    merchant String,
+    category String,
+    title String,
+    payload_json String,
+    version UInt64,
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(version)
+ORDER BY (merchant, category, product_id);
+
+CREATE TABLE IF NOT EXISTS categories_latest (
+    category_id UInt64,
+    site_key String,
+    name String,
+    payload_json String,
+    version UInt64,
+    deleted UInt8 DEFAULT 0
+) ENGINE = ReplacingMergeTree(version)
+ORDER BY (site_key, category_id);

@@ -150,10 +150,10 @@ func (p *Poller) pollOps(ctx context.Context) {
 		}
 		if runs, err := p.ch.OpsRunsLatest(ctx); err == nil {
 			p.publish("ops.run_details", runs)
-			p.publish("ops.runs.active", filterByStatus(runs, "processing", "running", "active"))
+			p.publish("ops.runs.active", filterByStatus(runs, "processing"))
 			p.publish("ops.runs.queued", filterByStatus(runs, "queued", "pending"))
-			p.publish("ops.runs.completed", filterByStatus(runs, "completed", "success"))
-			p.publish("ops.runs.error", filterByStatus(runs, "error", "failed"))
+			p.publish("ops.runs.completed", filterByStatus(runs, "completed"))
+			p.publish("ops.runs.error", filterByStatus(runs, "error"))
 		}
 	}
 
@@ -169,9 +169,6 @@ func (p *Poller) pollOps(ctx context.Context) {
 
 func (p *Poller) pollCatalog(ctx context.Context) {
 	if p.ch != nil {
-		if products, err := p.ch.SnapshotData(ctx, "catalog.products"); err == nil {
-			p.publish("catalog.products", products)
-		}
 	}
 }
 

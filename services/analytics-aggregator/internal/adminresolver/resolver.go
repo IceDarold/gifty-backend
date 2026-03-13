@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -111,6 +112,9 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		item := findByID(items, strconv.Itoa(id))
 		return item, true, nil
 	case channel == "ops.source_items_trend":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
 		sourceID, ok := toInt(params["source_id"])
 		if !ok || sourceID <= 0 {
 			return nil, false, nil
@@ -123,11 +127,11 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if v, ok := toInt(params["buckets"]); ok && v > 0 {
 			buckets = v
 		}
-		data, err := r.snapshotData(ctx, "ops.source_items_trend")
+		runs, err := r.ch.OpsRunsLatest(ctx)
 		if err != nil {
 			return nil, false, err
 		}
-		out := extractSourceTrend(data, sourceID, granularity, buckets)
+		out := buildSourceTrendFromRuns(runs, sourceID, granularity, buckets)
 		return out, true, nil
 	case channel == "llm.logs":
 		if r.ch == nil {
@@ -208,33 +212,34 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		}
 		return item, true, nil
 	case channel == "catalog.categories":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
 		limit, offset, search := parsePaging(params)
-		sources, err := r.snapshotData(ctx, "dashboard.sources")
+		items, total, err := r.ch.CategoriesLatest(ctx, limit, offset, search)
 		if err != nil {
 			return nil, false, err
 		}
-		filtered := filterCategories(normalizeList(sources), search)
-		paged := slicePage(filtered, offset, limit)
 		return map[string]interface{}{
-			"items": paged,
-			"total": len(filtered),
+			"items": items,
+			"total": total,
 		}, true, nil
 	case channel == "catalog.products":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
 		limit, offset, search := parsePaging(params)
 		merchant := ""
 		if v, ok := params["merchant"]; ok {
 			merchant = fmt.Sprintf("%v", v)
 		}
-		itemsRaw, err := r.snapshotData(ctx, "catalog.products")
+		items, total, err := r.ch.ProductsLatest(ctx, limit, offset, search, merchant)
 		if err != nil {
 			return nil, false, err
 		}
-		items := normalizeList(itemsRaw)
-		filtered := filterProducts(items, search, merchant)
-		paged := slicePage(filtered, offset, limit)
 		return map[string]interface{}{
-			"items": paged,
-			"total": len(filtered),
+			"items": items,
+			"total": total,
 		}, true, nil
 	default:
 		return nil, false, nil
@@ -506,6 +511,135 @@ func slicePage(items []map[string]interface{}, offset int, limit int) []map[stri
 		end = len(items)
 	}
 	return items[offset:end]
+}
+
+func buildSourceTrendFromRuns(runs []map[string]interface{}, sourceID int, granularity string, buckets int) map[string]interface{} {
+	if sourceID <= 0 || buckets <= 0 {
+		return map[string]interface{}{"items": []map[string]interface{}{}, "totals": map[string]interface{}{}}
+	}
+	bucketDur := time.Hour * 24
+	switch granularity {
+	case "minute":
+		bucketDur = time.Minute
+	case "hour":
+		bucketDur = time.Hour
+	case "day":
+		bucketDur = time.Hour * 24
+	case "week":
+		bucketDur = time.Hour * 24 * 7
+	default:
+		granularity = "day"
+		bucketDur = time.Hour * 24
+	}
+
+	type agg struct {
+		ts           time.Time
+		itemsNew     int
+		itemsScraped int
+	}
+	byKey := map[string]*agg{}
+	totalsNew := 0
+	totalsScraped := 0
+	now := time.Now().UTC()
+
+	for _, run := range runs {
+		if run == nil {
+			continue
+		}
+		if id, ok := toInt(run["source_id"]); !ok || id != sourceID {
+			continue
+		}
+		ts, ok := parseTimeFromMap(run)
+		if !ok {
+			continue
+		}
+		ts = ts.UTC()
+		bucketTime := bucketStart(ts, granularity, bucketDur)
+		if now.Sub(bucketTime) > time.Duration(buckets)*bucketDur {
+			continue
+		}
+		key := bucketTime.Format(time.RFC3339)
+		entry, ok := byKey[key]
+		if !ok {
+			entry = &agg{ts: bucketTime}
+			byKey[key] = entry
+		}
+		itemsNew, _ := toInt(run["items_new"])
+		itemsScraped, _ := toInt(run["items_scraped"])
+		entry.itemsNew += itemsNew
+		entry.itemsScraped += itemsScraped
+		totalsNew += itemsNew
+		totalsScraped += itemsScraped
+	}
+
+	items := make([]map[string]interface{}, 0, len(byKey))
+	for _, entry := range byKey {
+		items = append(items, map[string]interface{}{
+			"date":          entry.ts.Format(time.RFC3339),
+			"items_new":     entry.itemsNew,
+			"items_scraped": entry.itemsScraped,
+		})
+	}
+	sort.Slice(items, func(i, j int) bool {
+		return fmt.Sprintf("%v", items[i]["date"]) < fmt.Sprintf("%v", items[j]["date"])
+	})
+
+	return map[string]interface{}{
+		"items":  items,
+		"totals": map[string]interface{}{"items_new": totalsNew, "items_scraped": totalsScraped},
+	}
+}
+
+func parseTimeFromMap(run map[string]interface{}) (time.Time, bool) {
+	for _, key := range []string{"created_at", "started_at", "updated_at", "finished_at"} {
+		if ts, ok := parseTimeValue(run[key]); ok {
+			return ts, true
+		}
+	}
+	return time.Time{}, false
+}
+
+func parseTimeValue(v interface{}) (time.Time, bool) {
+	switch t := v.(type) {
+	case time.Time:
+		return t, true
+	case string:
+		if t == "" {
+			return time.Time{}, false
+		}
+		if parsed, err := time.Parse(time.RFC3339, t); err == nil {
+			return parsed, true
+		}
+	case float64:
+		if t > 0 {
+			return time.Unix(int64(t), 0), true
+		}
+	case int64:
+		if t > 0 {
+			return time.Unix(t, 0), true
+		}
+	case int:
+		if t > 0 {
+			return time.Unix(int64(t), 0), true
+		}
+	}
+	return time.Time{}, false
+}
+
+func bucketStart(ts time.Time, granularity string, bucketDur time.Duration) time.Time {
+	switch granularity {
+	case "minute", "hour":
+		return ts.Truncate(bucketDur)
+	case "week":
+		weekday := int(ts.Weekday())
+		if weekday == 0 {
+			weekday = 7
+		}
+		dayStart := time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, time.UTC)
+		return dayStart.AddDate(0, 0, -(weekday - 1))
+	default:
+		return time.Date(ts.Year(), ts.Month(), ts.Day(), 0, 0, 0, 0, time.UTC)
+	}
 }
 
 type httpStatusError struct {
