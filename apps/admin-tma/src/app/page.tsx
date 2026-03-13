@@ -347,7 +347,12 @@ export default function Home() {
                                 <div className="absolute bottom-0 left-0 w-28 h-28 bg-sky-100/20 rounded-full -ml-10 -mb-10 blur-2xl"></div>
                             </div>
                         </div>
-                        <StatsGrid stats={stats.data} health={health.data} scraping={scraping.data} />
+                        <StatsGrid
+                          stats={stats.data}
+                          health={health.data}
+                          scraping={scraping.data}
+                          isLoading={stats.isLoading || health.isLoading || scraping.isLoading}
+                        />
                         <UsageChart data={trends.data} />
                         <InfraPanel workers={workers.data} queue={queue.data} />
                         <SpiderList

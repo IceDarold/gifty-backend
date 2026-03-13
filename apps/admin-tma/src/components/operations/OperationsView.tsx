@@ -190,11 +190,23 @@ const renderJsonStyledLine = (input: string) => {
   return <>{nodes}</>;
 };
 
-function MetricCard({ label, value, hint }: { label: string; value: string | number; hint: string }) {
+function MetricCard({
+  label,
+  value,
+  hint,
+  isLoading,
+}: {
+  label: string;
+  value: string | number;
+  hint: string;
+  isLoading?: boolean;
+}) {
   return (
     <div className="rounded-xl border border-white/15 bg-white/[0.04] px-3 py-2.5">
       <p className="text-[11px] uppercase tracking-[0.1em] text-white/65">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-white">{value}</p>
+      <p className="mt-1 text-lg font-semibold text-white">
+        {isLoading ? <Loader2 size={16} className="animate-spin inline-block" /> : value}
+      </p>
       <p className="text-[11px] text-white/70">{hint}</p>
     </div>
   );
@@ -820,35 +832,50 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
               <div className="mt-1 grid grid-cols-2 gap-2 text-[12px]">
                 <div className="rounded-md border border-sky-400/30 bg-sky-500/10 px-2 py-1.5">
                   <p className="text-white/70">Running</p>
-                  <p className="text-lg font-semibold text-white">{Number(overview.data?.runs?.running ?? 0)}</p>
+                  <p className="text-lg font-semibold text-white">
+                    {overview.isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : Number(overview.data?.runs?.running ?? 0)}
+                  </p>
                 </div>
                 <div className="rounded-md border border-amber-400/30 bg-amber-500/10 px-2 py-1.5">
                   <p className="text-white/70">Queue</p>
-                  <p className="text-lg font-semibold text-white">{Number(overview.data?.queue?.messages_total ?? 0)}</p>
+                  <p className="text-lg font-semibold text-white">
+                    {overview.isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : Number(overview.data?.queue?.messages_total ?? 0)}
+                  </p>
                 </div>
                 <div className="rounded-md border border-emerald-400/30 bg-emerald-500/10 px-2 py-1.5">
                   <p className="text-white/70">Successful</p>
-                  <p className="text-lg font-semibold text-white">{Number(overview.data?.runs?.completed ?? 0)}</p>
+                  <p className="text-lg font-semibold text-white">
+                    {overview.isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : Number(overview.data?.runs?.completed ?? 0)}
+                  </p>
                 </div>
                 <div className="rounded-md border border-rose-400/30 bg-rose-500/10 px-2 py-1.5">
                   <p className="text-white/70">Error</p>
-                  <p className="text-lg font-semibold text-white">{Number(overview.data?.runs?.error ?? 0)}</p>
+                  <p className="text-lg font-semibold text-white">
+                    {overview.isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : Number(overview.data?.runs?.error ?? 0)}
+                  </p>
                 </div>
               </div>
               <p className="mt-1 text-[11px] text-white/70">
                 ready {overview.data?.queue?.messages_ready ?? 0}, unacked {overview.data?.queue?.messages_unacknowledged ?? 0}
               </p>
             </div>
-            <MetricCard label="Workers" value={overview.data?.workers?.online ?? 0} hint="Active worker heartbeat" />
+            <MetricCard
+              label="Workers"
+              value={overview.data?.workers?.online ?? 0}
+              hint="Active worker heartbeat"
+              isLoading={overview.isLoading}
+            />
             <MetricCard
               label="Discovery Categories"
               value={overview.data?.discovery_categories?.new ?? overview.data?.discovery?.new ?? 0}
               hint={`new categories (approved ${overview.data?.discovery_categories?.promoted ?? overview.data?.discovery?.promoted ?? 0})`}
+              isLoading={overview.isLoading}
             />
             <MetricCard
               label="Discovery Products"
               value={overview.data?.discovery_products?.total ?? 0}
               hint={`global catalog total (window new: ${itemsTrend.data?.totals?.items_new ?? 0})`}
+              isLoading={overview.isLoading}
             />
           </div>
 
@@ -1295,14 +1322,35 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
             </button>
           </div>
           <div className="mt-2 grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-            <MetricCard label="Active sources" value={schedulerStats.data?.summary?.active_sources ?? 0} hint="Participating in schedule" />
-            <MetricCard label="Due now" value={schedulerStats.data?.summary?.due_now ?? 0} hint="Should be scheduled now" />
-            <MetricCard label="Overdue 15m" value={schedulerStats.data?.summary?.overdue_15m ?? 0} hint="Potential scheduler lag" />
-            <MetricCard label="Next hour" value={schedulerStats.data?.summary?.scheduled_next_hour ?? 0} hint="Upcoming by schedule" />
+            <MetricCard
+              label="Active sources"
+              value={schedulerStats.data?.summary?.active_sources ?? 0}
+              hint="Participating in schedule"
+              isLoading={schedulerStats.isLoading}
+            />
+            <MetricCard
+              label="Due now"
+              value={schedulerStats.data?.summary?.due_now ?? 0}
+              hint="Should be scheduled now"
+              isLoading={schedulerStats.isLoading}
+            />
+            <MetricCard
+              label="Overdue 15m"
+              value={schedulerStats.data?.summary?.overdue_15m ?? 0}
+              hint="Potential scheduler lag"
+              isLoading={schedulerStats.isLoading}
+            />
+            <MetricCard
+              label="Next hour"
+              value={schedulerStats.data?.summary?.scheduled_next_hour ?? 0}
+              hint="Upcoming by schedule"
+              isLoading={schedulerStats.isLoading}
+            />
             <MetricCard
               label="Scheduler state"
               value={schedulerStats.data?.summary?.scheduler_paused ? "Paused" : "Running"}
               hint={`disabled sources ${schedulerStats.data?.summary?.paused_sources ?? 0}`}
+              isLoading={schedulerStats.isLoading}
             />
           </div>
 
