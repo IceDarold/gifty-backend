@@ -655,6 +655,102 @@ func (c *Client) OpsRunsLatest(ctx context.Context) ([]map[string]interface{}, e
 	return c.latestStateList(ctx, "ops_runs_latest")
 }
 
+func (c *Client) OpsDiscoveryCountsBySite(ctx context.Context) (map[string]map[string]uint64, error) {
+	q := `
+		SELECT
+			site_key,
+			JSONExtractString(payload_json, 'state') AS state,
+			count() AS cnt
+		FROM ops_discovery_latest FINAL
+		WHERE deleted = 0
+		GROUP BY site_key, state
+	`
+	rows, err := c.conn.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]map[string]uint64{}
+	for rows.Next() {
+		var siteKey, state string
+		var cnt uint64
+		if err := rows.Scan(&siteKey, &state, &cnt); err != nil {
+			return nil, err
+		}
+		if siteKey == "" {
+			continue
+		}
+		if _, ok := out[siteKey]; !ok {
+			out[siteKey] = map[string]uint64{}
+		}
+		out[siteKey][state] = cnt
+	}
+	return out, nil
+}
+
+func (c *Client) ProductsCountBySite(ctx context.Context) (map[string]uint64, error) {
+	q := `
+		SELECT
+			JSONExtractString(payload_json, 'site_key') AS site_key,
+			count() AS cnt
+		FROM products_latest FINAL
+		WHERE deleted = 0
+		GROUP BY site_key
+	`
+	rows, err := c.conn.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]uint64{}
+	for rows.Next() {
+		var siteKey string
+		var cnt uint64
+		if err := rows.Scan(&siteKey, &cnt); err != nil {
+			return nil, err
+		}
+		if siteKey == "" {
+			continue
+		}
+		out[siteKey] = cnt
+	}
+	return out, nil
+}
+
+func (c *Client) OpsRunCountsBySource(ctx context.Context) (map[int]map[string]uint64, error) {
+	q := `
+		SELECT
+			source_id,
+			JSONExtractString(payload_json, 'status') AS status,
+			count() AS cnt
+		FROM ops_runs_latest FINAL
+		WHERE deleted = 0
+		GROUP BY source_id, status
+	`
+	rows, err := c.conn.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int]map[string]uint64{}
+	for rows.Next() {
+		var sourceID int
+		var status string
+		var cnt uint64
+		if err := rows.Scan(&sourceID, &status, &cnt); err != nil {
+			return nil, err
+		}
+		if sourceID == 0 {
+			continue
+		}
+		if _, ok := out[sourceID]; !ok {
+			out[sourceID] = map[string]uint64{}
+		}
+		out[sourceID][status] = cnt
+	}
+	return out, nil
+}
+
 func (c *Client) ProductsLatest(ctx context.Context, limit, offset int, search, merchant string) (items []map[string]interface{}, total int, err error) {
 	q := "SELECT payload_json FROM products_latest FINAL WHERE deleted = 0"
 	args := []interface{}{}

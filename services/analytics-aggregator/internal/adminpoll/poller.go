@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -136,8 +137,18 @@ func (p *Poller) pollOps(ctx context.Context) {
 		if overview, err := p.ch.OpsOverview(ctx); err == nil {
 			p.publish("ops.overview", overview)
 		}
+		var (
+			discoveryCounts map[string]map[string]uint64
+			productCounts   map[string]uint64
+			runCounts       map[int]map[string]uint64
+		)
+		discoveryCounts, _ = p.ch.OpsDiscoveryCountsBySite(ctx)
+		productCounts, _ = p.ch.ProductsCountBySite(ctx)
+		runCounts, _ = p.ch.OpsRunCountsBySource(ctx)
 		if sites, err := p.ch.OpsSitesLatest(ctx); err == nil {
-			p.publish("ops.sites", map[string]interface{}{"items": dedupeSitesByKey(sites)})
+			sites = dedupeSitesByKey(sites)
+			enrichOpsSiteCounters(sites, discoveryCounts, productCounts, runCounts)
+			publishOpsSites(p, sites)
 		}
 		if pipeline, err := p.ch.SnapshotData(ctx, "ops.pipeline"); err == nil {
 			p.publish("ops.pipeline", pipeline)
@@ -278,6 +289,84 @@ func filterByStatus(items []map[string]interface{}, statuses ...string) []map[st
 		}
 	}
 	return out
+}
+
+func publishOpsSites(p *Poller, sites []map[string]interface{}) {
+	p.publish("ops.sites", map[string]interface{}{"items": sites})
+}
+
+func enrichOpsSiteCounters(
+	sites []map[string]interface{},
+	discoveryCounts map[string]map[string]uint64,
+	productCounts map[string]uint64,
+	runCounts map[int]map[string]uint64,
+) {
+	for _, site := range sites {
+		if site == nil {
+			continue
+		}
+		siteKey := fmt.Sprintf("%v", site["site_key"])
+		sourceID := toInt(site["id"])
+		discovered := discoveryCounts[siteKey]
+		newCnt := uint64(0)
+		promotedCnt := uint64(0)
+		rejectedCnt := uint64(0)
+		inactiveCnt := uint64(0)
+		totalCnt := uint64(0)
+		for state, cnt := range discovered {
+			switch state {
+			case "new":
+				newCnt += cnt
+			case "promoted":
+				promotedCnt += cnt
+			case "rejected":
+				rejectedCnt += cnt
+			case "inactive":
+				inactiveCnt += cnt
+			default:
+				totalCnt += cnt
+			}
+			totalCnt += cnt
+		}
+		runs := runCounts[sourceID]
+		queued := uint64(0)
+		running := uint64(0)
+		for status, cnt := range runs {
+			switch status {
+			case "queued", "pending":
+				queued += cnt
+			case "processing", "running", "active":
+				running += cnt
+			}
+		}
+		counters := map[string]interface{}{
+			"discovered_total":    totalCnt,
+			"discovered_new":      newCnt,
+			"discovered_promoted": promotedCnt,
+			"discovered_rejected": rejectedCnt,
+			"discovered_inactive": inactiveCnt,
+			"products_total":      productCounts[siteKey],
+			"queued":              queued,
+			"running":             running,
+		}
+		site["counters"] = counters
+	}
+}
+
+func toInt(v interface{}) int {
+	switch n := v.(type) {
+	case int:
+		return n
+	case int64:
+		return int(n)
+	case float64:
+		return int(n)
+	case string:
+		if i, err := strconv.Atoi(n); err == nil {
+			return i
+		}
+	}
+	return 0
 }
 
 func dedupeSitesByKey(items []map[string]interface{}) []map[string]interface{} {
