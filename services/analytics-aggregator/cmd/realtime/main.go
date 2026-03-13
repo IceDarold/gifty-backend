@@ -48,9 +48,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("ephemeral consumer init failed: %v", err)
 	}
+	stateConsumer, err := nats.NewStateEphemeral(cfg.NATSURL, cfg.NATSStateSubject, resolver, store, dedup.New(cfg.DedupTTL), hub)
+	if err != nil {
+		log.Fatalf("state ephemeral consumer init failed: %v", err)
+	}
 	go func() {
 		if err := consumer.Run(ctx); err != nil {
 			log.Printf("ephemeral consumer stopped: %v", err)
+		}
+	}()
+	go func() {
+		if err := stateConsumer.Run(ctx); err != nil {
+			log.Printf("state ephemeral consumer stopped: %v", err)
 		}
 	}()
 

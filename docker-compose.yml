@@ -120,6 +120,9 @@ services:
       NATS_STREAM: "AN_EVENTS"
       NATS_SUBJECT: "analytics.events.v1.>"
       NATS_DURABLE: "AGG_WRITER_V1"
+      NATS_STATE_STREAM: "${NATS_STATE_STREAM:-STATE_EVENTS}"
+      NATS_STATE_SUBJECT: "${NATS_STATE_SUBJECT:-state.events.v1.>}"
+      NATS_STATE_DURABLE: "${NATS_STATE_DURABLE:-STATE_WRITER_V1}"
       CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
       ANALYTICS_SCHEMA_PATH: "/app/contracts/analytics/event-envelope.v1.json"
       ANALYTICS_FLUSH_SECONDS: "${ANALYTICS_FLUSH_SECONDS:-60}"
@@ -156,6 +159,9 @@ services:
       NATS_STREAM: "AN_EVENTS"
       NATS_SUBJECT: "analytics.events.v1.>"
       NATS_DURABLE: "AGG_WRITER_V1"
+      NATS_STATE_STREAM: "${NATS_STATE_STREAM:-STATE_EVENTS}"
+      NATS_STATE_SUBJECT: "${NATS_STATE_SUBJECT:-state.events.v1.>}"
+      NATS_STATE_DURABLE: "${NATS_STATE_DURABLE:-STATE_WRITER_V1}"
       CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
       ANALYTICS_SCHEMA_PATH: "/app/contracts/analytics/event-envelope.v1.json"
       ANALYTICS_FLUSH_SECONDS: "${ANALYTICS_FLUSH_SECONDS:-60}"
@@ -342,6 +348,45 @@ services:
       - redis
       - rabbitmq
     restart: always
+
+  pg-ch-bootstrap:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    working_dir: /app
+    command: bash -lc "PYTHONPATH=/app python scripts/run_pg_ch_bootstrap.py"
+    env_file: .env
+    volumes:
+      - .:/app
+    environment:
+      CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      clickhouse:
+        condition: service_healthy
+
+  outbox-publisher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    working_dir: /app
+    command: bash -lc "PYTHONPATH=/app python scripts/run_outbox_publisher.py"
+    env_file: .env
+    volumes:
+      - .:/app
+    environment:
+      NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      OUTBOX_PUBLISH_INTERVAL_SECONDS: "${OUTBOX_PUBLISH_INTERVAL_SECONDS:-2}"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+
 volumes:
   pgdata:
   redisdata:

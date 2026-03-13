@@ -38,12 +38,14 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if id == "" {
 			return nil, false, nil
 		}
-		sources, err := r.snapshotData(ctx, "dashboard.sources")
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			parsed, _ := strconv.Atoi(id)
+			item, err := r.ch.SourceLatest(ctx, parsed)
+			if err == nil {
+				return item, true, nil
+			}
 		}
-		item := findByID(sources, id)
-		return item, true, nil
+		return nil, true, nil
 	case strings.HasPrefix(channel, "dashboard.source_products:"):
 		id := strings.TrimPrefix(channel, "dashboard.source_products:")
 		if id == "" {
@@ -59,27 +61,32 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if id == "" {
 			return nil, false, nil
 		}
-		subscribers, err := r.snapshotData(ctx, "settings.subscribers")
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			parsed, _ := strconv.Atoi(id)
+			item, err := r.ch.SubscriberLatest(ctx, parsed)
+			if err == nil {
+				return item, true, nil
+			}
 		}
-		item := findByID(subscribers, id)
-		if item == nil {
-			return nil, true, nil
-		}
-		return item, true, nil
+		return nil, true, nil
 	case strings.HasPrefix(channel, "ops.run_detail:"):
 		id := strings.TrimPrefix(channel, "ops.run_detail:")
 		if id == "" {
 			return nil, false, nil
 		}
-		details, err := r.snapshotData(ctx, "ops.run_details")
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		runs, err := r.ch.OpsRunsLatest(ctx)
 		if err != nil {
 			return nil, false, err
 		}
-		return findInMap(details, id), true, nil
+		return findByID(runs, id), true, nil
 	case channel == "ops.sites":
-		out, err := r.snapshotData(ctx, "ops.sites")
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		out, err := r.ch.OpsSitesLatest(ctx)
 		if err != nil {
 			return nil, false, err
 		}
@@ -89,7 +96,15 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if !ok || id <= 0 {
 			return nil, false, nil
 		}
-		items, err := r.snapshotData(ctx, "ops.discovery")
+		var (
+			items interface{}
+			err   error
+		)
+		if r.ch != nil {
+			items, err = r.ch.OpsDiscoveryLatest(ctx)
+		} else {
+			items, err = r.snapshotData(ctx, "ops.discovery")
+		}
 		if err != nil {
 			return nil, false, err
 		}
@@ -174,6 +189,24 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 			return nil, false, err
 		}
 		return map[string]interface{}{"items": items}, true, nil
+	case channel == "settings.subscribers":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		items, err := r.ch.SubscribersLatest(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		return items, true, nil
+	case channel == "frontend.runtime_state":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		item, err := r.ch.SettingsRuntimeEntryLatest(ctx, "frontend_runtime_state")
+		if err != nil {
+			return nil, false, err
+		}
+		return item, true, nil
 	case channel == "catalog.categories":
 		limit, offset, search := parsePaging(params)
 		sources, err := r.snapshotData(ctx, "dashboard.sources")

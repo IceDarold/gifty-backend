@@ -12,7 +12,10 @@ type Config struct {
 	NATSURL          string
 	NATSStream       string
 	NATSSubject      string
+	NATSStateStream  string
+	NATSStateSubject string
 	NATSDurable      string
+	NATSStateDurable string
 	ClickHouseDSN    string
 	SchemaPath       string
 	FlushInterval    time.Duration
@@ -37,7 +40,10 @@ func Load() Config {
 		NATSURL:          env("NATS_URL", "nats://nats:4222"),
 		NATSStream:       env("NATS_STREAM", "AN_EVENTS"),
 		NATSSubject:      env("NATS_SUBJECT", "analytics.events.v1.>"),
+		NATSStateStream:  env("NATS_STATE_STREAM", "STATE_EVENTS"),
+		NATSStateSubject: env("NATS_STATE_SUBJECT", "state.events.v1.>"),
 		NATSDurable:      env("NATS_DURABLE", "AGG_WRITER_V1"),
+		NATSStateDurable: env("NATS_STATE_DURABLE", "STATE_WRITER_V1"),
 		ClickHouseDSN:    env("CLICKHOUSE_DSN", "clickhouse://default:@clickhouse:9000/default"),
 		SchemaPath:       env("ANALYTICS_SCHEMA_PATH", "/app/contracts/analytics/event-envelope.v1.json"),
 		FlushInterval:    time.Duration(flushSec) * time.Second,

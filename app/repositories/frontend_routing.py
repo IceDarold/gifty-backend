@@ -15,6 +15,7 @@ from app.models import (
     FrontendRule,
     FrontendRuntimeState,
 )
+from app.outbox import enqueue_outbox_event
 
 
 class FrontendRoutingRepository:
@@ -40,6 +41,8 @@ class FrontendRoutingRepository:
             after=after,
         )
         self.session.add(row)
+        await self.session.flush()
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_audit_log", aggregate_id=str(row.id), event_type="frontend.audit_log.created", payload={"id": row.id, "actor_id": actor_id, "action": action, "entity_type": entity_type, "entity_id": entity_id, "before": before, "after": after, "created_at": row.created_at.isoformat() if row.created_at else None})
         return row
 
     async def list_apps(self) -> Sequence[FrontendApp]:
@@ -55,6 +58,7 @@ class FrontendRoutingRepository:
         self.session.add(row)
         await self.session.flush()
         await self._audit(actor_id=actor_id, action="create", entity_type="frontend_app", entity_id=str(row.id), after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_app", aggregate_id=str(row.id), event_type="frontend.app.created", payload={"id": row.id, "key": row.key, "name": row.name, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -67,6 +71,7 @@ class FrontendRoutingRepository:
         for key, value in payload.items():
             setattr(row, key, value)
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_app", entity_id=str(row.id), before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_app", aggregate_id=str(row.id), event_type="frontend.app.updated", payload={"id": row.id, "key": row.key, "name": row.name, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -78,6 +83,7 @@ class FrontendRoutingRepository:
         before = {"id": row.id, "key": row.key, "name": row.name, "is_active": row.is_active}
         await self.session.delete(row)
         await self._audit(actor_id=actor_id, action="delete", entity_type="frontend_app", entity_id=str(app_id), before=before)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_app", aggregate_id=str(app_id), event_type="frontend.app.deleted", payload=before)
         await self.session.commit()
         return True
 
@@ -98,6 +104,7 @@ class FrontendRoutingRepository:
         self.session.add(row)
         await self.session.flush()
         await self._audit(actor_id=actor_id, action="create", entity_type="frontend_release", entity_id=str(row.id), after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_release", aggregate_id=str(row.id), event_type="frontend.release.created", payload={"id": row.id, "app_id": row.app_id, "version": row.version, "target_url": row.target_url, "status": row.status, "health_status": row.health_status, "flags": row.flags})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -116,6 +123,7 @@ class FrontendRoutingRepository:
         for key, value in payload.items():
             setattr(row, key, value)
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_release", entity_id=str(row.id), before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_release", aggregate_id=str(row.id), event_type="frontend.release.updated", payload={"id": row.id, "app_id": row.app_id, "version": row.version, "target_url": row.target_url, "status": row.status, "health_status": row.health_status, "flags": row.flags})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -149,6 +157,7 @@ class FrontendRoutingRepository:
         self.session.add(row)
         await self.session.flush()
         await self._audit(actor_id=actor_id, action="create", entity_type="frontend_profile", entity_id=str(row.id), after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_profile", aggregate_id=str(row.id), event_type="frontend.profile.created", payload={"id": row.id, "key": row.key, "name": row.name, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -161,6 +170,7 @@ class FrontendRoutingRepository:
         for key, value in payload.items():
             setattr(row, key, value)
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_profile", entity_id=str(row.id), before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_profile", aggregate_id=str(row.id), event_type="frontend.profile.updated", payload={"id": row.id, "key": row.key, "name": row.name, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -182,6 +192,7 @@ class FrontendRoutingRepository:
         self.session.add(row)
         await self.session.flush()
         await self._audit(actor_id=actor_id, action="create", entity_type="frontend_rule", entity_id=str(row.id), after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_rule", aggregate_id=str(row.id), event_type="frontend.rule.created", payload={"id": row.id, "profile_id": row.profile_id, "priority": row.priority, "host_pattern": row.host_pattern, "path_pattern": row.path_pattern, "query_conditions": row.query_conditions, "target_release_id": row.target_release_id, "flags_override": row.flags_override, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -202,6 +213,7 @@ class FrontendRoutingRepository:
         for key, value in payload.items():
             setattr(row, key, value)
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_rule", entity_id=str(row.id), before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_rule", aggregate_id=str(row.id), event_type="frontend.rule.updated", payload={"id": row.id, "profile_id": row.profile_id, "priority": row.priority, "host_pattern": row.host_pattern, "path_pattern": row.path_pattern, "query_conditions": row.query_conditions, "target_release_id": row.target_release_id, "flags_override": row.flags_override, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -249,6 +261,7 @@ class FrontendRoutingRepository:
         state.updated_at = datetime.now(timezone.utc)
 
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_runtime_state", entity_id="1", before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_runtime_state", aggregate_id="1", event_type="frontend.runtime_state.updated", payload={"id": state.id, "active_profile_id": state.active_profile_id, "fallback_release_id": state.fallback_release_id, "sticky_enabled": state.sticky_enabled, "sticky_ttl_seconds": state.sticky_ttl_seconds, "cache_ttl_seconds": state.cache_ttl_seconds, "updated_by": state.updated_by, "updated_at": state.updated_at.isoformat() if state.updated_at else None})
         await self.session.commit()
         await self.session.refresh(state)
         return state
@@ -277,6 +290,7 @@ class FrontendRoutingRepository:
         self.session.add(row)
         await self.session.flush()
         await self._audit(actor_id=actor_id, action="create", entity_type="frontend_allowed_host", entity_id=str(row.id), after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_allowed_host", aggregate_id=str(row.id), event_type="frontend.allowed_host.created", payload={"id": row.id, "host": row.host, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row
@@ -292,6 +306,7 @@ class FrontendRoutingRepository:
         for key, value in payload.items():
             setattr(row, key, value)
         await self._audit(actor_id=actor_id, action="update", entity_type="frontend_allowed_host", entity_id=str(row.id), before=before, after=payload)
+        await enqueue_outbox_event(self.session, aggregate_type="frontend_allowed_host", aggregate_id=str(row.id), event_type="frontend.allowed_host.updated", payload={"id": row.id, "host": row.host, "is_active": row.is_active})
         await self.session.commit()
         await self.session.refresh(row)
         return row

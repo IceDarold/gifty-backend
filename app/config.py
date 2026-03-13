@@ -113,6 +113,8 @@ class Settings(BaseSettings):
     analytics_events_enabled: bool = Field(True, alias="ANALYTICS_EVENTS_ENABLED")
     analytics_events_timeout_ms: int = Field(2000, alias="ANALYTICS_EVENTS_TIMEOUT_MS")
     analytics_events_subject_prefix: str = Field("analytics.events.v1", alias="ANALYTICS_EVENTS_SUBJECT_PREFIX")
+    outbox_publish_interval_seconds: int = Field(2, alias="OUTBOX_PUBLISH_INTERVAL_SECONDS")
+    clickhouse_dsn: str = Field("clickhouse://analytics:analytics@clickhouse:9000/default", alias="CLICKHOUSE_DSN")
     admin_snapshot_interval_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_INTERVAL_SECONDS")
     admin_snapshot_dashboard_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_DASHBOARD_SECONDS")
     admin_snapshot_ops_seconds: int = Field(30, alias="ADMIN_SNAPSHOT_OPS_SECONDS")

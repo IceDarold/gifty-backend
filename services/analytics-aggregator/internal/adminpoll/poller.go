@@ -111,7 +111,7 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 		if scraping, err := p.ch.SnapshotData(ctx, "dashboard.scraping"); err == nil {
 			p.publish("dashboard.scraping", scraping)
 		}
-		if sources, err := p.ch.SnapshotData(ctx, "dashboard.sources"); err == nil {
+		if sources, err := p.ch.SourcesLatest(ctx); err == nil {
 			p.publish("dashboard.sources", sources)
 		}
 		if backlog, err := p.ch.SnapshotData(ctx, "dashboard.discovered_categories"); err == nil {
@@ -136,7 +136,7 @@ func (p *Poller) pollOps(ctx context.Context) {
 		if overview, err := p.ch.OpsOverview(ctx); err == nil {
 			p.publish("ops.overview", overview)
 		}
-		if sites, err := p.ch.SnapshotData(ctx, "ops.sites"); err == nil {
+		if sites, err := p.ch.OpsSitesLatest(ctx); err == nil {
 			p.publish("ops.sites", sites)
 		}
 		if pipeline, err := p.ch.SnapshotData(ctx, "ops.pipeline"); err == nil {
@@ -145,23 +145,15 @@ func (p *Poller) pollOps(ctx context.Context) {
 		if scheduler, err := p.ch.SnapshotData(ctx, "ops.scheduler_stats"); err == nil {
 			p.publish("ops.scheduler_stats", scheduler)
 		}
-		if discovery, err := p.ch.SnapshotData(ctx, "ops.discovery"); err == nil {
+		if discovery, err := p.ch.OpsDiscoveryLatest(ctx); err == nil {
 			p.publish("ops.discovery", discovery)
 		}
-		if active, err := p.ch.SnapshotData(ctx, "ops.runs.active"); err == nil {
-			p.publish("ops.runs.active", active)
-		}
-		if queued, err := p.ch.SnapshotData(ctx, "ops.runs.queued"); err == nil {
-			p.publish("ops.runs.queued", queued)
-		}
-		if completed, err := p.ch.SnapshotData(ctx, "ops.runs.completed"); err == nil {
-			p.publish("ops.runs.completed", completed)
-		}
-		if errors, err := p.ch.SnapshotData(ctx, "ops.runs.error"); err == nil {
-			p.publish("ops.runs.error", errors)
-		}
-		if details, err := p.ch.SnapshotData(ctx, "ops.run_details"); err == nil {
-			p.publish("ops.run_details", details)
+		if runs, err := p.ch.OpsRunsLatest(ctx); err == nil {
+			p.publish("ops.run_details", runs)
+			p.publish("ops.runs.active", filterByStatus(runs, "processing", "running", "active"))
+			p.publish("ops.runs.queued", filterByStatus(runs, "queued", "pending"))
+			p.publish("ops.runs.completed", filterByStatus(runs, "completed", "success"))
+			p.publish("ops.runs.error", filterByStatus(runs, "error", "failed"))
 		}
 	}
 
@@ -185,31 +177,34 @@ func (p *Poller) pollCatalog(ctx context.Context) {
 
 func (p *Poller) pollSettings(ctx context.Context) {
 	if p.ch != nil {
-		if runtime, err := p.ch.SnapshotData(ctx, "settings.runtime"); err == nil {
+		if runtime, err := p.ch.SettingsRuntimeLatest(ctx); err == nil {
 			p.publish("settings.runtime", runtime)
+		}
+		if subscribers, err := p.ch.SubscribersLatest(ctx); err == nil {
+			p.publish("settings.subscribers", subscribers)
 		}
 		if merchants, err := p.ch.SnapshotData(ctx, "settings.merchants"); err == nil {
 			p.publish("settings.merchants", merchants)
 		}
-		if apps, err := p.ch.SnapshotData(ctx, "frontend.apps"); err == nil {
+		if apps, err := p.ch.FrontendAppsLatest(ctx); err == nil {
 			p.publish("frontend.apps", apps)
 		}
-		if releases, err := p.ch.SnapshotData(ctx, "frontend.releases"); err == nil {
+		if releases, err := p.ch.FrontendReleasesLatest(ctx); err == nil {
 			p.publish("frontend.releases", releases)
 		}
-		if profiles, err := p.ch.SnapshotData(ctx, "frontend.profiles"); err == nil {
+		if profiles, err := p.ch.FrontendProfilesLatest(ctx); err == nil {
 			p.publish("frontend.profiles", profiles)
 		}
-		if rules, err := p.ch.SnapshotData(ctx, "frontend.rules"); err == nil {
+		if rules, err := p.ch.FrontendRulesLatest(ctx); err == nil {
 			p.publish("frontend.rules", rules)
 		}
-		if runtimeState, err := p.ch.SnapshotData(ctx, "frontend.runtime_state"); err == nil {
+		if runtimeState, err := p.ch.SettingsRuntimeEntryLatest(ctx, "frontend_runtime_state"); err == nil && runtimeState != nil {
 			p.publish("frontend.runtime_state", runtimeState)
 		}
-		if allowedHosts, err := p.ch.SnapshotData(ctx, "frontend.allowed_hosts"); err == nil {
+		if allowedHosts, err := p.ch.FrontendAllowedHostsLatest(ctx); err == nil {
 			p.publish("frontend.allowed_hosts", allowedHosts)
 		}
-		if audit, err := p.ch.SnapshotData(ctx, "frontend.audit_log"); err == nil {
+		if audit, err := p.ch.FrontendAuditLogLatest(ctx); err == nil {
 			p.publish("frontend.audit_log", audit)
 		}
 	}
@@ -260,4 +255,19 @@ func (p *Poller) pollLogs(ctx context.Context) {
 			p.publish("logs.services", services)
 		}
 	}
+}
+
+func filterByStatus(items []map[string]interface{}, statuses ...string) []map[string]interface{} {
+	allowed := map[string]bool{}
+	for _, s := range statuses {
+		allowed[s] = true
+	}
+	out := make([]map[string]interface{}, 0)
+	for _, item := range items {
+		status, _ := item["status"].(string)
+		if allowed[status] {
+			out = append(out, item)
+		}
+	}
+	return out
 }

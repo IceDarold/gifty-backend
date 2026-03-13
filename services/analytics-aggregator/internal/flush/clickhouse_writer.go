@@ -113,6 +113,55 @@ func (w *Writer) FlushBuckets(ctx context.Context, buckets map[state.BucketKey]s
 	return batch.Send()
 }
 
+type StateEventRow struct {
+	EventID       string
+	AggregateType string
+	AggregateID   string
+	EventType     string
+	PayloadJSON   string
+	OccurredAt    time.Time
+	Version       uint64
+	Operation     string
+	Source        string
+}
+
+func (w *Writer) InsertStateEvents(ctx context.Context, rows []StateEventRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	batch, err := w.conn.PrepareBatch(ctx, `
+		INSERT INTO state_events_raw
+		(event_id, aggregate_type, aggregate_id, event_type, payload_json, occurred_at, version, op, source)
+		VALUES
+	`)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if err := batch.Append(r.EventID, r.AggregateType, r.AggregateID, r.EventType, r.PayloadJSON, r.OccurredAt, r.Version, r.Operation, r.Source); err != nil {
+			return err
+		}
+	}
+	return batch.Send()
+}
+
+func (w *Writer) UpsertLatestState(ctx context.Context, table string, keyCols []string, rows [][]interface{}) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	query := "INSERT INTO " + table + " (" + strings.Join(keyCols, ", ") + ") VALUES"
+	batch, err := w.conn.PrepareBatch(ctx, query)
+	if err != nil {
+		return err
+	}
+	for _, row := range rows {
+		if err := batch.Append(row...); err != nil {
+			return err
+		}
+	}
+	return batch.Send()
+}
+
 type EventRow struct {
 	EventID     string
 	OccurredAt  time.Time

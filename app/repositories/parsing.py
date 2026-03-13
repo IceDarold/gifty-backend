@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import ParsingSource, CategoryMap, ParsingRun, ParsingHub, DiscoveredCategory
+from app.outbox import enqueue_outbox_event
 
 logger = logging.getLogger(__name__)
 
@@ -623,6 +624,9 @@ class ParsingRepository:
             error_message=error_message,
         )
         self.session.add(run)
+        await self.session.flush()
+        await enqueue_outbox_event(self.session, aggregate_type="ops_run", aggregate_id=str(run.id), event_type="ops.run.created", payload={"id": run.id, "source_id": run.source_id, "status": run.status, "items_scraped": run.items_scraped, "items_new": run.items_new, "error_message": run.error_message, "duration_seconds": run.duration_seconds, "logs": run.logs, "created_at": run.created_at.isoformat() if run.created_at else None, "updated_at": run.updated_at.isoformat() if run.updated_at else None})
+        await enqueue_outbox_event(self.session, aggregate_type="ops_run", aggregate_id=str(run.id), event_type="ops.run.updated", payload={"id": run.id, "source_id": run.source_id, "status": run.status, "items_scraped": run.items_scraped, "items_new": run.items_new, "error_message": run.error_message, "duration_seconds": run.duration_seconds, "logs": run.logs, "created_at": run.created_at.isoformat() if run.created_at else None, "updated_at": run.updated_at.isoformat() if run.updated_at else None})
         await self.session.commit()
         await self.session.refresh(run)
         return run
@@ -648,6 +652,8 @@ class ParsingRepository:
             logs=logs,
         )
         self.session.add(run)
+        await self.session.flush()
+        await enqueue_outbox_event(self.session, aggregate_type="ops_run", aggregate_id=str(run.id), event_type="ops.run.created", payload={"id": run.id, "source_id": run.source_id, "status": run.status, "items_scraped": run.items_scraped, "items_new": run.items_new, "error_message": run.error_message, "duration_seconds": run.duration_seconds, "logs": run.logs, "created_at": run.created_at.isoformat() if run.created_at else None, "updated_at": run.updated_at.isoformat() if run.updated_at else None})
         await self.session.commit()
         await self.session.refresh(run)
         return run

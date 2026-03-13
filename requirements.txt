@@ -41,3 +41,5 @@ opentelemetry-instrumentation-requests>=0.48b0
 opentelemetry-instrumentation-httpx>=0.48b0
 
 nats-py>=2.7.2
+
+clickhouse-driver>=0.2.9

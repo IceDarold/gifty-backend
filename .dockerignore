@@ -10,3 +10,11 @@ exp/
 *.log
 Dockerfile
 .dockerignore
+apps/admin-tma/.next
+apps/admin-tma/test-results
+apps/admin-tma/playwright-report
+apps/admin-tma/node_modules
+output
+reports
+test-results
+.pytest_cache

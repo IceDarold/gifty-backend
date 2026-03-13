@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "contracts/state-events/protocol.json",
+  "type": "object",
+  "required": ["event_id", "aggregate_type", "aggregate_id", "event_type", "operation", "version", "occurred_at", "payload", "headers"],
+  "properties": {
+    "event_id": {"type": "string", "minLength": 1},
+    "aggregate_type": {"type": "string", "minLength": 1},
+    "aggregate_id": {"type": "string", "minLength": 1},
+    "event_type": {"type": "string", "pattern": "^[a-z0-9_.:-]+$"},
+    "operation": {"type": "string", "enum": ["created", "updated", "deleted"]},
+    "version": {"type": "integer", "minimum": 1},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object"},
+    "headers": {"type": "object"}
+  },
+  "additionalProperties": false
+}

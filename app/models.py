@@ -746,3 +746,18 @@ class OpsRuntimeState(Base):
     ops_client_intervals: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
     updated_by: Mapped[Optional[int]] = mapped_column(sa.BigInteger, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), onupdate=func.now())
+
+
+class OutboxEvent(Base):
+    __tablename__ = "outbox_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(PG_UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    aggregate_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    aggregate_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    event_type: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    payload_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    headers_json: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default='{}')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now(), index=True)
+    published_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+    attempts: Mapped[int] = mapped_column(sa.Integer, nullable=False, server_default='0')
+    last_error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

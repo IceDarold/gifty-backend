@@ -552,3 +552,105 @@ func (c *Client) SnapshotData(ctx context.Context, channel string) (interface{},
 }
 
 // removed duplicate breakdown/throughput helpers
+
+type latestRow struct {
+	payload string
+}
+
+func (c *Client) latestStateList(ctx context.Context, table string) ([]map[string]interface{}, error) {
+	q := "SELECT payload_json FROM " + table + " FINAL WHERE deleted = 0 ORDER BY version DESC"
+	rows, err := c.conn.Query(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
+func (c *Client) latestStateOne(ctx context.Context, table string, where string, arg interface{}) (map[string]interface{}, error) {
+	q := "SELECT payload_json FROM " + table + " FINAL WHERE deleted = 0 AND " + where + " ORDER BY version DESC LIMIT 1"
+	var payload string
+	if err := c.conn.QueryRow(ctx, q, arg).Scan(&payload); err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	var item map[string]interface{}
+	if err := json.Unmarshal([]byte(payload), &item); err != nil {
+		return nil, err
+	}
+	return item, nil
+}
+
+func (c *Client) SourcesLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "sources_latest")
+}
+
+func (c *Client) SourceLatest(ctx context.Context, id int) (map[string]interface{}, error) {
+	return c.latestStateOne(ctx, "sources_latest", "source_id = ?", id)
+}
+
+func (c *Client) SubscribersLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "subscribers_latest")
+}
+
+func (c *Client) SubscriberLatest(ctx context.Context, id int) (map[string]interface{}, error) {
+	return c.latestStateOne(ctx, "subscribers_latest", "subscriber_id = ?", id)
+}
+
+func (c *Client) SettingsRuntimeLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "settings_runtime_latest")
+}
+
+func (c *Client) FrontendAppsLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_apps_latest")
+}
+
+func (c *Client) FrontendReleasesLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_releases_latest")
+}
+
+func (c *Client) FrontendProfilesLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_profiles_latest")
+}
+
+func (c *Client) FrontendRulesLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_rules_latest")
+}
+
+func (c *Client) FrontendAllowedHostsLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_allowed_hosts_latest")
+}
+
+func (c *Client) SettingsRuntimeEntryLatest(ctx context.Context, key string) (map[string]interface{}, error) {
+	return c.latestStateOne(ctx, "settings_runtime_latest", "setting_key = ?", key)
+}
+
+func (c *Client) FrontendAuditLogLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "frontend_audit_log_latest")
+}
+
+func (c *Client) OpsSitesLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "sources_latest")
+}
+
+func (c *Client) OpsDiscoveryLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "ops_discovery_latest")
+}
+
+func (c *Client) OpsRunsLatest(ctx context.Context) ([]map[string]interface{}, error) {
+	return c.latestStateList(ctx, "ops_runs_latest")
+}

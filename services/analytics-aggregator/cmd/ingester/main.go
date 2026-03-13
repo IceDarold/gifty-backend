@@ -27,9 +27,18 @@ func main() {
 	if err != nil {
 		log.Fatalf("ingester init failed: %v", err)
 	}
+	stateIngester, err := ingest.NewState(cfg.NATSURL, cfg.NATSStateStream, cfg.NATSStateSubject, cfg.NATSStateDurable, dedup.New(cfg.DedupTTL), writer)
+	if err != nil {
+		log.Fatalf("state ingester init failed: %v", err)
+	}
 	ctx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 	log.Println("analytics-ingester started")
+	go func() {
+		if err := stateIngester.Run(ctx, cfg.FlushInterval); err != nil {
+			log.Printf("state ingester stopped: %v", err)
+		}
+	}()
 	if err := ingester.Run(ctx, cfg.FlushInterval); err != nil {
 		log.Printf("ingester stopped: %v", err)
 	}

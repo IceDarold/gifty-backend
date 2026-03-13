@@ -25,6 +25,7 @@ from app.models import ParsingSource, ParsingRun, DiscoveredCategory, ParsingHub
 from app.models import ProductCategoryLink
 from app.services.loki_logs import LokiLogsClient, build_logql_query
 from app.analytics_events.emitters import emit_event
+from app.outbox import enqueue_outbox_event
 
 router = APIRouter(prefix="/api/v1/internal", tags=["internal"])
 settings = get_settings()
