@@ -104,7 +104,18 @@ export function useOperationsData(initialSiteKey?: string) {
         const res = await request("ops.runs.queued", { limit, offset });
         const items = Array.isArray(res?.items) ? res.items : [];
         const resTotal = Number.isFinite(Number(res?.total)) ? Number(res?.total) : undefined;
+        const streamItems = Array.isArray(queuedRunsStream.data?.items) ? queuedRunsStream.data.items : [];
         setQueuedState((prev) => {
+          if (!append && items.length === 0 && streamItems.length > 0) {
+            return {
+              items: streamItems,
+              total: Number(resTotal ?? streamItems.length),
+              isLoading: false,
+              isFetchingNextPage: false,
+              hasMore: Number(resTotal ?? streamItems.length) > streamItems.length,
+              error: null,
+            };
+          }
           const merged = append ? [...prev.items, ...items] : items;
           const total = resTotal ?? (append ? prev.total : merged.length);
           const hasMore = total > merged.length;
@@ -127,7 +138,7 @@ export function useOperationsData(initialSiteKey?: string) {
         }));
       }
     },
-    [request],
+    [request, queuedRunsStream.data?.items],
   );
 
   useEffect(() => {
@@ -190,8 +201,29 @@ export function useOperationsData(initialSiteKey?: string) {
     if (runDetailsRequest.data) {
       return runDetailsRequest.data;
     }
+    const fallbackRuns = [
+      ...(queuedRuns.data?.items || []),
+      ...(activeRuns.data?.items || []),
+      ...(completedRuns.data?.items || []),
+      ...(errorRuns.data?.items || []),
+    ];
+    const fallback = fallbackRuns.find((run: any) => {
+      const id = run?.run_id ?? run?.id;
+      return String(id) === String(selectedRunId);
+    });
+    if (fallback) {
+      return { item: fallback };
+    }
     return null;
-  }, [runDetailsMap.data, runDetailsRequest.data, selectedRunId]);
+  }, [
+    runDetailsMap.data,
+    runDetailsRequest.data,
+    selectedRunId,
+    queuedRuns.data?.items,
+    activeRuns.data?.items,
+    completedRuns.data?.items,
+    errorRuns.data?.items,
+  ]);
 
   const discoveryData = useMemo(() => {
     const items = Array.isArray(discoveryRaw.data?.items) ? discoveryRaw.data.items : [];

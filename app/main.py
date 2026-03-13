@@ -46,16 +46,10 @@ async def lifespan(app: FastAPI):
         try:
             from app.jobs.pg_ch_backfill import run_auto as run_backfill_auto
 
-            await run_backfill_auto(["llm_logs"], int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"))
-        except Exception:
-            # Backfill shouldn't block API startup
-            pass
-
-    if settings.backfill_autorun:
-        try:
-            from app.jobs.pg_ch_backfill import run_auto as run_backfill_auto
-
-            await run_backfill_auto(["llm_logs"], int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"))
+            await run_backfill_auto(
+                ["llm_logs", "ops_runs"],
+                int(os.getenv("BACKFILL_BATCH_SIZE", "1000") or "1000"),
+            )
         except Exception:
             # Backfill shouldn't block API startup
             pass

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 from typing import Optional, List, Sequence, Any
@@ -97,8 +97,10 @@ class ParsingRepository:
         source = result.scalar_one_or_none()
         
         if source:
-            source.last_synced_at = func.now()
-            source.next_sync_at = datetime.now() + timedelta(hours=source.refresh_interval_hours)
+            # Use concrete timestamps to avoid SQLAlchemy clause objects in payload serialization.
+            now = datetime.now(timezone.utc)
+            source.last_synced_at = now
+            source.next_sync_at = now + timedelta(hours=source.refresh_interval_hours)
             source.status = "waiting"
             if source.config is None:
                 source.config = {}
