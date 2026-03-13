@@ -125,6 +125,25 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 			p.publish("dashboard.queue", queue)
 		}
 	}
+	if p.cfg.AdminAPIBase != "" {
+		var health map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/health", &health); err == nil && health != nil {
+			p.publish("dashboard.health", health)
+			p.publish("health.status", health)
+		}
+		var scraping map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/analytics/scraping", &scraping); err == nil && scraping != nil {
+			p.publish("dashboard.scraping", scraping)
+		}
+		var workers []map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/workers", &workers); err == nil && workers != nil {
+			p.publish("dashboard.workers", workers)
+		}
+		var queue map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/queues/stats", &queue); err == nil && queue != nil {
+			p.publish("dashboard.queue", queue)
+		}
+	}
 	if p.ch != nil {
 		if chTrends, err := p.ch.DashboardTrends(ctx, 7); err == nil {
 			p.publish("dashboard.trends", chTrends)
@@ -322,6 +341,19 @@ func (p *Poller) pollLogs(ctx context.Context) {
 			}
 		}
 		if services, err := p.ch.SnapshotData(ctx, "logs.services"); err == nil {
+			p.publish("logs.services", services)
+		}
+	}
+	if p.cfg.AdminAPIBase != "" {
+		var snap map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/logs/query?limit=200&since_seconds=300", &snap); err == nil && snap != nil {
+			p.publish("logs.snapshot", snap)
+			if p.cfg.LogsTailEnabled {
+				p.publish("logs.tail", snap)
+			}
+		}
+		var services map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/logs/services", &services); err == nil && services != nil {
 			p.publish("logs.services", services)
 		}
 	}
