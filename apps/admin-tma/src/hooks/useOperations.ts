@@ -9,7 +9,7 @@ import {
   runOpsSiteDiscovery,
   retryOpsRun,
 } from "@/lib/api";
-import { useAdminChannelQuery } from "@/hooks/useAdminStreamQuery";
+import { useAdminChannelQuery, useAdminRequestQuery } from "@/hooks/useAdminStreamQuery";
 import { useAdminRequest } from "@/contexts/AdminStreamContext";
 
 const MAX_BACKOFF_MS = 30000;
