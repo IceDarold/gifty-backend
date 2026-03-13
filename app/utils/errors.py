@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import traceback
 from typing import Any, Optional
 
 from fastapi import FastAPI, HTTPException, Request
@@ -11,6 +12,58 @@ from starlette import status
 from app.analytics_events.emitters import emit_event
 
 logger = logging.getLogger(__name__)
+
+SENSITIVE_KEYS = {"password", "pass", "secret", "token", "api_key", "apikey", "authorization", "auth"}
+
+
+def _redact(value: Any) -> Any:
+    if isinstance(value, dict):
+        return {k: ("<redacted>" if k.lower() in SENSITIVE_KEYS else _redact(v)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact(v) for v in value]
+    return value
+
+
+def _safe_truncate(text: str, limit: int = 2000) -> str:
+    if text is None:
+        return ""
+    text = str(text)
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+async def _extract_request_context(request: Request) -> dict[str, Any]:
+    ctx: dict[str, Any] = {
+        "path": str(request.url.path),
+        "method": request.method,
+        "query": str(request.url.query),
+        "client": request.client.host if request.client else None,
+    }
+    # Redact potentially sensitive headers.
+    headers = {}
+    for key, value in request.headers.items():
+        if key.lower() in SENSITIVE_KEYS:
+            headers[key] = "<redacted>"
+        else:
+            headers[key] = value
+    ctx["headers"] = headers
+
+    # Best-effort body capture (bounded).
+    body: str | dict[str, Any] | None = None
+    try:
+        raw = await request.body()
+        if raw:
+            try:
+                body_json = await request.json()
+                body = _redact(body_json)
+            except Exception:
+                body = _safe_truncate(raw.decode("utf-8", errors="replace"))
+    except Exception:
+        body = None
+    if body is not None:
+        ctx["body"] = body
+    return ctx
 
 
 class ErrorPayload(BaseModel):
@@ -138,14 +191,17 @@ def install_exception_handlers(app: FastAPI) -> None:
         try:
             from app.services.notifications import get_notification_service
             notifier = get_notification_service()
+            req_ctx = await _extract_request_context(request)
+            tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+            tb_tail = _safe_truncate("".join(tb[-6:]), 2000)
             await notifier.notify(
                 topic="system_error",
-                message=f"CRITICAL: Unhandled exception in {request.url.path}",
+                message=f"CRITICAL: Unhandled exception in {request.url.path}: {type(exc).__name__}: {str(exc)}",
                 data={
-                    "path": str(request.url.path),
-                    "method": request.method,
+                    **req_ctx,
                     "error": f"{type(exc).__name__}: {str(exc)}",
-                    "status": "500"
+                    "traceback": tb_tail,
+                    "status": "500",
                 }
             )
         except Exception as notify_err:
