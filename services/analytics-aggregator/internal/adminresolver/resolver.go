@@ -307,6 +307,11 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if err != nil {
 			return nil, false, err
 		}
+		if search == "" && merchant == "" {
+			if totalAll, err := r.ch.ProductsTotalAll(ctx); err == nil && totalAll > 0 {
+				total = int(totalAll)
+			}
+		}
 		return map[string]interface{}{
 			"items": items,
 			"total": total,

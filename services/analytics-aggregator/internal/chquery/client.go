@@ -716,6 +716,19 @@ func (c *Client) ProductsCountBySite(ctx context.Context) (map[string]uint64, er
 	return out, nil
 }
 
+func (c *Client) ProductsTotalAll(ctx context.Context) (uint64, error) {
+	q := `
+		SELECT
+			sum(cnt) AS total
+		FROM products_count_by_site
+	`
+	var total uint64
+	if err := c.conn.QueryRow(ctx, q).Scan(&total); err != nil {
+		return 0, err
+	}
+	return total, nil
+}
+
 func (c *Client) OpsRunCountsBySource(ctx context.Context) (map[int]map[string]uint64, error) {
 	q := `
 		SELECT
