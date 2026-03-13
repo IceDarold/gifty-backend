@@ -137,7 +137,7 @@ func (p *Poller) pollOps(ctx context.Context) {
 			p.publish("ops.overview", overview)
 		}
 		if sites, err := p.ch.OpsSitesLatest(ctx); err == nil {
-			p.publish("ops.sites", sites)
+			p.publish("ops.sites", map[string]interface{}{"items": sites})
 		}
 		if pipeline, err := p.ch.SnapshotData(ctx, "ops.pipeline"); err == nil {
 			p.publish("ops.pipeline", pipeline)
@@ -146,10 +146,21 @@ func (p *Poller) pollOps(ctx context.Context) {
 			p.publish("ops.scheduler_stats", scheduler)
 		}
 		if discovery, err := p.ch.OpsDiscoveryLatest(ctx); err == nil {
-			p.publish("ops.discovery", discovery)
+			p.publish("ops.discovery", map[string]interface{}{"items": discovery})
 		}
 		if runs, err := p.ch.OpsRunsLatest(ctx); err == nil {
-			p.publish("ops.run_details", runs)
+			details := map[string]interface{}{}
+			for _, run := range runs {
+				if run == nil {
+					continue
+				}
+				id := fmt.Sprintf("%v", run["id"])
+				if id == "" {
+					continue
+				}
+				details[id] = run
+			}
+			p.publish("ops.run_details", details)
 			p.publish("ops.runs.active", filterByStatus(runs, "processing"))
 			p.publish("ops.runs.queued", filterByStatus(runs, "queued", "pending"))
 			p.publish("ops.runs.completed", filterByStatus(runs, "completed"))
