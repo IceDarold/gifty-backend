@@ -3,6 +3,7 @@ package ws
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strings"
 	"sync"
@@ -25,8 +26,10 @@ type Handler struct {
 }
 
 type wsClient struct {
-	conn *websocket.Conn
-	mu   sync.Mutex
+	conn      *websocket.Conn
+	send      chan []byte
+	mu        sync.Mutex
+	closeOnce sync.Once
 }
 
 type ChannelResolver interface {
@@ -34,17 +37,37 @@ type ChannelResolver interface {
 }
 
 func (c *wsClient) Send(msg []byte) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	_ = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
-	return c.conn.WriteMessage(websocket.TextMessage, msg)
+	select {
+	case c.send <- msg:
+		return nil
+	default:
+		return fmt.Errorf("send buffer full")
+	}
 }
 
 func (c *wsClient) Close(code int, text string) error {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, text), time.Now().Add(time.Second))
-	return c.conn.Close()
+	var err error
+	c.closeOnce.Do(func() {
+		c.mu.Lock()
+		defer c.mu.Unlock()
+		_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, text), time.Now().Add(time.Second))
+		err = c.conn.Close()
+		close(c.send)
+	})
+	return err
+}
+
+func (c *wsClient) runWriter() {
+	for msg := range c.send {
+		c.mu.Lock()
+		_ = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
+		err := c.conn.WriteMessage(websocket.TextMessage, msg)
+		c.mu.Unlock()
+		if err != nil {
+			_ = c.Close(4008, "slow consumer")
+			return
+		}
+	}
 }
 
 func NewHandler(hub *Hub, store SnapshotProvider, token string, resolver ChannelResolver) *Handler {
@@ -78,8 +101,9 @@ func (h *Handler) ServeWS(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
-	client := &wsClient{conn: conn}
+	client := &wsClient{conn: conn, send: make(chan []byte, 256)}
 	h.hub.Register(client)
+	go client.runWriter()
 	defer h.hub.Unregister(client)
 	defer conn.Close()
 
