@@ -175,6 +175,24 @@ type EventRow struct {
 	Version     uint64
 }
 
+type LLMCallRow struct {
+	EventID          string
+	CreatedAt        time.Time
+	Provider         string
+	Model            string
+	CallType         string
+	Status           string
+	LatencyMS        float64
+	TotalTokens      uint64
+	PromptTokens     uint64
+	CompletionTokens uint64
+	CostUSD          float64
+	SessionID        string
+	PromptHash       string
+	PayloadJSON      string
+	Version          uint64
+}
+
 func (w *Writer) InsertEvents(ctx context.Context, rows []EventRow) error {
 	if len(rows) == 0 {
 		return nil
@@ -215,6 +233,42 @@ func (w *Writer) InsertEvents(ctx context.Context, rows []EventRow) error {
 		return err
 	}
 	return w.UpdateSyncStateEvent(ctx, "analytics-events", maxOccurred, maxEventID)
+}
+
+func (w *Writer) InsertLLMCalls(ctx context.Context, rows []LLMCallRow) error {
+	if len(rows) == 0 {
+		return nil
+	}
+	batch, err := w.conn.PrepareBatch(ctx, `
+		INSERT INTO llm_calls
+		(event_id, created_at, provider, model, call_type, status, latency_ms, total_tokens, prompt_tokens, completion_tokens, cost_usd, session_id, prompt_hash, payload_json, version)
+		VALUES
+	`)
+	if err != nil {
+		return err
+	}
+	for _, r := range rows {
+		if err := batch.Append(
+			r.EventID,
+			r.CreatedAt,
+			r.Provider,
+			r.Model,
+			r.CallType,
+			r.Status,
+			r.LatencyMS,
+			r.TotalTokens,
+			r.PromptTokens,
+			r.CompletionTokens,
+			r.CostUSD,
+			r.SessionID,
+			r.PromptHash,
+			r.PayloadJSON,
+			r.Version,
+		); err != nil {
+			return err
+		}
+	}
+	return batch.Send()
 }
 
 func (w *Writer) UpdateSyncStateEvent(ctx context.Context, syncName string, occurredAt time.Time, eventID string) error {
