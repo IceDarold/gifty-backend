@@ -32,6 +32,8 @@ services:
       OTEL_EXPORTER_OTLP_ENDPOINT: "${OTEL_EXPORTER_OTLP_ENDPOINT:-http://otel-collector:4317}"
       OTEL_SERVICE_NAME: "${OTEL_SERVICE_NAME:-gifty-api}"
       NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      PROMETHEUS_PUSHGATEWAY: "${PROMETHEUS_PUSHGATEWAY:-http://prometheus-pushgateway:9091}"
+      BACKFILL_METRICS_JOB: "${BACKFILL_METRICS_JOB:-pg_ch_backfill}"
 
   postgres:
     image: pgvector/pgvector:pg17
@@ -343,6 +345,8 @@ services:
     environment:
       CLICKHOUSE_DSN: "${CLICKHOUSE_DSN:-clickhouse://analytics:analytics@clickhouse:9000/default}"
       NATS_URL: "${NATS_URL:-nats://nats:4222}"
+      PROMETHEUS_PUSHGATEWAY: "${PROMETHEUS_PUSHGATEWAY:-http://prometheus-pushgateway:9091}"
+      BACKFILL_METRICS_JOB: "${BACKFILL_METRICS_JOB:-pg_ch_backfill}"
     depends_on:
       postgres:
         condition: service_healthy
