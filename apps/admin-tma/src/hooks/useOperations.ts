@@ -33,7 +33,7 @@ export function useOperationsData(initialSiteKey?: string) {
     selectedRunRef.current = selectedRunId;
   }, [selectedRunId]);
 
-  const overview = useAdminChannelQuery<any>("ops.overview");
+  const overview = useAdminChannelQuery<any>("ops.overview", { requireFresh: true });
   const sites = useAdminChannelQuery<any>("ops.sites");
   const pipelineMap = useAdminChannelQuery<any>("ops.pipeline");
   const activeRuns = useAdminChannelQuery<any>("ops.runs.active");

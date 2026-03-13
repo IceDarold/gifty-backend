@@ -11,17 +11,23 @@ export type StreamQuery<T> = {
   refetch: () => Promise<void>;
 };
 
-export function useAdminChannelQuery<T = any>(channel: string): StreamQuery<T> {
+export function useAdminChannelQuery<T = any>(
+  channel: string,
+  options?: { requireFresh?: boolean },
+): StreamQuery<T> {
   const { data, connected } = useAdminChannel<T>(channel);
+  const requireFresh = options?.requireFresh ?? false;
+  const isStale = !!(data && typeof data === "object" && (data as any).stale);
+  const effectiveData = requireFresh && isStale ? undefined : data;
   return useMemo(
     () => ({
-      data,
-      isLoading: !connected && data === undefined,
+      data: effectiveData,
+      isLoading: (!connected && effectiveData === undefined) || (requireFresh && isStale),
       isError: false,
       error: null,
       refetch: async () => {},
     }),
-    [connected, data],
+    [connected, effectiveData, requireFresh, isStale],
   );
 }
 
