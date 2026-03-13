@@ -127,6 +127,17 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 			return map[string]interface{}{"item": nil}, true, nil
 		}
 		return map[string]interface{}{"item": item}, true, nil
+	case channel == "ops.runs.queued":
+		limit, offset, _ := parsePaging(params)
+		if r.cfg.AdminAPIBase == "" {
+			return nil, false, fmt.Errorf("admin api not configured")
+		}
+		var payload map[string]interface{}
+		path := fmt.Sprintf("/api/v1/internal/ops/runs/queued?limit=%d&offset=%d", limit, offset)
+		if err := r.getJSON(ctx, path, &payload); err != nil {
+			return nil, false, err
+		}
+		return payload, true, nil
 	case channel == "ops.sites":
 		if r.ch == nil {
 			return nil, false, fmt.Errorf("clickhouse not configured")

@@ -466,8 +466,13 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     if (sitesVisibleCount >= filteredSites.length) return;
     setSitesVisibleCount((prev) => Math.min(filteredSites.length, prev + SITES_PAGE_SIZE));
   };
-  const handleLaneScroll = (_laneKey: string) => (_event: UIEvent<HTMLDivElement>) => {
-    return;
+  const handleLaneScroll = (laneKey: string) => (event: UIEvent<HTMLDivElement>) => {
+    if (laneKey !== "queued") return;
+    const node = event.currentTarget;
+    const nearBottom = node.scrollHeight - node.scrollTop - node.clientHeight < 80;
+    if (!nearBottom) return;
+    if (!queuedRuns.hasNextPage || queuedRuns.isFetchingNextPage) return;
+    void queuedRuns.fetchNextPage?.();
   };
 
   const upsertNotification = (next: { id: string; status: "running" | "success" | "error"; title: string; message: string }) => {
