@@ -49,7 +49,9 @@ class IngestionService:
             return 0
 
         # Fetch source config for custom normalization
-        source = await self.parsing_repo.get_source(source_id)
+        source = None
+        if source_id and int(source_id) > 0:
+            source = await self.parsing_repo.get_source(source_id)
         strip_params = DEFAULT_STRIP_PARAMS
         if source and source.config:
             custom_strip = source.config.get("strip_params")
@@ -118,19 +120,20 @@ class IngestionService:
                 run_id=int(run_id) if run_id else None,
             )
         
-        # 4. Update Source Stats
-        await self.parsing_repo.update_source_stats(source_id, {
-            "processed_items": len(products),
-            "new_items": count
-        })
-        
-        # 5. Log Run History
-        await self.parsing_repo.log_parsing_run(
-            source_id=source_id,
-            status="completed",
-            items_scraped=len(products),
-            items_new=count
-        )
+        # 4. Update Source Stats + Log Run History (only if source is valid).
+        if source and int(source_id) > 0:
+            await self.parsing_repo.update_source_stats(source_id, {
+                "processed_items": len(products),
+                "new_items": count
+            })
+            await self.parsing_repo.log_parsing_run(
+                source_id=source_id,
+                status="completed",
+                items_scraped=len(products),
+                items_new=count
+            )
+        else:
+            logger.warning("Skipping run stats for source_id=%s (source not found)", source_id)
         
         await self.db.commit()
         return count
