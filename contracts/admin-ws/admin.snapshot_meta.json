@@ -1,9 +1,0 @@
-{
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "admin.snapshot_meta",
-  "type": [
-    "object",
-    "null"
-  ],
-  "additionalProperties": true
-}
