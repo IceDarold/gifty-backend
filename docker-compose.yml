@@ -132,7 +132,7 @@ services:
       ANALYTICS_REHYDRATE_MINUTES: "${ANALYTICS_REHYDRATE_MINUTES:-180}"
       LIVE_ANALYTICS_WS_TOKEN: "${LIVE_ANALYTICS_WS_TOKEN:-dev-live-analytics-token}"
       INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-default_internal_token}"
-      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://host.docker.internal:8000}"
+      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://api:8000}"
       ADMIN_WS_POLL_DASHBOARD_SECONDS: "${ADMIN_WS_POLL_DASHBOARD_SECONDS:-30}"
       ADMIN_WS_POLL_OPS_SECONDS: "${ADMIN_WS_POLL_OPS_SECONDS:-30}"
       ADMIN_WS_POLL_CATALOG_SECONDS: "${ADMIN_WS_POLL_CATALOG_SECONDS:-60}"
@@ -173,7 +173,7 @@ services:
       ANALYTICS_REHYDRATE_MINUTES: "${ANALYTICS_REHYDRATE_MINUTES:-180}"
       LIVE_ANALYTICS_WS_TOKEN: "${LIVE_ANALYTICS_WS_TOKEN:-dev-live-analytics-token}"
       INTERNAL_API_TOKEN: "${INTERNAL_API_TOKEN:-default_internal_token}"
-      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://host.docker.internal:8000}"
+      ADMIN_WS_API_BASE: "${ADMIN_WS_API_BASE:-http://api:8000}"
     volumes:
       - .:/app
     extra_hosts:
