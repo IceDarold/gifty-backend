@@ -1,24 +1,37 @@
 "use client";
 
 import React from "react";
-import { Activity, Database, Layers, Server } from "lucide-react";
+import { Activity, Database, Layers, Server, Loader2 } from "lucide-react";
 
 type HealthViewProps = {
   health?: any;
   workers?: any[];
   queue?: any;
+  isLoading?: boolean;
 };
 
-function Chip({ label, value, testId }: { label: string; value?: string; testId?: string }) {
+function Chip({
+  label,
+  value,
+  testId,
+  isLoading,
+}: {
+  label: string;
+  value?: string;
+  testId?: string;
+  isLoading?: boolean;
+}) {
   return (
     <div className="rounded-xl border border-white/12 bg-white/[0.03] px-3 py-2" data-testid={testId}>
       <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--tg-theme-hint-color)]">{label}</div>
-      <div className="mt-0.5 text-sm font-bold text-white/90">{value ?? "—"}</div>
+      <div className="mt-0.5 text-sm font-bold text-white/90">
+        {isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : value ?? "—"}
+      </div>
     </div>
   );
 }
 
-export function HealthView({ health, workers, queue }: HealthViewProps) {
+export function HealthView({ health, workers, queue, isLoading }: HealthViewProps) {
   const apiStatus = health?.api?.status ?? health?.api_status ?? "Unknown";
   const apiLatency = health?.api?.latency ?? health?.api_latency_ms ? `${health.api_latency_ms}ms` : undefined;
 
@@ -40,29 +53,41 @@ export function HealthView({ health, workers, queue }: HealthViewProps) {
             <h2 className="font-black text-lg">System Health</h2>
           </div>
           <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--tg-theme-hint-color)]">
-            workers: {workerCount} • queue: {Number(queueTotal) || 0}
+            workers: {isLoading ? "…" : workerCount} • queue: {isLoading ? "…" : Number(queueTotal) || 0}
           </div>
         </div>
 
         <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <Chip label="API" value={`${apiStatus}${apiLatency ? ` · ${apiLatency}` : ""}`} testId="health-api" />
-          <Chip label="Database" value={`${dbStatus}${dbEngine ? ` · ${dbEngine}` : ""}`} testId="health-db" />
-          <Chip label="Redis" value={`${redisStatus}${redisMem ? ` · ${redisMem}` : ""}`} testId="health-redis" />
-          <Chip label="Queue" value={String(Number(queueTotal) || 0)} testId="health-queue" />
+          <Chip label="API" value={`${apiStatus}${apiLatency ? ` · ${apiLatency}` : ""}`} testId="health-api" isLoading={isLoading} />
+          <Chip label="Database" value={`${dbStatus}${dbEngine ? ` · ${dbEngine}` : ""}`} testId="health-db" isLoading={isLoading} />
+          <Chip label="Redis" value={`${redisStatus}${redisMem ? ` · ${redisMem}` : ""}`} testId="health-redis" isLoading={isLoading} />
+          <Chip label="Queue" value={String(Number(queueTotal) || 0)} testId="health-queue" isLoading={isLoading} />
         </div>
 
         <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
-          <MiniStat icon={<Server size={16} />} label="API" value={String(apiStatus)} testId="health-mini-api" />
-          <MiniStat icon={<Database size={16} />} label="DB" value={String(dbStatus)} testId="health-mini-db" />
-          <MiniStat icon={<Layers size={16} />} label="Redis" value={String(redisStatus)} testId="health-mini-redis" />
-          <MiniStat icon={<Activity size={16} />} label="Queue" value={String(Number(queueTotal) || 0)} testId="health-mini-queue" />
+          <MiniStat icon={<Server size={16} />} label="API" value={String(apiStatus)} testId="health-mini-api" isLoading={isLoading} />
+          <MiniStat icon={<Database size={16} />} label="DB" value={String(dbStatus)} testId="health-mini-db" isLoading={isLoading} />
+          <MiniStat icon={<Layers size={16} />} label="Redis" value={String(redisStatus)} testId="health-mini-redis" isLoading={isLoading} />
+          <MiniStat icon={<Activity size={16} />} label="Queue" value={String(Number(queueTotal) || 0)} testId="health-mini-queue" isLoading={isLoading} />
         </div>
       </div>
     </div>
   );
 }
 
-function MiniStat({ icon, label, value, testId }: { icon: React.ReactNode; label: string; value: string; testId?: string }) {
+function MiniStat({
+  icon,
+  label,
+  value,
+  testId,
+  isLoading,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  testId?: string;
+  isLoading?: boolean;
+}) {
   return (
     <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-3 flex items-center gap-2" data-testid={testId}>
       <div className="w-8 h-8 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-white/80">
@@ -70,7 +95,9 @@ function MiniStat({ icon, label, value, testId }: { icon: React.ReactNode; label
       </div>
       <div className="min-w-0">
         <div className="text-[10px] uppercase tracking-[0.14em] text-[var(--tg-theme-hint-color)]">{label}</div>
-        <div className="text-sm font-bold text-white/90 truncate">{value}</div>
+        <div className="text-sm font-bold text-white/90 truncate">
+          {isLoading ? <Loader2 size={14} className="animate-spin inline-block" /> : value}
+        </div>
       </div>
     </div>
   );

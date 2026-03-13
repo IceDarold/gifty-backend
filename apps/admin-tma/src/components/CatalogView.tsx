@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUpRight, ExternalLink, Package, RefreshCcw, Search } from "lucide-react";
+import { ArrowUpRight, ExternalLink, Package, RefreshCcw, Search, Loader2 } from "lucide-react";
 
 interface CatalogViewProps {
     data?: { items?: any[]; total?: number };
@@ -36,7 +36,9 @@ export function CatalogView({
             <div className="flex items-center justify-between">
                 <div>
                     <h2 className="text-lg font-bold">Global Catalog</h2>
-                    <p className="text-xs text-[var(--tg-theme-hint-color)]">{total.toLocaleString()} items</p>
+                    <p className="text-xs text-[var(--tg-theme-hint-color)]">
+                        {isLoading ? <Loader2 size={12} className="animate-spin inline-block" /> : `${total.toLocaleString()} items`}
+                    </p>
                 </div>
                 <div className="flex items-center gap-2">
                     {pendingNewItems > 0 ? (

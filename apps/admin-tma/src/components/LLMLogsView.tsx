@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useAdminRequestQuery } from "@/hooks/useAdminStreamQuery";
-import { BarChart3, Clock, Filter, RefreshCcw, X } from "lucide-react";
+import { BarChart3, Clock, Filter, RefreshCcw, X, Loader2 } from "lucide-react";
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
 import { ApiServerErrorBanner } from "@/components/ApiServerErrorBanner";
@@ -476,34 +476,45 @@ export function LLMLogsView() {
 	          <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
 	            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="llm-summary-requests">
 	              <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Requests</div>
-	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-requests-total">{formatNum(statsQuery.data?.total || 0)}</div>
+	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-requests-total">
+	                {statsQuery.isLoading ? <Loader2 size={16} className="animate-spin inline-block" /> : formatNum(statsQuery.data?.total || 0)}
+	              </div>
 	              <div className="text-[10px] text-[var(--tg-theme-hint-color)]" data-testid="llm-summary-requests-errors">
-	                errors: {formatNum(statsQuery.data?.errors || 0)} · rate: {((statsQuery.data?.error_rate || 0) * 100).toFixed(1)}%
+	                errors: {statsQuery.isLoading ? "…" : formatNum(statsQuery.data?.errors || 0)} · rate:{" "}
+	                {statsQuery.isLoading ? "…" : `${((statsQuery.data?.error_rate || 0) * 100).toFixed(1)}%`}
 	              </div>
                 <div className="mt-1 text-[10px] text-[var(--tg-theme-hint-color)]" data-testid="llm-summary-requests-missing">
-                  missing usage: {formatNum(statsQuery.data?.missing_usage_count || 0)} · req id: {formatNum(statsQuery.data?.missing_provider_request_id_count || 0)}
+                  missing usage: {statsQuery.isLoading ? "…" : formatNum(statsQuery.data?.missing_usage_count || 0)} · req id:{" "}
+                  {statsQuery.isLoading ? "…" : formatNum(statsQuery.data?.missing_provider_request_id_count || 0)}
                 </div>
 	            </div>
 	            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="llm-summary-cost">
 	              <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Cost</div>
-	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-cost-total">{formatMoney(statsQuery.data?.total_cost_usd || 0)}</div>
+	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-cost-total">
+	                {statsQuery.isLoading ? <Loader2 size={16} className="animate-spin inline-block" /> : formatMoney(statsQuery.data?.total_cost_usd || 0)}
+	              </div>
 	              <div className="text-[10px] text-[var(--tg-theme-hint-color)]" data-testid="llm-summary-cost-avg">
-	                avg: {formatMoney(statsQuery.data?.avg_cost_usd || 0)}
+	                avg: {statsQuery.isLoading ? "…" : formatMoney(statsQuery.data?.avg_cost_usd || 0)}
 	              </div>
 	            </div>
 	            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="llm-summary-latency">
 	              <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Latency</div>
-	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-latency-p95">{Math.round(Number(statsQuery.data?.p95_latency_ms || 0))}ms</div>
+	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-latency-p95">
+	                {statsQuery.isLoading ? <Loader2 size={16} className="animate-spin inline-block" /> : `${Math.round(Number(statsQuery.data?.p95_latency_ms || 0))}ms`}
+	              </div>
 	              <div className="text-[10px] text-[var(--tg-theme-hint-color)]" data-testid="llm-summary-latency-other">
-	                p50: {Math.round(Number(statsQuery.data?.p50_latency_ms || 0))}ms · avg: {Math.round(Number(statsQuery.data?.avg_latency_ms || 0))}ms
+	                p50: {statsQuery.isLoading ? "…" : `${Math.round(Number(statsQuery.data?.p50_latency_ms || 0))}ms`} · avg:{" "}
+	                {statsQuery.isLoading ? "…" : `${Math.round(Number(statsQuery.data?.avg_latency_ms || 0))}ms`}
 	              </div>
 	            </div>
 	            <div className="rounded-xl border border-white/10 bg-white/5 p-3" data-testid="llm-summary-tokens">
 	              <div className="text-[10px] uppercase tracking-wider text-[var(--tg-theme-hint-color)]">Tokens</div>
-	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-tokens-p95">{formatNum(Math.round(Number(statsQuery.data?.p95_total_tokens || 0)))}</div>
+	              <div className="mt-1 text-lg font-black" data-testid="llm-summary-tokens-p95">
+	                {statsQuery.isLoading ? <Loader2 size={16} className="animate-spin inline-block" /> : formatNum(Math.round(Number(statsQuery.data?.p95_total_tokens || 0)))}
+	              </div>
 	              <div className="text-[10px] text-[var(--tg-theme-hint-color)]" data-testid="llm-summary-tokens-other">
-	                p50: {formatNum(Math.round(Number(statsQuery.data?.p50_total_tokens || 0)))} · avg:{" "}
-	                {formatNum(Math.round(Number(statsQuery.data?.avg_total_tokens || 0)))}
+	                p50: {statsQuery.isLoading ? "…" : formatNum(Math.round(Number(statsQuery.data?.p50_total_tokens || 0)))} · avg:{" "}
+	                {statsQuery.isLoading ? "…" : formatNum(Math.round(Number(statsQuery.data?.avg_total_tokens || 0)))}
 	              </div>
 	            </div>
 	          </div>
@@ -683,34 +694,41 @@ export function LLMLogsView() {
             <div>
               <h3 className="text-sm font-bold">Requests throughput</h3>
               <p className="text-[10px] text-[var(--tg-theme-hint-color)]">
-                {chartData.length ? `${chartData.length} points` : "No data"}
+                {throughputQuery.isLoading ? "Loading..." : chartData.length ? `${chartData.length} points` : "No data"}
               </p>
             </div>
           </div>
         </div>
         <div className="h-52 -mx-2">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <defs>
-                <linearGradient id="llmCount" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#2481cc" stopOpacity={0.45} />
-                  <stop offset="100%" stopColor="#2481cc" stopOpacity={0.06} />
-                </linearGradient>
-              </defs>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
-              <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
-              <Tooltip
-                contentStyle={{
-                  background: "rgba(0,0,0,0.75)",
-                  border: "1px solid rgba(255,255,255,0.12)",
-                  borderRadius: 12,
-                }}
-                labelStyle={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}
-              />
-              <Area type="monotone" dataKey="count" stroke="#64b5ef" fill="url(#llmCount)" strokeWidth={2} />
-            </AreaChart>
-          </ResponsiveContainer>
+          {throughputQuery.isLoading ? (
+            <div className="flex h-full items-center justify-center text-sm text-white/75">
+              <Loader2 size={16} className="mr-2 animate-spin" />
+              Loading chart...
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={chartData}>
+                <defs>
+                  <linearGradient id="llmCount" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="#2481cc" stopOpacity={0.45} />
+                    <stop offset="100%" stopColor="#2481cc" stopOpacity={0.06} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
+                <XAxis dataKey="name" tick={{ fontSize: 10 }} interval="preserveStartEnd" />
+                <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                <Tooltip
+                  contentStyle={{
+                    background: "rgba(0,0,0,0.75)",
+                    border: "1px solid rgba(255,255,255,0.12)",
+                    borderRadius: 12,
+                  }}
+                  labelStyle={{ color: "rgba(255,255,255,0.8)", fontSize: 12 }}
+                />
+                <Area type="monotone" dataKey="count" stroke="#64b5ef" fill="url(#llmCount)" strokeWidth={2} />
+              </AreaChart>
+            </ResponsiveContainer>
+          )}
         </div>
       </div>
 

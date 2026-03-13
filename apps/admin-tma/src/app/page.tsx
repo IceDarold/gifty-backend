@@ -423,7 +423,12 @@ export default function Home() {
 									title="Health API временно недоступен"
 								/>
 							</div>
-							<HealthView health={health.data} workers={workers.data} queue={queue.data} />
+							<HealthView
+							  health={health.data}
+							  workers={workers.data}
+							  queue={queue.data}
+							  isLoading={health.isLoading || workers.isLoading || queue.isLoading}
+							/>
 						</>
 					);
 				case "settings":
