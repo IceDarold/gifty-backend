@@ -186,6 +186,9 @@ func (p *Poller) pollOps(ctx context.Context) {
 		var overviewResp map[string]interface{}
 		if err := p.getJSON(ctx, "/api/v1/internal/ops/overview", &overviewResp); err == nil && overviewResp != nil {
 			p.publish("ops.overview", overviewResp)
+			if queue, ok := overviewResp["queue"]; ok && queue != nil {
+				p.publish("dashboard.queue", queue)
+			}
 		}
 		var queuedResp struct {
 			Items []map[string]interface{} `json:"items"`
