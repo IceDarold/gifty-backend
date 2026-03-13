@@ -357,7 +357,7 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 			payload_json,
 			created_at
 		FROM llm_calls_search
-		WHERE deleted = 0 AND ` + where + `
+		WHERE ` + where + `
 		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
@@ -386,7 +386,7 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	countQuery := `
 		SELECT count()
 		FROM llm_calls_search
-		WHERE deleted = 0 AND ` + where + `
+		WHERE ` + where + `
 	`
 	var total uint64
 	if err := c.conn.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total); err != nil {
