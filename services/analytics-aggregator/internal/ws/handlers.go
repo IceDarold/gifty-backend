@@ -41,6 +41,8 @@ func (c *wsClient) Send(msg []byte) error {
 }
 
 func (c *wsClient) Close(code int, text string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	_ = c.conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(code, text), time.Now().Add(time.Second))
 	return c.conn.Close()
 }
