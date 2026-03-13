@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"analytics-aggregator/internal/state"
@@ -25,6 +26,7 @@ type Handler struct {
 
 type wsClient struct {
 	conn *websocket.Conn
+	mu   sync.Mutex
 }
 
 type ChannelResolver interface {
@@ -32,6 +34,8 @@ type ChannelResolver interface {
 }
 
 func (c *wsClient) Send(msg []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	_ = c.conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 	return c.conn.WriteMessage(websocket.TextMessage, msg)
 }
