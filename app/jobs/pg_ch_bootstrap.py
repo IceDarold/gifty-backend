@@ -167,12 +167,13 @@ async def run_bootstrap() -> None:
     if ops_state is not None:
         client.execute('INSERT INTO settings_runtime_latest (setting_key, payload_json, version, deleted) VALUES', [('ops_runtime_state', j({'id': ops_state.id, 'scheduler_paused': ops_state.scheduler_paused, 'settings_version': ops_state.settings_version, 'ops_aggregator_enabled': ops_state.ops_aggregator_enabled, 'ops_aggregator_interval_ms': ops_state.ops_aggregator_interval_ms, 'ops_snapshot_ttl_ms': ops_state.ops_snapshot_ttl_ms, 'ops_stale_max_age_ms': ops_state.ops_stale_max_age_ms, 'ops_client_intervals': ops_state.ops_client_intervals, 'updated_by': ops_state.updated_by, 'updated_at': ops_state.updated_at}), int(now.timestamp()), 0)])
 
-    if llm_logs:
-        llm_events = []
-        llm_metrics = []
-        for log in llm_logs:
-            created_at = getattr(log, 'created_at', now) or now
-            event_id = f"llm.log:{log.id}"
+        if llm_logs:
+            llm_events = []
+            llm_metrics = []
+            llm_calls = []
+            for log in llm_logs:
+                created_at = getattr(log, 'created_at', now) or now
+                event_id = f"llm.log:{log.id}"
             payload = {
                 'id': str(log.id),
                 'provider': log.provider,
@@ -277,6 +278,25 @@ async def run_bootstrap() -> None:
                     int(created_at.timestamp()),
                 ),
             ])
+            llm_calls.append(
+                (
+                    event_id,
+                    created_at,
+                    log.provider or "",
+                    log.model or "",
+                    log.call_type or "",
+                    log.status or "",
+                    float(log.latency_ms or 0),
+                    int(log.total_tokens or 0),
+                    int(log.prompt_tokens or 0),
+                    int(log.completion_tokens or 0),
+                    float(log.cost_usd or 0),
+                    log.session_id or "",
+                    log.prompt_hash or "",
+                    j(payload),
+                    int(created_at.timestamp()),
+                )
+            )
         if llm_events:
             client.execute(
                 'INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES',
@@ -286,6 +306,11 @@ async def run_bootstrap() -> None:
             client.execute(
                 'INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES',
                 llm_metrics,
+            )
+        if llm_calls:
+            client.execute(
+                'INSERT INTO llm_calls (event_id, created_at, provider, model, call_type, status, latency_ms, total_tokens, prompt_tokens, completion_tokens, cost_usd, session_id, prompt_hash, payload_json, version) VALUES',
+                llm_calls,
             )
 
     _upsert_sync_state(client, 'pg-ch-bootstrap')

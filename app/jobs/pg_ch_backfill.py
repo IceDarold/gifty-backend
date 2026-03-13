@@ -104,6 +104,7 @@ def _llm_log_rows(logs: Iterable[LLMLog]) -> Tuple[List[tuple], List[tuple]]:
     now = datetime.now(timezone.utc)
     events: List[tuple] = []
     metrics: List[tuple] = []
+    calls: List[tuple] = []
     for log in logs:
         created_at = getattr(log, "created_at", now) or now
         event_id = f"llm.log:{log.id}"
@@ -208,11 +209,30 @@ def _llm_log_rows(logs: Iterable[LLMLog]) -> Tuple[List[tuple], List[tuple]]:
                     dims,
                     "",
                     float(log.cost_usd or 0),
-                    int(created_at.timestamp()),
-                ),
-            ]
+                int(created_at.timestamp()),
+            ),
+        ]
         )
-    return events, metrics
+        calls.append(
+            (
+                event_id,
+                created_at,
+                log.provider or "",
+                log.model or "",
+                log.call_type or "",
+                log.status or "",
+                float(log.latency_ms or 0),
+                int(log.total_tokens or 0),
+                int(log.prompt_tokens or 0),
+                int(log.completion_tokens or 0),
+                float(log.cost_usd or 0),
+                log.session_id or "",
+                log.prompt_hash or "",
+                json.dumps(payload, default=str),
+                int(created_at.timestamp()),
+            )
+        )
+    return events, metrics, calls
 
 
 async def _backfill_llm_logs(session, client: Client, window_from: datetime, window_to: datetime, batch_size: int) -> int:
@@ -237,7 +257,7 @@ async def _backfill_llm_logs(session, client: Client, window_from: datetime, win
         logs = list(result.scalars().all())
         if not logs:
             break
-        events, metrics = _llm_log_rows(logs)
+        events, metrics, calls = _llm_log_rows(logs)
         if events:
             client.execute(
                 "INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES",
@@ -247,6 +267,11 @@ async def _backfill_llm_logs(session, client: Client, window_from: datetime, win
             client.execute(
                 "INSERT INTO analytics_events (event_id, occurred_at, event_type, metric, scope, scope_key, dims_json, payload_json, value, version) VALUES",
                 metrics,
+            )
+        if calls:
+            client.execute(
+                "INSERT INTO llm_calls (event_id, created_at, provider, model, call_type, status, latency_ms, total_tokens, prompt_tokens, completion_tokens, cost_usd, session_id, prompt_hash, payload_json, version) VALUES",
+                calls,
             )
         total += len(logs)
         last_created_at = logs[-1].created_at
