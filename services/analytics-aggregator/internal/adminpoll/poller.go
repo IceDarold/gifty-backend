@@ -286,6 +286,21 @@ func dedupeSitesByKey(items []map[string]interface{}) []map[string]interface{} {
 	}
 	out := make([]map[string]interface{}, 0, len(items))
 	index := map[string]int{}
+	hubByKey := map[string]interface{}{}
+	for _, item := range items {
+		if item == nil {
+			continue
+		}
+		if fmt.Sprintf("%v", item["type"]) == "hub" {
+			key := fmt.Sprintf("%v", item["site_key"])
+			if key == "" {
+				continue
+			}
+			if _, ok := hubByKey[key]; !ok {
+				hubByKey[key] = item["id"]
+			}
+		}
+	}
 	for _, item := range items {
 		if item == nil {
 			continue
@@ -294,6 +309,13 @@ func dedupeSitesByKey(items []map[string]interface{}) []map[string]interface{} {
 		if key == "" {
 			out = append(out, item)
 			continue
+		}
+		if item["runtime_hub_source_id"] == nil {
+			if fmt.Sprintf("%v", item["type"]) == "hub" {
+				item["runtime_hub_source_id"] = item["id"]
+			} else if hubID, ok := hubByKey[key]; ok {
+				item["runtime_hub_source_id"] = hubID
+			}
 		}
 		if idx, ok := index[key]; ok {
 			// Prefer hub entry if available.
