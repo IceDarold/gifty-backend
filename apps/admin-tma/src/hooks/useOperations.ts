@@ -63,6 +63,7 @@ export function useOperationsData(initialSiteKey?: string) {
     { id: selectedRunId },
     [selectedRunId],
   );
+  const queuedRunsStream = useAdminChannelQuery<any>("ops.runs.queued");
   const completedRuns = useAdminChannelQuery<any>("ops.runs.completed");
   const errorRuns = useAdminChannelQuery<any>("ops.runs.error");
   const schedulerStats = useAdminChannelQuery<any>("ops.scheduler_stats");
@@ -132,6 +133,26 @@ export function useOperationsData(initialSiteKey?: string) {
   useEffect(() => {
     void fetchQueuedPage(0, false);
   }, [fetchQueuedPage]);
+
+  useEffect(() => {
+    const streamItems = Array.isArray(queuedRunsStream.data?.items) ? queuedRunsStream.data.items : [];
+    if (!streamItems.length) return;
+    const streamTotalRaw = queuedRunsStream.data?.total ?? queuedRunsStream.data?.count;
+    const streamTotal = Number.isFinite(Number(streamTotalRaw)) ? Number(streamTotalRaw) : streamItems.length;
+    setQueuedState((prev) => {
+      if (prev.isFetchingNextPage) return prev;
+      if (prev.items.length > 0 && queuedPage > 0) return prev;
+      if (prev.items.length > 0 && prev.items.length >= streamItems.length) return prev;
+      return {
+        items: streamItems,
+        total: streamTotal,
+        isLoading: false,
+        isFetchingNextPage: false,
+        hasMore: streamTotal > streamItems.length,
+        error: prev.error,
+      };
+    });
+  }, [queuedRunsStream.data, queuedRunsStream.error, queuedPage]);
 
   const queuedRuns = useMemo(
     () => ({
