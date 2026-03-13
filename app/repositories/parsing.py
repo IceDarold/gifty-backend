@@ -18,6 +18,59 @@ class ParsingRepository:
         self.session = session
         self.redis = redis
 
+
+    def _source_payload(self, source: ParsingSource) -> dict:
+        return {
+            "id": source.id,
+            "site_key": source.site_key,
+            "url": source.url,
+            "status": source.status,
+            "is_active": source.is_active,
+            "type": source.type,
+            "strategy": source.strategy,
+            "priority": source.priority,
+            "refresh_interval_hours": source.refresh_interval_hours,
+            "last_synced_at": source.last_synced_at.isoformat() if source.last_synced_at else None,
+            "next_sync_at": source.next_sync_at.isoformat() if source.next_sync_at else None,
+            "category_id": source.category_id,
+            "config": source.config,
+            "updated_at": source.updated_at.isoformat() if getattr(source, "updated_at", None) else None,
+            "created_at": source.created_at.isoformat() if getattr(source, "created_at", None) else None,
+        }
+
+    async def _emit_source_event(self, source: ParsingSource, event_type: str = "source.updated") -> None:
+        await enqueue_outbox_event(
+            self.session,
+            aggregate_type="source",
+            aggregate_id=str(source.id),
+            event_type=event_type,
+            payload=self._source_payload(source),
+        )
+
+    def _category_payload(self, category: DiscoveredCategory) -> dict:
+        return {
+            "id": category.id,
+            "hub_id": category.hub_id,
+            "site_key": category.site_key,
+            "url": category.url,
+            "name": category.name,
+            "parent_url": category.parent_url,
+            "state": category.state,
+            "promoted_source_id": category.promoted_source_id,
+            "meta": category.meta,
+            "created_at": category.created_at.isoformat() if getattr(category, "created_at", None) else None,
+            "updated_at": category.updated_at.isoformat() if getattr(category, "updated_at", None) else None,
+        }
+
+    async def _emit_category_event(self, category: DiscoveredCategory, event_type: str = "category.updated") -> None:
+        await enqueue_outbox_event(
+            self.session,
+            aggregate_type="category",
+            aggregate_id=str(category.id),
+            event_type=event_type,
+            payload=self._category_payload(category),
+        )
+
     async def get_due_sources(self, limit: int = 10) -> Sequence[ParsingSource]:
         stmt = (
             select(ParsingSource)
@@ -52,7 +105,8 @@ class ParsingRepository:
             cfg = dict(source.config)
             cfg["last_stats"] = stats
             source.config = cfg
-            
+            await self._emit_source_event(source, "source.updated")
+
         await self.session.commit()
 
     async def set_queued(self, source_id: int):
@@ -67,7 +121,11 @@ class ParsingRepository:
             )
         )
         await self.session.execute(stmt)
+        source = (await self.session.execute(select(ParsingSource).where(ParsingSource.id == source_id))).scalar_one_or_none()
+        if source:
+            await self._emit_source_event(source, "source.updated")
         await self.session.commit()
+
 
     async def get_or_create_category_maps(self, names: List[str]) -> List[CategoryMap]:
         if not names:
@@ -159,10 +217,14 @@ class ParsingRepository:
             for key, value in data.items():
                 if hasattr(source, key):
                     setattr(source, key, value)
+            await self.session.flush()
+            await self._emit_source_event(source, "source.updated")
         else:
             source = ParsingSource(**data)
             self.session.add(source)
-            
+            await self.session.flush()
+            await self._emit_source_event(source, "source.created")
+
         await self.session.commit()
         await self.session.refresh(source)
         return source
@@ -196,6 +258,7 @@ class ParsingRepository:
                 changed = True
             if changed:
                 await self.session.flush()
+                await self._emit_category_event(existing, "category.updated")
             return existing
 
         cat = DiscoveredCategory(
@@ -207,6 +270,7 @@ class ParsingRepository:
         )
         self.session.add(cat)
         await self.session.flush()
+        await self._emit_category_event(cat, "category.created")
         return cat
 
     async def get_source_by_id(self, source_id: int) -> Optional[ParsingSource]:
@@ -246,6 +310,7 @@ class ParsingRepository:
                 source.next_sync_at = datetime.now() + timedelta(minutes=10 * (retries + 1))
             
             source.config = cfg
+            await self._emit_source_event(source, "source.updated")
             await self.session.commit()
             return source
         return None
@@ -388,6 +453,19 @@ class ParsingRepository:
                     cfg.pop("disabled_due_to_missing_at", None)
                 existing_source.config = cfg
 
+        await self.session.flush()
+        hub_sources_updated = (
+            await self.session.execute(
+                select(ParsingSource).where(
+                    and_(
+                        ParsingSource.site_key.in_(normalized_spiders),
+                        ParsingSource.type == "hub",
+                    )
+                )
+            )
+        ).scalars().all()
+        for src in hub_sources_updated:
+            await self._emit_source_event(src, "source.updated")
         await self.session.commit()
             
         return new_spiders
@@ -477,6 +555,8 @@ class ParsingRepository:
                     s.is_active = False
                     s.status = "missing"
                 s.config = cfg
+            for s in hub_sources:
+                await self._emit_source_event(s, "source.updated")
 
         await self.session.commit()
         return {
@@ -555,18 +635,24 @@ class ParsingRepository:
         return report
 
     async def set_source_active_status(self, source_id: int, is_active: bool) -> bool:
-        stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(
-            is_active=is_active,
-            status="waiting" if is_active else "disabled"
-        )
-        result = await self.session.execute(stmt)
+        source = (await self.session.execute(select(ParsingSource).where(ParsingSource.id == source_id))).scalar_one_or_none()
+        if not source:
+            return False
+        source.is_active = is_active
+        source.status = "waiting" if is_active else "disabled"
+        await self._emit_source_event(source, "source.updated")
         await self.session.commit()
-        return result.rowcount > 0
+        return True
+
 
     async def set_source_status(self, source_id: int, status: str):
-        stmt = update(ParsingSource).where(ParsingSource.id == source_id).values(status=status)
-        await self.session.execute(stmt)
+        source = (await self.session.execute(select(ParsingSource).where(ParsingSource.id == source_id))).scalar_one_or_none()
+        if not source:
+            return
+        source.status = status
+        await self._emit_source_event(source, "source.updated")
         await self.session.commit()
+
 
     async def update_source_logs(self, source_id: int, logs: str):
         stmt = select(ParsingSource).where(ParsingSource.id == source_id)
@@ -578,6 +664,7 @@ class ParsingRepository:
             cfg = dict(source.config)
             cfg["last_logs"] = logs
             source.config = cfg
+            await self._emit_source_event(source, "source.updated")
             await self.session.commit()
 
     async def reset_source_error(self, source_id: int):
@@ -592,6 +679,7 @@ class ParsingRepository:
             cfg.pop("last_error", None)
             cfg.pop("fix_required", None)
             source.config = cfg
+            await self._emit_source_event(source, "source.updated")
             await self.session.commit()
 
     async def update_source(self, source_id: int, data: dict) -> Optional[ParsingSource]:
@@ -603,6 +691,7 @@ class ParsingRepository:
             for key, value in data.items():
                 if hasattr(source, key):
                     setattr(source, key, value)
+            await self._emit_source_event(source, "source.updated")
             await self.session.commit()
             await self.session.refresh(source)
             return source
@@ -963,11 +1052,13 @@ class ParsingRepository:
                 if hasattr(category, key) and value is not None:
                     setattr(category, key, value)
             await self.session.flush()
+            await self._emit_category_event(category, "category.updated")
             return category
 
         category = DiscoveredCategory(**data)
         self.session.add(category)
         await self.session.flush()
+        await self._emit_category_event(category, "category.created")
         return category
 
     async def promote_discovered_category(self, category_id: int) -> Optional[ParsingSource]:
@@ -987,6 +1078,7 @@ class ParsingRepository:
         src_res = await self.session.execute(src_stmt)
         source = src_res.scalar_one_or_none()
 
+        created = False
         if source is None:
             source = ParsingSource(
                 url=category.url,
@@ -1005,6 +1097,7 @@ class ParsingRepository:
                 },
             )
             self.session.add(source)
+            created = True
             await self.session.flush()
         else:
             source.is_active = True
@@ -1022,6 +1115,8 @@ class ParsingRepository:
         category.state = "promoted"
         category.promoted_source_id = source.id
         await self.session.flush()
+        await self._emit_source_event(source, "source.created" if created else "source.updated")
+        await self._emit_category_event(category, "category.updated")
         return source
 
     async def get_discovered_categories(self, limit: int = 50, states: Optional[List[str]] = None) -> List[DiscoveredCategory]:

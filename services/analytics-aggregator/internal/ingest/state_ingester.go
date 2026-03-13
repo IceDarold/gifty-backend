@@ -164,6 +164,19 @@ func (i *StateIngester) applyLatest(ctx context.Context) error {
 			id := toInt(payload["id"])
 			sourceID := toInt(payload["source_id"])
 			addBucket(buckets, "ops_runs_latest", []string{"run_id", "source_id", "payload_json", "version", "deleted"}, []interface{}{id, sourceID, ev.PayloadJSON, version, deleted})
+
+		case "product":
+			productID := toString(payload["product_id"])
+			merchant := toString(payload["merchant"])
+			category := toString(payload["category"])
+			title := toString(payload["title"])
+			addBucket(buckets, "products_latest", []string{"product_id", "merchant", "category", "title", "payload_json", "version", "deleted"}, []interface{}{productID, merchant, category, title, ev.PayloadJSON, version, deleted})
+		case "category":
+			id := toInt(payload["id"])
+			siteKey := toString(payload["site_key"])
+			name := toString(payload["name"])
+			addBucket(buckets, "categories_latest", []string{"category_id", "site_key", "name", "payload_json", "version", "deleted"}, []interface{}{id, siteKey, name, ev.PayloadJSON, version, deleted})
+			addBucket(buckets, "ops_discovery_latest", []string{"discovery_id", "site_key", "payload_json", "version", "deleted"}, []interface{}{id, siteKey, ev.PayloadJSON, version, deleted})
 		}
 	}
 	for _, b := range buckets {

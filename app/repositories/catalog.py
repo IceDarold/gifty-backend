@@ -11,6 +11,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import Product, ProductEmbedding
+from app.outbox import enqueue_outbox_event
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,59 @@ class PostgresCatalogRepository(CatalogRepository):
     def __init__(self, session: AsyncSession):
         self.session = session
 
+
+    def _product_payload(self, payload: dict | Product) -> dict:
+        if isinstance(payload, Product):
+            return {
+                "product_id": payload.product_id,
+                "title": payload.title,
+                "description": payload.description,
+                "price": float(payload.price) if payload.price is not None else None,
+                "currency": payload.currency,
+                "image_url": payload.image_url,
+                "product_url": payload.product_url,
+                "merchant": payload.merchant,
+                "category": payload.category,
+                "raw": payload.raw,
+                "is_active": payload.is_active,
+                "content_text": payload.content_text,
+                "content_hash": payload.content_hash,
+                "site_key": payload.site_key,
+                "created_at": payload.created_at.isoformat() if payload.created_at else None,
+                "updated_at": payload.updated_at.isoformat() if payload.updated_at else None,
+            }
+        data = dict(payload)
+        return {
+            "product_id": data.get("product_id"),
+            "title": data.get("title"),
+            "description": data.get("description"),
+            "price": float(data.get("price")) if data.get("price") is not None else None,
+            "currency": data.get("currency"),
+            "image_url": data.get("image_url"),
+            "product_url": data.get("product_url"),
+            "merchant": data.get("merchant"),
+            "category": data.get("category"),
+            "raw": data.get("raw"),
+            "is_active": data.get("is_active"),
+            "content_text": data.get("content_text"),
+            "content_hash": data.get("content_hash"),
+            "site_key": data.get("site_key"),
+            "created_at": data.get("created_at"),
+            "updated_at": data.get("updated_at"),
+        }
+
+    async def _emit_product_event(self, payload: dict | Product, event_type: str = "product.updated") -> None:
+        data = self._product_payload(payload)
+        if not data.get("product_id"):
+            return
+        await enqueue_outbox_event(
+            self.session,
+            aggregate_type="product",
+            aggregate_id=str(data["product_id"]),
+            event_type=event_type,
+            payload=data,
+        )
+
     async def upsert_products(self, products: list[dict]) -> int:
         if not products:
             return 0
@@ -99,10 +153,14 @@ class PostgresCatalogRepository(CatalogRepository):
             result = await self.session.execute(stmt)
             rows = result.scalars().all()
             inserted_count = sum(1 for xmax in rows if xmax == 0)
+            for product in products:
+                await self._emit_product_event(product, "product.updated")
             return inserted_count
         else:
             # Fallback for SQLite/others: just return rowcount
             result = await self.session.execute(stmt)
+            for product in products:
+                await self._emit_product_event(product, "product.updated")
             return result.rowcount
 
     async def mark_inactive_except(self, seen_ids: set[str]) -> int:
@@ -123,12 +181,30 @@ class PostgresCatalogRepository(CatalogRepository):
         )
         
         result = await self.session.execute(stmt)
+        if result.rowcount:
+            rows = (
+                await self.session.execute(
+                    select(Product).where(
+                        Product.product_id.notin_(seen_ids),
+                        Product.is_active.is_(False),
+                    )
+                )
+            ).scalars().all()
+            for p in rows:
+                await self._emit_product_event(p, "product.updated")
         return result.rowcount
 
     async def delete_products_by_site(self, site_key: str) -> int:
         """Hard delete all products for a specific site."""
+        rows = (
+            await self.session.execute(
+                select(Product).where(Product.product_id.like(f"{site_key}:%"))
+            )
+        ).scalars().all()
         stmt = sa.delete(Product).where(Product.product_id.like(f"{site_key}:%"))
         result = await self.session.execute(stmt)
+        for p in rows:
+            await self._emit_product_event(p, "product.deleted")
         return result.rowcount
 
     async def get_active_products_count(self) -> int:

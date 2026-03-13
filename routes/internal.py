@@ -2966,6 +2966,13 @@ async def update_ops_runtime_settings(
     state.settings_version = int(state.settings_version or 1) + 1
     state.updated_by = actor_id
     state.updated_at = datetime.now(timezone.utc)
+    await enqueue_outbox_event(
+        db,
+        aggregate_type="settings_runtime",
+        aggregate_id="ops_runtime_state",
+        event_type="settings.runtime.updated",
+        payload={"setting_key": "ops_runtime_state", **_serialize_ops_runtime_settings(state)["item"]},
+    )
     await db.commit()
     await db.refresh(state)
     ops_settings_updates_total.inc()
@@ -4376,7 +4383,7 @@ async def reject_ops_discovery_categories(
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_internal_token),
 ):
-    from sqlalchemy import update
+    from sqlalchemy import update, select
 
     if not category_ids:
         return {"status": "ok", "updated": 0}
@@ -4386,6 +4393,27 @@ async def reject_ops_discovery_categories(
         .values(state="rejected")
     )
     res = await db.execute(stmt)
+    rows = (await db.execute(select(DiscoveredCategory).where(DiscoveredCategory.id.in_(category_ids)))).scalars().all()
+    for c in rows:
+        await enqueue_outbox_event(
+            db,
+            aggregate_type="category",
+            aggregate_id=str(c.id),
+            event_type="category.updated",
+            payload={
+                "id": c.id,
+                "hub_id": c.hub_id,
+                "site_key": c.site_key,
+                "url": c.url,
+                "name": c.name,
+                "parent_url": c.parent_url,
+                "state": c.state,
+                "promoted_source_id": c.promoted_source_id,
+                "meta": c.meta,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            },
+        )
     await db.commit()
     return {"status": "ok", "updated": int(res.rowcount or 0)}
 
@@ -4396,7 +4424,7 @@ async def reactivate_ops_discovery_categories(
     db: AsyncSession = Depends(get_db),
     _=Depends(verify_internal_token),
 ):
-    from sqlalchemy import update
+    from sqlalchemy import update, select
 
     if not category_ids:
         return {"status": "ok", "updated": 0}
@@ -4406,6 +4434,27 @@ async def reactivate_ops_discovery_categories(
         .values(state="new")
     )
     res = await db.execute(stmt)
+    rows = (await db.execute(select(DiscoveredCategory).where(DiscoveredCategory.id.in_(category_ids)))).scalars().all()
+    for c in rows:
+        await enqueue_outbox_event(
+            db,
+            aggregate_type="category",
+            aggregate_id=str(c.id),
+            event_type="category.updated",
+            payload={
+                "id": c.id,
+                "hub_id": c.hub_id,
+                "site_key": c.site_key,
+                "url": c.url,
+                "name": c.name,
+                "parent_url": c.parent_url,
+                "state": c.state,
+                "promoted_source_id": c.promoted_source_id,
+                "meta": c.meta,
+                "created_at": c.created_at.isoformat() if c.created_at else None,
+                "updated_at": c.updated_at.isoformat() if c.updated_at else None,
+            },
+        )
     await db.commit()
     return {"status": "ok", "updated": int(res.rowcount or 0)}
 
