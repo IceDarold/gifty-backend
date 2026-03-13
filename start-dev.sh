@@ -172,7 +172,7 @@ fi
 if [ "$DB_MODE" = "remote" ]; then
   require_cmd ssh
   echo "[1/5] SSH tunnel: localhost:${DB_LOCAL_PORT} -> ${SSH_ALIAS}:${DB_REMOTE_PORT}"
-  pkill -f "ssh.*-L ${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" 2>/dev/null || true
+  pkill -f "ssh.*-L (0\\.0\\.0\\.0:)?${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" 2>/dev/null || true
 
   # Fail fast if SSH alias is not reachable non-interactively (prevents hanging on password/passphrase prompt).
   if ! ssh -o BatchMode=yes -o ConnectTimeout=8 "$SSH_ALIAS" "exit 0" >/dev/null 2>&1; then
@@ -191,7 +191,7 @@ if [ "$DB_MODE" = "remote" ]; then
     -o ServerAliveInterval=60 \
     -o ServerAliveCountMax=10 \
     -o ExitOnForwardFailure=yes \
-    -L "${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" \
+    -L "0.0.0.0:${DB_LOCAL_PORT}:localhost:${DB_REMOTE_PORT}" \
     "$SSH_ALIAS"
 
   if wait_port "localhost" "$DB_LOCAL_PORT" 10; then

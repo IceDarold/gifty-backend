@@ -100,7 +100,7 @@ services:
       - "127.0.0.1:9000:9000"
       - "127.0.0.1:8123:8123"
     volumes:
-      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_data2:/var/lib/clickhouse
       - ./deploy/clickhouse:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: [ "CMD-SHELL", "clickhouse-client --query 'SELECT 1'" ]
@@ -375,4 +375,4 @@ volumes:
   prometheus_data:
   grafana_data:
   tempo_data:
-  clickhouse_data:
+  clickhouse_data2:
