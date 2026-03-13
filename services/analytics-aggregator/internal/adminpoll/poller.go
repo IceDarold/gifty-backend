@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -102,27 +103,11 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 				"quiz_completed_24h":   chStats.QuizCompleted24h,
 			})
 		}
-		if meta, err := p.ch.SnapshotData(ctx, "admin.snapshot_meta"); err == nil {
-			p.publish("admin.snapshot_meta", meta)
-		}
-		if health, err := p.ch.SnapshotData(ctx, "dashboard.health"); err == nil {
-			p.publish("dashboard.health", health)
-			p.publish("health.status", health)
-		}
-		if scraping, err := p.ch.SnapshotData(ctx, "dashboard.scraping"); err == nil {
-			p.publish("dashboard.scraping", scraping)
-		}
 		if sources, err := p.ch.SourcesLatest(ctx); err == nil {
 			p.publish("dashboard.sources", sources)
 		}
-		if backlog, err := p.ch.SnapshotData(ctx, "dashboard.discovered_categories"); err == nil {
+		if backlog, err := p.ch.OpsDiscoveryBacklog(ctx, 200); err == nil {
 			p.publish("dashboard.discovered_categories", backlog)
-		}
-		if workers, err := p.ch.SnapshotData(ctx, "dashboard.workers"); err == nil {
-			p.publish("dashboard.workers", workers)
-		}
-		if queue, err := p.ch.SnapshotData(ctx, "dashboard.queue"); err == nil {
-			p.publish("dashboard.queue", queue)
 		}
 	}
 	if p.cfg.AdminAPIBase != "" {
@@ -143,6 +128,10 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 		if err := p.getJSON(ctx, "/api/v1/internal/queues/stats", &queue); err == nil && queue != nil {
 			p.publish("dashboard.queue", queue)
 		}
+		var backlog []map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/sources/backlog?limit=200", &backlog); err == nil && backlog != nil {
+			p.publish("dashboard.discovered_categories", backlog)
+		}
 	}
 	if p.ch != nil {
 		if chTrends, err := p.ch.DashboardTrends(ctx, 7); err == nil {
@@ -152,6 +141,7 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 }
 
 func (p *Poller) pollOps(ctx context.Context) {
+	siteKeys := make([]string, 0)
 	if p.ch != nil {
 		if overview, err := p.ch.OpsOverview(ctx); err == nil {
 			p.publish("ops.overview", overview)
@@ -168,12 +158,18 @@ func (p *Poller) pollOps(ctx context.Context) {
 			sites = dedupeSitesByKey(sites)
 			enrichOpsSiteCounters(sites, discoveryCounts, productCounts, runCounts)
 			publishOpsSites(p, sites)
-		}
-		if pipeline, err := p.ch.SnapshotData(ctx, "ops.pipeline"); err == nil {
-			p.publish("ops.pipeline", pipeline)
-		}
-		if scheduler, err := p.ch.SnapshotData(ctx, "ops.scheduler_stats"); err == nil {
-			p.publish("ops.scheduler_stats", scheduler)
+			seenKeys := map[string]bool{}
+			for _, site := range sites {
+				if site == nil {
+					continue
+				}
+				key := fmt.Sprintf("%v", site["site_key"])
+				if key == "" || seenKeys[key] {
+					continue
+				}
+				seenKeys[key] = true
+				siteKeys = append(siteKeys, key)
+			}
 		}
 		if listSources, err := p.ch.SourcesLatestByType(ctx, "list"); err == nil {
 			normalizeSourceTimes(listSources, "last_synced_at", "next_sync_at")
@@ -202,6 +198,26 @@ func (p *Poller) pollOps(ctx context.Context) {
 	// Use live RabbitMQ-backed endpoints for queue lanes (queued/active) so they
 	// reflect immediate run_discovery enqueues.
 	if p.cfg.AdminAPIBase != "" {
+		if len(siteKeys) > 0 {
+			pipelineMap := map[string]interface{}{}
+			for _, key := range siteKeys {
+				var pipeline interface{}
+				path := fmt.Sprintf(
+					"/api/v1/internal/ops/sites/%s/pipeline?lane_limit=120&lane_offset=0",
+					url.PathEscape(key),
+				)
+				if err := p.getJSON(ctx, path, &pipeline); err == nil && pipeline != nil {
+					pipelineMap[key] = pipeline
+				}
+			}
+			if len(pipelineMap) > 0 {
+				p.publish("ops.pipeline", pipelineMap)
+			}
+		}
+		var scheduler map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/scheduler/stats", &scheduler); err == nil && scheduler != nil {
+			p.publish("ops.scheduler_stats", scheduler)
+		}
 		var overviewResp map[string]interface{}
 		if err := p.getJSON(ctx, "/api/v1/internal/ops/overview", &overviewResp); err == nil && overviewResp != nil {
 			p.publish("ops.overview", overviewResp)
@@ -272,9 +288,6 @@ func (p *Poller) pollSettings(ctx context.Context) {
 		if subscribers, err := p.ch.SubscribersLatest(ctx); err == nil {
 			p.publish("settings.subscribers", subscribers)
 		}
-		if merchants, err := p.ch.SnapshotData(ctx, "settings.merchants"); err == nil {
-			p.publish("settings.merchants", merchants)
-		}
 		if apps, err := p.ch.FrontendAppsLatest(ctx); err == nil {
 			p.publish("frontend.apps", apps)
 		}
@@ -295,6 +308,12 @@ func (p *Poller) pollSettings(ctx context.Context) {
 		}
 		if audit, err := p.ch.FrontendAuditLogLatest(ctx); err == nil {
 			p.publish("frontend.audit_log", audit)
+		}
+	}
+	if p.cfg.AdminAPIBase != "" {
+		var merchants interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/merchants?limit=500&offset=0", &merchants); err == nil && merchants != nil {
+			p.publish("settings.merchants", merchants)
 		}
 	}
 	var intelligence interface{}
@@ -333,17 +352,6 @@ func (p *Poller) pollSettings(ctx context.Context) {
 }
 
 func (p *Poller) pollLogs(ctx context.Context) {
-	if p.ch != nil {
-		if snap, err := p.ch.SnapshotData(ctx, "logs.snapshot"); err == nil {
-			p.publish("logs.snapshot", snap)
-			if p.cfg.LogsTailEnabled {
-				p.publish("logs.tail", snap)
-			}
-		}
-		if services, err := p.ch.SnapshotData(ctx, "logs.services"); err == nil {
-			p.publish("logs.services", services)
-		}
-	}
 	if p.cfg.AdminAPIBase != "" {
 		var snap map[string]interface{}
 		if err := p.getJSON(ctx, "/api/v1/internal/logs/query?limit=200&since_seconds=300", &snap); err == nil && snap != nil {

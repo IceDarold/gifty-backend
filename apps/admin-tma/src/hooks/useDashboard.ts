@@ -22,7 +22,11 @@ export function useDashboardData(chatId?: number) {
       'ops.overview': useAdminChannelData('ops.overview'),
     },
   };
-  const subscriber = useAdminChannelQuery<any>(chatId ? `settings.subscriber:${chatId}` : '');
+  const subscriber = useAdminRequestQuery<any>(
+    chatId ? `settings.subscriber:${chatId}` : "",
+    {},
+    [chatId],
+  );
   const merchants = useAdminChannelQuery<any>('settings.merchants');
   const updateMerchantMutation = useMutation({
     mutationFn: ({ siteKey, payload }: { siteKey: string; payload: { name?: string; base_url?: string } }) =>
@@ -137,20 +141,16 @@ export function useDashboardData(chatId?: number) {
 }
 
 export function useSourceDetails(id?: number) {
-  const channel = id ? `dashboard.source_detail:${id}` : '';
-  return useAdminChannelQuery<any>(channel);
+  const channel = id ? `dashboard.source_detail:${id}` : "";
+  return useAdminRequestQuery<any>(channel, {}, [id]);
 }
 export function useSourceProducts(id?: number, limit = 50, offset = 0) {
-  const channel = id ? `dashboard.source_products:${id}` : '';
-  const snapshot = useAdminChannelData<any>(channel);
-  const items = Array.isArray(snapshot?.items) ? snapshot.items : [];
-  const paged = items.slice(offset, offset + limit);
-  return {
-    data: { items: paged, total: items.length },
-    isLoading: false,
-    error: null,
-    refetch: async () => {},
-  } as any;
+  const channel = id ? `dashboard.source_products:${id}` : "";
+  return useAdminRequestQuery<any>(
+    channel,
+    { limit, offset },
+    [id, limit, offset],
+  );
 }
 export function useCatalogProducts(limit = 20, offset = 0, search?: string, merchant?: string) {
   return useAdminRequestQuery<any>(

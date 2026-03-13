@@ -46,14 +46,25 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 				return item, true, nil
 			}
 		}
+		if r.cfg.AdminAPIBase != "" {
+			var payload map[string]interface{}
+			if err := r.getJSON(ctx, fmt.Sprintf("/api/v1/internal/sources/%s", id), &payload); err == nil {
+				return payload, true, nil
+			}
+		}
 		return nil, true, nil
 	case strings.HasPrefix(channel, "dashboard.source_products:"):
 		id := strings.TrimPrefix(channel, "dashboard.source_products:")
 		if id == "" {
 			return nil, false, nil
 		}
-		payload, err := r.snapshotData(ctx, "dashboard.source_products:"+id)
-		if err != nil {
+		limit, offset, _ := parsePaging(params)
+		if r.cfg.AdminAPIBase == "" {
+			return nil, false, fmt.Errorf("admin api not configured")
+		}
+		var payload map[string]interface{}
+		path := fmt.Sprintf("/api/v1/internal/sources/%s/products?limit=%d&offset=%d", id, limit, offset)
+		if err := r.getJSON(ctx, path, &payload); err != nil {
 			return nil, false, err
 		}
 		return payload, true, nil
@@ -64,9 +75,14 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		}
 		if r.ch != nil {
 			parsed, _ := strconv.Atoi(id)
-			item, err := r.ch.SubscriberLatest(ctx, parsed)
-			if err == nil {
+			item, err := r.ch.SubscriberLatestByChatID(ctx, parsed)
+			if err == nil && item != nil {
 				return item, true, nil
+			}
+			if err == nil {
+				if fallback, err := r.ch.SubscriberLatest(ctx, parsed); err == nil {
+					return fallback, true, nil
+				}
 			}
 		}
 		return nil, true, nil
@@ -97,15 +113,10 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if !ok || id <= 0 {
 			return nil, false, nil
 		}
-		var (
-			items interface{}
-			err   error
-		)
-		if r.ch != nil {
-			items, err = r.ch.OpsDiscoveryLatest(ctx)
-		} else {
-			items, err = r.snapshotData(ctx, "ops.discovery")
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
 		}
+		items, err := r.ch.OpsDiscoveryLatest(ctx)
 		if err != nil {
 			return nil, false, err
 		}
@@ -271,11 +282,24 @@ func parsePaging(params map[string]interface{}) (limit int, offset int, search s
 	return
 }
 
-func (r *Resolver) snapshotData(ctx context.Context, channel string) (interface{}, error) {
-	if r.ch == nil {
-		return nil, fmt.Errorf("clickhouse not configured")
+func (r *Resolver) getJSON(ctx context.Context, path string, out interface{}) error {
+	base := strings.TrimRight(r.cfg.AdminAPIBase, "/")
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
+	if err != nil {
+		return err
 	}
-	return r.ch.SnapshotData(ctx, channel)
+	if r.cfg.AdminToken != "" {
+		req.Header.Set("x-internal-token", r.cfg.AdminToken)
+	}
+	resp, err := r.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return fmt.Errorf("%s -> %d", path, resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func normalizeList(data interface{}) []map[string]interface{} {

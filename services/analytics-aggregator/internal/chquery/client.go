@@ -638,6 +638,10 @@ func (c *Client) SubscriberLatest(ctx context.Context, id int) (map[string]inter
 	return c.latestStateOne(ctx, "subscribers_latest", "subscriber_id = ?", id)
 }
 
+func (c *Client) SubscriberLatestByChatID(ctx context.Context, chatID int) (map[string]interface{}, error) {
+	return c.latestStateOne(ctx, "subscribers_latest", "chat_id = ?", chatID)
+}
+
 func (c *Client) SettingsRuntimeLatest(ctx context.Context) ([]map[string]interface{}, error) {
 	return c.latestStateList(ctx, "settings_runtime_latest")
 }
@@ -676,6 +680,38 @@ func (c *Client) OpsSitesLatest(ctx context.Context) ([]map[string]interface{}, 
 
 func (c *Client) OpsDiscoveryLatest(ctx context.Context) ([]map[string]interface{}, error) {
 	return c.latestStateList(ctx, "ops_discovery_latest")
+}
+
+func (c *Client) OpsDiscoveryBacklog(ctx context.Context, limit int) ([]map[string]interface{}, error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	q := `
+		SELECT payload_json
+		FROM ops_discovery_latest FINAL
+		WHERE deleted = 0
+		  AND JSONExtractString(payload_json, 'state') = 'new'
+		ORDER BY version DESC
+		LIMIT ?
+	`
+	rows, err := c.conn.Query(ctx, q, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }
 
 func (c *Client) OpsRunsLatest(ctx context.Context) ([]map[string]interface{}, error) {
