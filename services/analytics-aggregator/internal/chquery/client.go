@@ -541,21 +541,6 @@ func (c *Client) LatestSnapshot(ctx context.Context, eventType string) (map[stri
 	return out, nil
 }
 
-func (c *Client) SnapshotData(ctx context.Context, channel string) (interface{}, error) {
-	eventType := "admin.snapshot." + channel
-	payload, err := c.LatestSnapshot(ctx, eventType)
-	if err != nil {
-		return nil, err
-	}
-	if payload == nil {
-		return nil, nil
-	}
-	if v, ok := payload["data"]; ok {
-		return v, nil
-	}
-	return payload, nil
-}
-
 // removed duplicate breakdown/throughput helpers
 
 type latestRow struct {
