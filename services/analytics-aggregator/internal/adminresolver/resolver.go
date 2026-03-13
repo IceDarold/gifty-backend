@@ -134,65 +134,135 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		out := buildSourceTrendFromRuns(runs, sourceID, granularity, buckets)
 		return out, true, nil
 	case channel == "llm.logs":
-		if r.ch == nil {
-			return nil, false, fmt.Errorf("clickhouse not configured")
-		}
 		limit, offset, filters := parseLLMFilters(params)
 		days := parseDays(params, 7)
-		items, total, err := r.ch.LLMLogs(ctx, days, limit, offset, filters)
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			items, total, err := r.ch.LLMLogs(ctx, days, limit, offset, filters)
+			if err == nil && total > 0 {
+				return map[string]interface{}{"items": items, "total": total}, true, nil
+			}
+			if err != nil {
+				return nil, false, err
+			}
 		}
-		return map[string]interface{}{"items": items, "total": total}, true, nil
+		values := url.Values{}
+		values.Set("days", strconv.Itoa(days))
+		values.Set("limit", strconv.Itoa(limit))
+		values.Set("offset", strconv.Itoa(offset))
+		values.Set("include_total", "true")
+		for k, v := range filters {
+			values.Set(k, v)
+		}
+		var resp struct {
+			Items []map[string]interface{} `json:"items"`
+			Total int                      `json:"total"`
+		}
+		if err := r.getJSON(ctx, "/api/v1/internal/analytics/llm/logs?"+values.Encode(), &resp); err == nil {
+			return map[string]interface{}{"items": resp.Items, "total": resp.Total}, true, nil
+		}
+		return map[string]interface{}{"items": []map[string]interface{}{}, "total": 0}, true, nil
 	case channel == "llm.throughput":
-		if r.ch == nil {
-			return nil, false, fmt.Errorf("clickhouse not configured")
-		}
 		days := parseDays(params, 7)
 		bucket := "hour"
 		if v, ok := params["bucket"]; ok {
 			bucket = fmt.Sprintf("%v", v)
 		}
-		items, err := r.ch.LLMThroughput(ctx, days, bucket)
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			items, err := r.ch.LLMThroughput(ctx, days, bucket)
+			if err == nil && len(items) > 0 {
+				return map[string]interface{}{"items": items}, true, nil
+			}
+			if err != nil {
+				return nil, false, err
+			}
 		}
-		return map[string]interface{}{"items": items}, true, nil
+		values := url.Values{}
+		values.Set("days", strconv.Itoa(days))
+		values.Set("bucket", bucket)
+		_, _, filters := parseLLMFilters(params)
+		for k, v := range filters {
+			values.Set(k, v)
+		}
+		var resp map[string]interface{}
+		if err := r.getJSON(ctx, "/api/v1/internal/analytics/llm/throughput?"+values.Encode(), &resp); err == nil {
+			return resp, true, nil
+		}
+		return map[string]interface{}{"items": []map[string]interface{}{}}, true, nil
 	case channel == "llm.stats":
-		if r.ch == nil {
-			return nil, false, fmt.Errorf("clickhouse not configured")
-		}
 		days := parseDays(params, 7)
-		out, err := r.ch.LLMStats(ctx, days)
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			out, err := r.ch.LLMStats(ctx, days)
+			if err == nil && out.Total > 0 {
+				return out, true, nil
+			}
+			if err != nil {
+				return nil, false, err
+			}
 		}
-		return out, true, nil
+		values := url.Values{}
+		values.Set("days", strconv.Itoa(days))
+		_, _, filters := parseLLMFilters(params)
+		for k, v := range filters {
+			values.Set(k, v)
+		}
+		var resp map[string]interface{}
+		if err := r.getJSON(ctx, "/api/v1/internal/analytics/llm/stats?"+values.Encode(), &resp); err == nil {
+			return resp, true, nil
+		}
+		return map[string]interface{}{}, true, nil
 	case channel == "llm.outliers":
-		if r.ch == nil {
-			return nil, false, fmt.Errorf("clickhouse not configured")
-		}
 		limit, _, filters := parseLLMFilters(params)
 		days := parseDays(params, 7)
-		items, err := r.ch.LLMOutliers(ctx, days, limit, filters)
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			items, err := r.ch.LLMOutliers(ctx, days, limit, filters)
+			if err == nil && len(items) > 0 {
+				return map[string]interface{}{"items": items}, true, nil
+			}
+			if err != nil {
+				return nil, false, err
+			}
 		}
-		return map[string]interface{}{"items": items}, true, nil
+		values := url.Values{}
+		values.Set("days", strconv.Itoa(days))
+		values.Set("limit", strconv.Itoa(limit))
+		if metric := strings.TrimSpace(fmt.Sprintf("%v", params["metric"])); metric != "" {
+			values.Set("metric", metric)
+		}
+		for k, v := range filters {
+			values.Set(k, v)
+		}
+		var resp map[string]interface{}
+		if err := r.getJSON(ctx, "/api/v1/internal/analytics/llm/outliers?"+values.Encode(), &resp); err == nil {
+			return resp, true, nil
+		}
+		return map[string]interface{}{"items": []map[string]interface{}{}}, true, nil
 	case strings.HasPrefix(channel, "llm.breakdown."):
 		group := strings.TrimPrefix(channel, "llm.breakdown.")
 		if group == "" {
 			return nil, false, nil
 		}
-		if r.ch == nil {
-			return nil, false, fmt.Errorf("clickhouse not configured")
-		}
 		days := parseDays(params, 7)
-		items, err := r.ch.LLMBreakdown(ctx, days, group)
-		if err != nil {
-			return nil, false, err
+		if r.ch != nil {
+			items, err := r.ch.LLMBreakdown(ctx, days, group)
+			if err == nil && len(items) > 0 {
+				return map[string]interface{}{"items": items}, true, nil
+			}
+			if err != nil {
+				return nil, false, err
+			}
 		}
-		return map[string]interface{}{"items": items}, true, nil
+		values := url.Values{}
+		values.Set("days", strconv.Itoa(days))
+		values.Set("group", group)
+		_, _, filters := parseLLMFilters(params)
+		for k, v := range filters {
+			values.Set(k, v)
+		}
+		var resp map[string]interface{}
+		if err := r.getJSON(ctx, "/api/v1/internal/analytics/llm/breakdown?"+values.Encode(), &resp); err == nil {
+			return resp, true, nil
+		}
+		return map[string]interface{}{"items": []map[string]interface{}{}}, true, nil
 	case channel == "settings.subscribers":
 		if r.ch == nil {
 			return nil, false, fmt.Errorf("clickhouse not configured")
