@@ -322,26 +322,26 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	if limit <= 0 {
 		limit = 50
 	}
-	where := "occurred_at >= now() - INTERVAL ? DAY"
+	where := "created_at >= now() - INTERVAL ? DAY"
 	args := []interface{}{days}
 	if v := filters["provider"]; v != "" {
-		where += " AND JSONExtractString(payload_json,'provider') = ?"
+		where += " AND provider = ?"
 		args = append(args, v)
 	}
 	if v := filters["model"]; v != "" {
-		where += " AND JSONExtractString(payload_json,'model') = ?"
+		where += " AND model = ?"
 		args = append(args, v)
 	}
 	if v := filters["status"]; v != "" {
-		where += " AND JSONExtractString(payload_json,'status') = ?"
+		where += " AND status = ?"
 		args = append(args, v)
 	}
 	if v := filters["call_type"]; v != "" {
-		where += " AND JSONExtractString(payload_json,'call_type') = ?"
+		where += " AND call_type = ?"
 		args = append(args, v)
 	}
 	if v := filters["session_id"]; v != "" {
-		where += " AND JSONExtractString(payload_json,'session_id') = ?"
+		where += " AND session_id = ?"
 		args = append(args, v)
 	}
 	if v := filters["experiment_id"]; v != "" {
@@ -355,10 +355,10 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	q := `
 		SELECT
 			payload_json,
-			occurred_at
-		FROM analytics_events
-		WHERE event_type = 'llm.log' AND ` + where + `
-		ORDER BY occurred_at DESC
+			created_at
+		FROM llm_calls_search
+		WHERE deleted = 0 AND ` + where + `
+		ORDER BY created_at DESC
 		LIMIT ? OFFSET ?
 	`
 	args = append(args, limit, offset)
@@ -385,8 +385,8 @@ func (c *Client) LLMLogs(ctx context.Context, days, limit, offset int, filters m
 	}
 	countQuery := `
 		SELECT count()
-		FROM analytics_events
-		WHERE event_type = 'llm.log' AND ` + where + `
+		FROM llm_calls_search
+		WHERE deleted = 0 AND ` + where + `
 	`
 	var total uint64
 	if err := c.conn.QueryRow(ctx, countQuery, args[:len(args)-2]...).Scan(&total); err != nil {
