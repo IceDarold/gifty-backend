@@ -274,10 +274,10 @@ func (w *Writer) InsertLLMCalls(ctx context.Context, rows []LLMCallRow) error {
 func (w *Writer) UpdateSyncStateEvent(ctx context.Context, syncName string, occurredAt time.Time, eventID string) error {
 	now := time.Now().UTC()
 	lag := now.Sub(occurredAt).Seconds()
-	_, err := w.conn.Exec(ctx, `
+	err := w.conn.Exec(ctx, `
 		INSERT INTO sync_state
 		(sync_name, last_bootstrap_at, last_backfill_at, last_bootstrap_version, last_event_applied_at, last_event_id, lag_seconds)
-		VALUES
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 	`, syncName, now, nil, uint64(now.UnixNano()), occurredAt, eventID, lag)
 	return err
 }

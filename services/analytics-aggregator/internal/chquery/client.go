@@ -741,6 +741,28 @@ func (c *Client) SourcesLatestByType(ctx context.Context, sourceType string) ([]
 	return out, nil
 }
 
+func (c *Client) SourcesLatestBySiteAndType(ctx context.Context, siteKey string, sourceType string) ([]map[string]interface{}, error) {
+	q := "SELECT payload_json FROM sources_latest FINAL WHERE deleted = 0 AND JSONExtractString(payload_json,'site_key') = ? AND JSONExtractString(payload_json,'type') = ? ORDER BY version DESC"
+	rows, err := c.conn.Query(ctx, q, siteKey, sourceType)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := make([]map[string]interface{}, 0)
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, err
+		}
+		out = append(out, item)
+	}
+	return out, nil
+}
+
 func (c *Client) SourceLatest(ctx context.Context, id int) (map[string]interface{}, error) {
 	return c.latestStateOne(ctx, "sources_latest", "source_id = ?", id)
 }
@@ -988,15 +1010,23 @@ func (c *Client) ProductsLatest(ctx context.Context, limit, offset int, search, 
 	return items, total, nil
 }
 
-func (c *Client) CategoriesLatest(ctx context.Context, limit, offset int, search string) (items []map[string]interface{}, total int, err error) {
+func (c *Client) CategoriesLatest(ctx context.Context, limit, offset int, search string, siteKey string) (items []map[string]interface{}, total int, err error) {
 	q := "SELECT payload_json FROM categories_latest FINAL WHERE deleted = 0"
 	args := []interface{}{}
+	if siteKey != "" {
+		q += " AND site_key = ?"
+		args = append(args, siteKey)
+	}
 	if search != "" {
 		q += " AND positionCaseInsensitiveUTF8(name, ?) > 0"
 		args = append(args, search)
 	}
 	countQ := "SELECT count() FROM categories_latest FINAL WHERE deleted = 0"
 	countArgs := []interface{}{}
+	if siteKey != "" {
+		countQ += " AND site_key = ?"
+		countArgs = append(countArgs, siteKey)
+	}
 	if search != "" {
 		countQ += " AND positionCaseInsensitiveUTF8(name, ?) > 0"
 		countArgs = append(countArgs, search)

@@ -38,7 +38,12 @@ export function useOperationsData(initialSiteKey?: string) {
   const pipelineMap = useAdminChannelQuery<any>("ops.pipeline");
   const activeRuns = useAdminChannelQuery<any>("ops.runs.active");
   const discoveryRaw = useAdminChannelQuery<any>("ops.discovery");
-  const runDetailsMap = useAdminChannelQuery<any>("ops.run_details");
+  const runDetailsMap = useAdminChannelQuery<any>("ops.run_details", { requireFresh: true });
+  const runDetailsRequest = useAdminRequestQuery<any>(
+    selectedRunId ? "ops.run_detail" : "",
+    { id: selectedRunId },
+    [selectedRunId],
+  );
   const queuedRuns = useAdminChannelQuery<any>("ops.runs.queued");
   const completedRuns = useAdminChannelQuery<any>("ops.runs.completed");
   const errorRuns = useAdminChannelQuery<any>("ops.runs.error");
@@ -75,8 +80,15 @@ export function useOperationsData(initialSiteKey?: string) {
   const runDetailsData = useMemo(() => {
     if (!selectedRunId) return null;
     const map = runDetailsMap.data || {};
-    return map[String(selectedRunId)] ?? map[selectedRunId] ?? null;
-  }, [runDetailsMap.data, selectedRunId]);
+    const fromMap = map[String(selectedRunId)] ?? map[selectedRunId];
+    if (fromMap) {
+      return { item: fromMap };
+    }
+    if (runDetailsRequest.data) {
+      return runDetailsRequest.data;
+    }
+    return null;
+  }, [runDetailsMap.data, runDetailsRequest.data, selectedRunId]);
 
   const discoveryData = useMemo(() => {
     const items = Array.isArray(discoveryRaw.data?.items) ? discoveryRaw.data.items : [];
@@ -109,12 +121,21 @@ export function useOperationsData(initialSiteKey?: string) {
   const runDetails = useMemo(
     () => ({
       data: runDetailsData,
-      isLoading: runDetailsMap.isLoading,
-      isError: false,
-      error: null,
-      refetch: async () => {},
+      isLoading: runDetailsMap.isLoading || runDetailsRequest.isLoading,
+      isError: runDetailsMap.isError || runDetailsRequest.isError,
+      error: runDetailsMap.error || runDetailsRequest.error,
+      refetch: runDetailsRequest.refetch,
     }),
-    [runDetailsData, runDetailsMap.isLoading],
+    [
+      runDetailsData,
+      runDetailsMap.isLoading,
+      runDetailsMap.isError,
+      runDetailsMap.error,
+      runDetailsRequest.isLoading,
+      runDetailsRequest.isError,
+      runDetailsRequest.error,
+      runDetailsRequest.refetch,
+    ],
   );
 
   const discovery = useMemo(

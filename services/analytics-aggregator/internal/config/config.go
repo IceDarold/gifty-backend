@@ -29,6 +29,7 @@ type Config struct {
 	PollCatalog      time.Duration
 	PollSettings     time.Duration
 	PollLogs         time.Duration
+	PipelineSiteLimit int
 	LogsTailEnabled  bool
 	ResolveTTL       time.Duration
 	ResolveTTLMap    map[string]time.Duration
@@ -63,6 +64,7 @@ func Load() Config {
 		PollCatalog:      time.Duration(envInt("ADMIN_WS_POLL_CATALOG_SECONDS", 60)) * time.Second,
 		PollSettings:     time.Duration(envInt("ADMIN_WS_POLL_SETTINGS_SECONDS", 60)) * time.Second,
 		PollLogs:         time.Duration(envInt("ADMIN_WS_POLL_LOGS_SECONDS", 5)) * time.Second,
+		PipelineSiteLimit: envInt("ADMIN_WS_PIPELINE_SITE_LIMIT", 5),
 		LogsTailEnabled:  envBool("ADMIN_WS_LOGS_TAIL", true),
 		ResolveTTL:       resolveTTL,
 		ResolveTTLMap:    resolveMap,

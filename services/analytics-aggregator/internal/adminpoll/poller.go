@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -142,8 +143,60 @@ func (p *Poller) pollDashboard(ctx context.Context) {
 
 func (p *Poller) pollOps(ctx context.Context) {
 	siteKeys := make([]string, 0)
+	if p.cfg.AdminAPIBase != "" {
+		var scheduler map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/scheduler/stats", &scheduler); err == nil && scheduler != nil {
+			p.publish("ops.scheduler_stats", scheduler)
+		} else if err != nil {
+			log.Printf("pollOps scheduler stats failed: %v", err)
+		}
+		var overviewResp map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/overview", &overviewResp); err == nil && overviewResp != nil {
+			p.publish("ops.overview", overviewResp)
+			if queue, ok := overviewResp["queue"]; ok && queue != nil {
+				p.publish("dashboard.queue", queue)
+			}
+		} else if err != nil {
+			log.Printf("pollOps overview failed: %v", err)
+		}
+		var queuedResp map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/queued?limit=200", &queuedResp); err == nil && queuedResp != nil {
+			p.publish("ops.runs.queued", queuedResp)
+		} else if err != nil {
+			log.Printf("pollOps runs queued failed: %v", err)
+		}
+		var activeResp map[string]interface{}
+		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/active?limit=200", &activeResp); err == nil && activeResp != nil {
+			p.publish("ops.runs.active", activeResp)
+		} else if err != nil {
+			log.Printf("pollOps runs active failed: %v", err)
+		}
+		if len(siteKeys) > 0 {
+			limit := p.cfg.PipelineSiteLimit
+			if limit <= 0 || limit > len(siteKeys) {
+				limit = len(siteKeys)
+			}
+			pipelineMap := map[string]interface{}{}
+			for _, key := range siteKeys[:limit] {
+				var pipeline interface{}
+				path := fmt.Sprintf(
+					"/api/v1/internal/ops/sites/%s/pipeline?lane_limit=120&lane_offset=0",
+					url.PathEscape(key),
+				)
+				if err := p.getJSON(ctx, path, &pipeline); err == nil && pipeline != nil {
+					pipelineMap[key] = pipeline
+				}
+			}
+			if len(pipelineMap) > 0 {
+				p.publish("ops.pipeline", pipelineMap)
+			}
+		}
+	}
+
 	if p.ch != nil {
-		if overview, err := p.ch.OpsOverview(ctx); err == nil {
+		chCtx, cancel := context.WithTimeout(ctx, 3*time.Second)
+		defer cancel()
+		if overview, err := p.ch.OpsOverview(chCtx); err == nil {
 			p.publish("ops.overview", overview)
 		}
 		var (
@@ -151,10 +204,10 @@ func (p *Poller) pollOps(ctx context.Context) {
 			productCounts   map[string]uint64
 			runCounts       map[int]map[string]uint64
 		)
-		discoveryCounts, _ = p.ch.OpsDiscoveryCountsBySite(ctx)
-		productCounts, _ = p.ch.ProductsCountBySite(ctx)
-		runCounts, _ = p.ch.OpsRunCountsBySource(ctx)
-		if sites, err := p.ch.OpsSitesLatest(ctx); err == nil {
+		discoveryCounts, _ = p.ch.OpsDiscoveryCountsBySite(chCtx)
+		productCounts, _ = p.ch.ProductsCountBySite(chCtx)
+		runCounts, _ = p.ch.OpsRunCountsBySource(chCtx)
+		if sites, err := p.ch.OpsSitesLatest(chCtx); err == nil {
 			sites = dedupeSitesByKey(sites)
 			enrichOpsSiteCounters(sites, discoveryCounts, productCounts, runCounts)
 			publishOpsSites(p, sites)
@@ -171,11 +224,11 @@ func (p *Poller) pollOps(ctx context.Context) {
 				siteKeys = append(siteKeys, key)
 			}
 		}
-		if listSources, err := p.ch.SourcesLatestByType(ctx, "list"); err == nil {
+		if listSources, err := p.ch.SourcesLatestByType(chCtx, "list"); err == nil {
 			normalizeSourceTimes(listSources, "last_synced_at", "next_sync_at")
 			p.publish("ops.discovery", map[string]interface{}{"items": listSources})
 		}
-		if runs, err := p.ch.OpsRunsLatest(ctx); err == nil {
+		if runs, err := p.ch.OpsRunsLatest(chCtx); err == nil {
 			details := map[string]interface{}{}
 			for _, run := range runs {
 				if run == nil {
@@ -188,54 +241,14 @@ func (p *Poller) pollOps(ctx context.Context) {
 				details[id] = run
 			}
 			p.publish("ops.run_details", details)
-			p.publish("ops.runs.active", filterByStatus(runs, "processing"))
-			p.publish("ops.runs.queued", filterByStatus(runs, "queued", "pending"))
-			p.publish("ops.runs.completed", filterByStatus(runs, "completed"))
-			p.publish("ops.runs.error", filterByStatus(runs, "error"))
-		}
-	}
-
-	// Use live RabbitMQ-backed endpoints for queue lanes (queued/active) so they
-	// reflect immediate run_discovery enqueues.
-	if p.cfg.AdminAPIBase != "" {
-		if len(siteKeys) > 0 {
-			pipelineMap := map[string]interface{}{}
-			for _, key := range siteKeys {
-				var pipeline interface{}
-				path := fmt.Sprintf(
-					"/api/v1/internal/ops/sites/%s/pipeline?lane_limit=120&lane_offset=0",
-					url.PathEscape(key),
-				)
-				if err := p.getJSON(ctx, path, &pipeline); err == nil && pipeline != nil {
-					pipelineMap[key] = pipeline
-				}
+			// Use CH for completed/error (API endpoints are not available).
+			p.publish("ops.runs.completed", map[string]interface{}{"items": filterByStatus(runs, "completed")})
+			p.publish("ops.runs.error", map[string]interface{}{"items": filterByStatus(runs, "error")})
+			// Only fallback to CH for active/queued if API didn't populate them yet.
+			if p.cfg.AdminAPIBase == "" {
+				p.publish("ops.runs.active", map[string]interface{}{"items": filterByStatus(runs, "processing")})
+				p.publish("ops.runs.queued", map[string]interface{}{"items": filterByStatus(runs, "queued", "pending")})
 			}
-			if len(pipelineMap) > 0 {
-				p.publish("ops.pipeline", pipelineMap)
-			}
-		}
-		var scheduler map[string]interface{}
-		if err := p.getJSON(ctx, "/api/v1/internal/ops/scheduler/stats", &scheduler); err == nil && scheduler != nil {
-			p.publish("ops.scheduler_stats", scheduler)
-		}
-		var overviewResp map[string]interface{}
-		if err := p.getJSON(ctx, "/api/v1/internal/ops/overview", &overviewResp); err == nil && overviewResp != nil {
-			p.publish("ops.overview", overviewResp)
-			if queue, ok := overviewResp["queue"]; ok && queue != nil {
-				p.publish("dashboard.queue", queue)
-			}
-		}
-		var queuedResp struct {
-			Items []map[string]interface{} `json:"items"`
-		}
-		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/queued?limit=200", &queuedResp); err == nil && queuedResp.Items != nil {
-			p.publish("ops.runs.queued", queuedResp.Items)
-		}
-		var activeResp struct {
-			Items []map[string]interface{} `json:"items"`
-		}
-		if err := p.getJSON(ctx, "/api/v1/internal/ops/runs/active?limit=200", &activeResp); err == nil && activeResp.Items != nil {
-			p.publish("ops.runs.active", activeResp.Items)
 		}
 	}
 

@@ -42,7 +42,7 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 		if r.ch != nil {
 			parsed, _ := strconv.Atoi(id)
 			item, err := r.ch.SourceLatest(ctx, parsed)
-			if err == nil {
+			if err == nil && item != nil {
 				return item, true, nil
 			}
 		}
@@ -99,6 +99,34 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 			return nil, false, err
 		}
 		return findByID(runs, id), true, nil
+	case channel == "ops.run_detail":
+		rawID, _ := params["id"]
+		if rawID == nil {
+			rawID = params["run_id"]
+		}
+		id := fmt.Sprintf("%v", rawID)
+		if id == "" || id == "<nil>" {
+			return nil, false, nil
+		}
+		if r.cfg.AdminAPIBase != "" {
+			var payload map[string]interface{}
+			path := fmt.Sprintf("/api/v1/internal/ops/runs/%s", id)
+			if err := r.getJSON(ctx, path, &payload); err == nil && payload != nil {
+				return payload, true, nil
+			}
+		}
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		runs, err := r.ch.OpsRunsLatest(ctx)
+		if err != nil {
+			return nil, false, err
+		}
+		item := findByID(runs, id)
+		if item == nil {
+			return map[string]interface{}{"item": nil}, true, nil
+		}
+		return map[string]interface{}{"item": item}, true, nil
 	case channel == "ops.sites":
 		if r.ch == nil {
 			return nil, false, fmt.Errorf("clickhouse not configured")
@@ -227,7 +255,11 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 			return nil, false, fmt.Errorf("clickhouse not configured")
 		}
 		limit, offset, search := parsePaging(params)
-		items, total, err := r.ch.CategoriesLatest(ctx, limit, offset, search)
+		siteKey := ""
+		if v, ok := params["site_key"]; ok {
+			siteKey = fmt.Sprintf("%v", v)
+		}
+		items, total, err := r.ch.CategoriesLatest(ctx, limit, offset, search, siteKey)
 		if err != nil {
 			return nil, false, err
 		}
@@ -280,26 +312,6 @@ func parsePaging(params map[string]interface{}) (limit int, offset int, search s
 		search = fmt.Sprintf("%v", v)
 	}
 	return
-}
-
-func (r *Resolver) getJSON(ctx context.Context, path string, out interface{}) error {
-	base := strings.TrimRight(r.cfg.AdminAPIBase, "/")
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, base+path, nil)
-	if err != nil {
-		return err
-	}
-	if r.cfg.AdminToken != "" {
-		req.Header.Set("x-internal-token", r.cfg.AdminToken)
-	}
-	resp, err := r.client.Do(req)
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return fmt.Errorf("%s -> %d", path, resp.StatusCode)
-	}
-	return json.NewDecoder(resp.Body).Decode(out)
 }
 
 func normalizeList(data interface{}) []map[string]interface{} {

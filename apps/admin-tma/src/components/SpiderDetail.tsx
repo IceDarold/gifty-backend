@@ -143,24 +143,37 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
         return () => window.clearInterval(timer);
     }, [sourceId, trendGranularity, trendBuckets, getIntervalMs, sourceTrend.refetch]);
     const trendData = sourceTrend.data?.items || [];
-    const relatedSources = useMemo(() => sourceData.related_sources || [], [sourceData.related_sources]);
-    const hasAnyCategories = relatedSources.length > 0;
-    const filteredRelatedSources = useMemo(() => {
-        const query = categorySearch.trim().toLowerCase();
-        if (!query) return relatedSources;
-        return relatedSources.filter((rel: any) => {
-            const name = String(rel?.config?.discovery_name || "").toLowerCase();
-            const siteKey = String(rel?.site_key || "").toLowerCase();
-            const url = String(rel?.url || "").toLowerCase();
-            return name.includes(query) || siteKey.includes(query) || url.includes(query);
-        });
-    }, [relatedSources, categorySearch]);
-    const categoryTotalPages = Math.max(1, Math.ceil(filteredRelatedSources.length / CATEGORY_PAGE_SIZE));
-    const safeCategoryPage = Math.min(categoryPage, Math.max(0, categoryTotalPages - 1));
+    const categoriesQuery = useAdminRequestQuery<any>(
+        sourceId ? "catalog.categories" : "",
+        {
+            limit: CATEGORY_PAGE_SIZE,
+            offset: categoryPage * CATEGORY_PAGE_SIZE,
+            search: categorySearch || "",
+            site_key: parserSlug,
+        },
+        [sourceId, categoryPage, categorySearch, parserSlug],
+    );
     const pagedRelatedSources = useMemo(() => {
-        const start = safeCategoryPage * CATEGORY_PAGE_SIZE;
-        return filteredRelatedSources.slice(start, start + CATEGORY_PAGE_SIZE);
-    }, [filteredRelatedSources, safeCategoryPage, CATEGORY_PAGE_SIZE]);
+        const items = Array.isArray(categoriesQuery.data?.items) ? categoriesQuery.data.items : [];
+        return items.map((item: any) => ({
+            id: Number(item.id ?? item.category_id ?? 0),
+            category_id: Number(item.category_id ?? item.id ?? 0),
+            site_key: String(item.site_key || parserSlug || ""),
+            url: String(item.url || ""),
+            status: String(item.status || item.state || ""),
+            last_synced_at: item.last_synced_at ? String(item.last_synced_at) : null,
+            next_sync_at: item.next_sync_at ? String(item.next_sync_at) : "",
+            total_items: Number(item.total_items || item.items_total || 0),
+            is_active: Boolean(item.is_active ?? true),
+            config: {
+                discovery_name: item?.config?.discovery_name ? String(item.config.discovery_name) : undefined,
+            },
+        }));
+    }, [categoriesQuery.data, parserSlug]);
+    const categoriesTotal = Number(categoriesQuery.data?.total || 0);
+    const categoryTotalPages = Math.max(1, Math.ceil(categoriesTotal / CATEGORY_PAGE_SIZE));
+    const safeCategoryPage = Math.min(categoryPage, Math.max(0, categoryTotalPages - 1));
+    const hasAnyCategories = categoriesTotal > 0;
     useEffect(() => {
         if (categoryPage !== safeCategoryPage) {
             setCategoryPage(safeCategoryPage);
@@ -810,7 +823,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
                                     />
                                 </div>
                                 <div className="flex items-center justify-between text-[10px] text-[var(--tg-theme-hint-color)]">
-                                    <span>Showing {pagedRelatedSources.length} of {filteredRelatedSources.length}</span>
+                                    <span>Showing {pagedRelatedSources.length} of {categoriesTotal}</span>
                                     <span>Page {safeCategoryPage + 1} / {categoryTotalPages}</span>
                                 </div>
                             </div>
