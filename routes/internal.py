@@ -624,6 +624,23 @@ async def _reconcile_queued_runs_with_rabbit(
     from sqlalchemy import select, update, func
 
     queue = await _fetch_rabbit_queue_stats()
+    try:
+        if queue.get("status") == "ok":
+            await emit_event(
+                event_type="ops.queue_updated",
+                source="internal",
+                dims={},
+                metrics={
+                    "messages_total": float(queue.get("messages_total") or 0),
+                    "messages_ready": float(queue.get("messages_ready") or 0),
+                    "messages_unack": float(queue.get("messages_unacknowledged") or 0),
+                    "consumers": float(queue.get("consumers") or 0),
+                    "rate_publish": float(queue.get("rate_publish") or 0),
+                },
+                payload={**queue, "ts": datetime.now(timezone.utc).isoformat()},
+            )
+    except Exception:
+        pass
     if queue.get("status") != "ok":
         return {"status": "skipped", "reason": "queue_unavailable"}
 
@@ -669,6 +686,28 @@ async def _reconcile_queued_runs_with_rabbit(
             updated_at=func.now(),
         )
     )
+
+    try:
+        for run_id, source_id, _ in queued_rows:
+            if int(run_id) not in stale_run_ids:
+                continue
+            await emit_event(
+                event_type="ops.run_status_changed",
+                source="internal",
+                dims={"site_key": None},
+                metrics={"value": 1.0},
+                payload={
+                    "run_id": int(run_id),
+                    "source_id": int(source_id),
+                    "from": "queued",
+                    "to": "error",
+                    "reason": "queue_missing_in_rabbit",
+                    "ts": datetime.now(timezone.utc).isoformat(),
+                },
+            )
+    except Exception:
+        pass
+
 
     affected_source_ids = {source_id for run_id, source_id, _ in queued_rows if int(run_id) in stale_run_ids}
     source_status_fixed = 0
@@ -1155,6 +1194,30 @@ async def report_parsing_status(
                 "ts": now_utc.isoformat(),
             },
         )
+        try:
+            await emit_event(
+                event_type="ops.items.count",
+                source="internal",
+                dims={"site_key": source.site_key if source else None},
+                metrics={"value": float(items_scraped or 0)},
+                payload={"run_id": int(completed_run.id), "ts": now_utc.isoformat()},
+            )
+            await emit_event(
+                event_type="ops.items.new",
+                source="internal",
+                dims={"site_key": source.site_key if source else None},
+                metrics={"value": float(items_new or 0)},
+                payload={"run_id": int(completed_run.id), "ts": now_utc.isoformat()},
+            )
+            await emit_event(
+                event_type=f"ops.runs.{final_status}",
+                source="internal",
+                dims={"site_key": source.site_key if source else None},
+                metrics={"value": 1.0},
+                payload={"run_id": int(completed_run.id), "ts": now_utc.isoformat()},
+            )
+        except Exception:
+            pass
     return {"status": "ok"}
 
 @router.post("/sources/{source_id:int}/report-logs", summary="Обновить логи источника")
@@ -2165,7 +2228,25 @@ async def update_merchant(
 async def get_queue_stats(
     _ = Depends(verify_internal_token)
 ):
-    return await _fetch_rabbit_queue_stats()
+    queue = await _fetch_rabbit_queue_stats()
+    try:
+        if queue.get("status") == "ok":
+            await emit_event(
+                event_type="ops.queue_updated",
+                source="internal",
+                dims={},
+                metrics={
+                    "messages_total": float(queue.get("messages_total") or 0),
+                    "messages_ready": float(queue.get("messages_ready") or 0),
+                    "messages_unack": float(queue.get("messages_unacknowledged") or 0),
+                    "consumers": float(queue.get("consumers") or 0),
+                    "rate_publish": float(queue.get("rate_publish") or 0),
+                },
+                payload={**queue, "ts": datetime.now(timezone.utc).isoformat()},
+            )
+    except Exception:
+        pass
+    return queue
 
 
 @router.get("/queues/tasks")
@@ -2462,6 +2543,30 @@ async def _compute_ops_overview_payload(
     run_status["running"] = int(
         sum(len((w or {}).get("active_tasks") or []) for w in workers)
     )
+    try:
+        await emit_event(
+            event_type="ops.runs.running",
+            source="internal",
+            dims={},
+            metrics={"value": float(run_status.get("running", 0) or 0)},
+            payload={"ts": datetime.now(timezone.utc).isoformat()},
+        )
+        await emit_event(
+            event_type="ops.runs.completed",
+            source="internal",
+            dims={},
+            metrics={"value": float(run_status.get("completed", 0) or 0)},
+            payload={"ts": datetime.now(timezone.utc).isoformat()},
+        )
+        await emit_event(
+            event_type="ops.runs.error",
+            source="internal",
+            dims={},
+            metrics={"value": float(run_status.get("error", 0) or 0)},
+            payload={"ts": datetime.now(timezone.utc).isoformat()},
+        )
+    except Exception:
+        pass
 
     now_utc = datetime.now(timezone.utc)
 
