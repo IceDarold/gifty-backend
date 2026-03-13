@@ -771,9 +771,11 @@ func (c *Client) ProductsLatest(ctx context.Context, limit, offset int, search, 
 		countQ += " AND merchant = ?"
 		countArgs = append(countArgs, merchant)
 	}
-	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
+	var totalUint uint64
+	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&totalUint); err != nil {
 		return nil, 0, err
 	}
+	total = int(totalUint)
 	q += " ORDER BY merchant, category, product_id LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 	rows, err := c.conn.Query(ctx, q, args...)
@@ -808,9 +810,11 @@ func (c *Client) CategoriesLatest(ctx context.Context, limit, offset int, search
 		countQ += " AND positionCaseInsensitiveUTF8(name, ?) > 0"
 		countArgs = append(countArgs, search)
 	}
-	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&total); err != nil {
+	var totalUint uint64
+	if err = c.conn.QueryRow(ctx, countQ, countArgs...).Scan(&totalUint); err != nil {
 		return nil, 0, err
 	}
+	total = int(totalUint)
 	q += " ORDER BY site_key, category_id LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 	rows, err := c.conn.Query(ctx, q, args...)
