@@ -4,10 +4,12 @@ import argparse
 import asyncio
 import logging
 import os
+import time
 from datetime import datetime, timezone, timedelta
 from typing import Iterable, List, Optional, Tuple
 
 from clickhouse_driver import Client
+from prometheus_client import CollectorRegistry, Counter, Gauge, Histogram, push_to_gateway
 from sqlalchemy import and_, or_, select
 
 from app.config import get_settings
@@ -15,6 +17,35 @@ from app.db import get_session_context
 from app.models import LLMLog
 
 logger = logging.getLogger("pg_ch_backfill")
+
+METRICS_REGISTRY = CollectorRegistry()
+backfill_rows_total = Counter(
+    "pg_ch_backfill_rows_total",
+    "Rows backfilled into ClickHouse",
+    ["table"],
+    registry=METRICS_REGISTRY,
+)
+backfill_duration_seconds = Histogram(
+    "pg_ch_backfill_duration_seconds",
+    "Backfill duration in seconds",
+    buckets=(1, 5, 10, 30, 60, 120, 300, 600, 1200),
+    registry=METRICS_REGISTRY,
+)
+backfill_window_seconds = Gauge(
+    "pg_ch_backfill_window_seconds",
+    "Backfill window duration in seconds",
+    registry=METRICS_REGISTRY,
+)
+backfill_window_from_ts = Gauge(
+    "pg_ch_backfill_window_from_timestamp",
+    "Backfill window start timestamp (seconds since epoch)",
+    registry=METRICS_REGISTRY,
+)
+backfill_window_to_ts = Gauge(
+    "pg_ch_backfill_window_to_timestamp",
+    "Backfill window end timestamp (seconds since epoch)",
+    registry=METRICS_REGISTRY,
+)
 
 
 def _ch_client() -> Client:
@@ -282,17 +313,25 @@ async def _backfill_llm_logs(session, client: Client, window_from: datetime, win
 
 
 async def run_backfill(window_from: datetime, window_to: datetime, tables: List[str], batch_size: int) -> None:
+    start = time.time()
+    backfill_window_seconds.set(max(0.0, (window_to - window_from).total_seconds()))
+    backfill_window_from_ts.set(window_from.timestamp())
+    backfill_window_to_ts.set(window_to.timestamp())
     client = _ch_client()
     async with get_session_context() as session:
         if "llm_logs" in tables:
             logger.info("Backfill llm_logs: %s -> %s", _to_iso(window_from), _to_iso(window_to))
             count = await _backfill_llm_logs(session, client, window_from, window_to, batch_size)
             logger.info("Backfill llm_logs rows=%s", count)
+            backfill_rows_total.labels(table="llm_logs").inc(count)
         for name in tables:
             if name == "llm_logs":
                 continue
             logger.warning("Backfill table '%s' not implemented (skip)", name)
     _update_backfill_state(client, window_from, window_to)
+    duration = max(0.0, time.time() - start)
+    backfill_duration_seconds.observe(duration)
+    _push_metrics()
 
 
 def _resolve_window(args_from: Optional[str], args_to: Optional[str]) -> Tuple[datetime, datetime]:
@@ -324,6 +363,17 @@ async def run_auto(tables: List[str], batch_size: int) -> None:
     window_to = now
     logger.info("Gap %.0fs detected; running backfill", gap)
     await run_backfill(window_from, window_to, tables, batch_size)
+
+
+def _push_metrics() -> None:
+    gateway = os.getenv("PROMETHEUS_PUSHGATEWAY", "").strip()
+    if not gateway:
+        return
+    job = os.getenv("BACKFILL_METRICS_JOB", "pg_ch_backfill")
+    try:
+        push_to_gateway(gateway, job=job, registry=METRICS_REGISTRY)
+    except Exception:
+        logger.exception("Failed to push backfill metrics to Prometheus gateway")
 
 
 def parse_args() -> argparse.Namespace:
