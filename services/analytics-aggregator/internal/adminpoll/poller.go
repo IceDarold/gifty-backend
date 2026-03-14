@@ -207,7 +207,9 @@ func (p *Poller) pollOps(ctx context.Context) {
 		discoveryCounts, _ = p.ch.OpsDiscoveryCountsBySite(chCtx)
 		productCounts, _ = p.ch.ProductsCountBySite(chCtx)
 		runCounts, _ = p.ch.OpsRunCountsBySource(chCtx)
+		var sourcesAll []map[string]interface{}
 		if sites, err := p.ch.OpsSitesLatest(chCtx); err == nil {
+			sourcesAll = sites
 			sites = dedupeSitesByKey(sites)
 			enrichOpsSiteCounters(sites, discoveryCounts, productCounts, runCounts)
 			publishOpsSites(p, sites)
@@ -229,25 +231,70 @@ func (p *Poller) pollOps(ctx context.Context) {
 			p.publish("ops.discovery", map[string]interface{}{"items": listSources})
 		}
 		if runs, err := p.ch.OpsRunsLatest(chCtx); err == nil {
+			sourceByID := map[string]map[string]interface{}{}
+			for _, src := range sourcesAll {
+				if src == nil {
+					continue
+				}
+				id := fmt.Sprintf("%v", src["id"])
+				if id == "" {
+					id = fmt.Sprintf("%v", src["source_id"])
+				}
+				if id == "" {
+					continue
+				}
+				sourceByID[id] = src
+			}
 			details := map[string]interface{}{}
+			enriched := make([]map[string]interface{}, 0, len(runs))
 			for _, run := range runs {
 				if run == nil {
 					continue
 				}
+				if srcID := fmt.Sprintf("%v", run["source_id"]); srcID != "" {
+					if src, ok := sourceByID[srcID]; ok {
+						if run["site_key"] == nil || run["site_key"] == "" {
+							run["site_key"] = src["site_key"]
+						}
+						if run["source_url"] == nil || run["source_url"] == "" {
+							run["source_url"] = src["url"]
+						}
+						if run["source_name"] == nil || run["source_name"] == "" {
+							if cfg, ok := src["config"].(map[string]interface{}); ok {
+								if name := fmt.Sprintf("%v", cfg["discovery_name"]); name != "" {
+									run["source_name"] = name
+								}
+							}
+							if run["source_name"] == nil || run["source_name"] == "" {
+								run["source_name"] = src["name"]
+							}
+						}
+						if run["category_name"] == nil || run["category_name"] == "" {
+							if cfg, ok := src["config"].(map[string]interface{}); ok {
+								if name := fmt.Sprintf("%v", cfg["discovery_name"]); name != "" {
+									run["category_name"] = name
+								}
+							}
+						}
+					}
+				}
 				id := fmt.Sprintf("%v", run["id"])
 				if id == "" {
-					continue
+					id = fmt.Sprintf("%v", run["run_id"])
 				}
-				details[id] = run
+				if id != "" {
+					details[id] = run
+				}
+				enriched = append(enriched, run)
 			}
 			p.publish("ops.run_details", details)
 			// Use CH for completed/error (API endpoints are not available).
-			p.publish("ops.runs.completed", map[string]interface{}{"items": filterByStatus(runs, "completed")})
-			p.publish("ops.runs.error", map[string]interface{}{"items": filterByStatus(runs, "error")})
+			p.publish("ops.runs.completed", map[string]interface{}{"items": filterByStatus(enriched, "completed")})
+			p.publish("ops.runs.error", map[string]interface{}{"items": filterByStatus(enriched, "error")})
 			// Only fallback to CH for active/queued if API didn't populate them yet.
 			if p.cfg.AdminAPIBase == "" {
-				p.publish("ops.runs.active", map[string]interface{}{"items": filterByStatus(runs, "processing")})
-				p.publish("ops.runs.queued", map[string]interface{}{"items": filterByStatus(runs, "queued", "pending")})
+				p.publish("ops.runs.active", map[string]interface{}{"items": filterByStatus(enriched, "processing")})
+				p.publish("ops.runs.queued", map[string]interface{}{"items": filterByStatus(enriched, "queued", "pending")})
 			}
 		}
 	}
