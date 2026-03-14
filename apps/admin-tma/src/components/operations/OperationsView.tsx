@@ -412,10 +412,34 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     () => (queuedRuns.data?.items || []),
     [queuedRuns.data?.items],
   );
-  const runningItems = useMemo(
-    () => (activeRuns.data?.items || []).filter((r: any) => r.status === "running"),
-    [activeRuns.data?.items],
-  );
+  const runningItems = useMemo(() => {
+    const fromApi = (activeRuns.data?.items || []).filter((r: any) => r.status === "running");
+    if (fromApi.length) return fromApi;
+    const workers = overview.data?.workers?.items || [];
+    const fallback: any[] = [];
+    workers.forEach((worker: any, idx: number) => {
+      const tasks = Array.isArray(worker.active_tasks) ? worker.active_tasks : [];
+      tasks.forEach((task: any, tIdx: number) => {
+        const runId = task.run_id ?? null;
+        fallback.push({
+          run_id: runId ?? 3_000_000_000 + idx * 1000 + tIdx,
+          source_id: task.source_id ?? null,
+          site_key: task.site_key,
+          source_name: task.site_key || task.url,
+          source_type: task.strategy ? "list" : undefined,
+          category_name: task.strategy === "list" ? task.site_key : undefined,
+          source_url: task.url,
+          status: "running",
+          items_scraped: 0,
+          categories_scraped: 0,
+          items_new: 0,
+          created_at: task.started_at,
+          updated_at: task.started_at,
+        });
+      });
+    });
+    return fallback;
+  }, [activeRuns.data?.items, overview.data?.workers?.items]);
   const completedItems = useMemo(
     () => (completedRuns.data?.items || []),
     [completedRuns.data?.items],
