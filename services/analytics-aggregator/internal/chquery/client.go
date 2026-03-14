@@ -769,6 +769,58 @@ func (c *Client) SourcesLatestBySiteAndType(ctx context.Context, siteKey string,
 	return out, nil
 }
 
+func (c *Client) SourcesLatestList(ctx context.Context, limit, offset int, search string, siteKey string, sourceType string) (items []map[string]interface{}, total int, err error) {
+	if limit <= 0 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	where := "deleted = 0"
+	args := []interface{}{}
+	if sourceType != "" {
+		where += " AND JSONExtractString(payload_json,'type') = ?"
+		args = append(args, sourceType)
+	}
+	if siteKey != "" {
+		where += " AND JSONExtractString(payload_json,'site_key') = ?"
+		args = append(args, siteKey)
+	}
+	if search != "" {
+		where += " AND (positionCaseInsensitiveUTF8(JSONExtractString(payload_json,'site_key'), ?) > 0" +
+			" OR positionCaseInsensitiveUTF8(JSONExtractString(payload_json,'url'), ?) > 0" +
+			" OR positionCaseInsensitiveUTF8(JSONExtractString(payload_json,'name'), ?) > 0" +
+			" OR positionCaseInsensitiveUTF8(JSONExtractString(payload_json,'config.discovery_name'), ?) > 0)"
+		args = append(args, search, search, search, search)
+	}
+	countQ := "SELECT count() FROM sources_latest FINAL WHERE " + where
+	var totalUint uint64
+	if err = c.conn.QueryRow(ctx, countQ, args...).Scan(&totalUint); err != nil {
+		return nil, 0, err
+	}
+	total = int(totalUint)
+
+	q := "SELECT payload_json FROM sources_latest FINAL WHERE " + where + " ORDER BY version DESC LIMIT ? OFFSET ?"
+	argsWithPage := append(args, limit, offset)
+	rows, err := c.conn.Query(ctx, q, argsWithPage...)
+	if err != nil {
+		return nil, 0, err
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var payload string
+		if err := rows.Scan(&payload); err != nil {
+			return nil, 0, err
+		}
+		var item map[string]interface{}
+		if err := json.Unmarshal([]byte(payload), &item); err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}
+
 func (c *Client) SourceLatest(ctx context.Context, id int) (map[string]interface{}, error) {
 	return c.latestStateOne(ctx, "sources_latest", "source_id = ?", id)
 }

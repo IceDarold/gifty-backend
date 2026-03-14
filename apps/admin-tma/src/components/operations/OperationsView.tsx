@@ -292,7 +292,7 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
   const categoryLimit = 200;
   const [categoryPage, setCategoryPage] = useState(0);
   const categoryQuery = useAdminRequestQuery<any>(
-    "catalog.categories",
+    "ops.categories",
     {
       limit: categoryLimit,
       offset: categoryPage * categoryLimit,

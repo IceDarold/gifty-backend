@@ -50,8 +50,8 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     const retryRegistry = useRetryRegistry();
     const request = useAdminRequest();
     const categoryDetails = useAdminRequestQuery<any>(
-        selectedCategoryId ? "ops.discovery_detail" : "",
-        { id: selectedCategoryId || 0 },
+        selectedCategoryId ? `dashboard.source_detail:${selectedCategoryId}` : "",
+        {},
         [selectedCategoryId],
     );
 
@@ -144,7 +144,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
     }, [sourceId, trendGranularity, trendBuckets, getIntervalMs, sourceTrend.refetch]);
     const trendData = sourceTrend.data?.items || [];
     const categoriesQuery = useAdminRequestQuery<any>(
-        sourceId ? "catalog.categories" : "",
+        sourceId ? "ops.categories" : "",
         {
             limit: CATEGORY_PAGE_SIZE,
             offset: categoryPage * CATEGORY_PAGE_SIZE,
@@ -184,7 +184,7 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
         }
     }, [categoryPage, safeCategoryPage]);
     const categoryItem =
-        categoryDetails.data?.item ||
+        categoryDetails.data ||
         pagedRelatedSources.find((rel) => String(rel.category_id) === String(selectedCategoryId)) ||
         pagedRelatedSources.find((rel) => String(rel.id) === String(selectedCategoryId));
 

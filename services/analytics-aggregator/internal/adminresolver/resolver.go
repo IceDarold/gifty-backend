@@ -278,6 +278,23 @@ func (r *Resolver) Resolve(ctx context.Context, channel string, params map[strin
 			"items": items,
 			"total": total,
 		}, true, nil
+	case channel == "ops.categories":
+		if r.ch == nil {
+			return nil, false, fmt.Errorf("clickhouse not configured")
+		}
+		limit, offset, search := parsePaging(params)
+		siteKey := ""
+		if v, ok := params["site_key"]; ok {
+			siteKey = fmt.Sprintf("%v", v)
+		}
+		items, total, err := r.ch.SourcesLatestList(ctx, limit, offset, search, siteKey, "list")
+		if err != nil {
+			return nil, false, err
+		}
+		return map[string]interface{}{
+			"items": items,
+			"total": total,
+		}, true, nil
 	case channel == "catalog.products":
 		if r.ch == nil {
 			return nil, false, fmt.Errorf("clickhouse not configured")
