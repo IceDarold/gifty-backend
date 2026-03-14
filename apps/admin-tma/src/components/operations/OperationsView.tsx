@@ -304,14 +304,21 @@ export function OperationsView({ onOpenSourceDetails }: OperationsViewProps) {
     const sources: any[] = Array.isArray(categoryQuery.data?.items) ? categoryQuery.data.items : [];
     return sources.map((s) => ({
       id: Number(s.id),
+      category_id: Number(s.category_id ?? s.id ?? 0),
       site_key: String(s.site_key || ""),
       url: String(s.url || ""),
-      status: String(s.status || ""),
+      status: String(s.status || s.state || ""),
       last_synced_at: s.last_synced_at ? String(s.last_synced_at) : null,
       next_sync_at: s.next_sync_at ? String(s.next_sync_at) : "",
       total_items: Number(s.total_items || 0),
       is_active: Boolean(s.is_active),
-      config: { discovery_name: s?.config?.discovery_name ? String(s.config.discovery_name) : undefined },
+      config: {
+        discovery_name: s?.config?.discovery_name
+          ? String(s.config.discovery_name)
+          : s?.name
+            ? String(s.name)
+            : undefined,
+      },
     }));
   }, [categoryQuery.data]);
   const visibleSites = useMemo(

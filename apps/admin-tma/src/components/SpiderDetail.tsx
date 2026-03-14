@@ -166,7 +166,11 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             total_items: Number(item.total_items || item.items_total || 0),
             is_active: Boolean(item.is_active ?? true),
             config: {
-                discovery_name: item?.config?.discovery_name ? String(item.config.discovery_name) : undefined,
+                discovery_name: item?.config?.discovery_name
+                    ? String(item.config.discovery_name)
+                    : item?.name
+                        ? String(item.name)
+                        : undefined,
             },
         }));
     }, [categoriesQuery.data, parserSlug]);
@@ -179,7 +183,10 @@ export function SpiderDetail({ sourceId, initialSource, onClose, onForceRun: _on
             setCategoryPage(safeCategoryPage);
         }
     }, [categoryPage, safeCategoryPage]);
-    const categoryItem = categoryDetails.data?.item;
+    const categoryItem =
+        categoryDetails.data?.item ||
+        pagedRelatedSources.find((rel) => String(rel.category_id) === String(selectedCategoryId)) ||
+        pagedRelatedSources.find((rel) => String(rel.id) === String(selectedCategoryId));
 
     useEffect(() => {
         setNameDraft(parserDisplayName);
